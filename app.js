@@ -275,7 +275,7 @@ ROUTES[''] = async (v) => {
     <div class="grid2">
       <button class="card tile" data-act="dayEmotion" data-day="${todayKey}">
         <span class="hand">Сьогодні</span>
-        ${todayEmo ? `${Emo.badge(todayEmo, 54)}<span class="serif" style="font-size:15px">${esc(todayEmo.name)}</span>`
+        ${todayEmo ? `<span class="row" style="gap:6px">${Emo.badge(todayEmo, 54)}${dayEmotions(todayKey).length > 1 ? Emo.stack(dayEmotions(todayKey).slice(1), 26, 3) : ''}</span><span class="serif" style="font-size:15px">${esc(todayEmo.name)}${dayEmotions(todayKey).length > 1 ? ` <span class="muted small">+${dayEmotions(todayKey).length - 1}</span>` : ''}</span>`
           : `<span class="emo" style="--c:transparent;--s:54px;border:1.5px dashed var(--accent);box-shadow:none;color:var(--accent)">＋</span><span class="serif" style="font-size:15px">Емоція дня</span>`}
       </button>
       <button class="card tile" data-go="/stats">
@@ -352,23 +352,29 @@ function openDayEmotion(key, onDone) {
   const date = D.fromKey(key);
   const suggested = S.entries.filter((e) => e.date.startsWith(key)).sort((a, b) => a.date.localeCompare(b.date))
     .flatMap((e) => e.emotions || []).filter((x, i, a) => a.indexOf(x) === i).map(Emo.get).filter(Boolean);
-  const build = () => {
-    const cur = S.dayMoods[key] ? [S.dayMoods[key]] : [];
-    return `<p class="muted small" style="margin-top:0">${D.long(date)} — одна емоція, яка найкраще описує весь день. Вона показується в календарі, статистиці й підсумках.</p>
-      ${suggested.length ? `<div class="card" style="margin-bottom:12px"><div class="serif" style="margin-bottom:10px">З твоїх записів цього дня</div>${emotionGrid(suggested, cur)}</div>` : ''}
-      ${CATS.map((c) => `<div class="card" style="margin-bottom:12px"><div class="serif" style="margin-bottom:10px">${c.title}</div>${emotionGrid(Emo.inCat(c.id), cur)}</div>`).join('')}
-      ${cur.length ? '<button class="btn danger full" data-reset="1">Скинути емоцію дня</button>' : ''}`;
-  };
-  openSheet('Емоція дня', build(), (body, close) => {
+  const cur = dayEmotions(key).slice();
+  const build = () => `<p class="muted small" style="margin-top:0">${D.long(date)} — обери одну або кілька емоцій, які описують цей день.
+      Перша (★) — головна: вона показується в календарі та на графіку, а інші теж рахуються в статистиці.</p>
+      ${cur.length ? `<div class="chips" style="margin-bottom:12px">${cur.map(Emo.get).filter(Boolean).map((x, i) => Emo.chip(x, i === 0)).join('')}</div>` : ''}
+      ${suggested.length ? `<div class="card" style="margin-bottom:12px"><div class="serif" style="margin-bottom:10px">З твоїх записів цього дня</div>${emotionGrid(suggested, cur, true)}</div>` : ''}
+      ${CATS.map((c) => `<div class="card" style="margin-bottom:12px"><div class="serif" style="margin-bottom:10px">${c.title}</div>${emotionGrid(Emo.inCat(c.id), cur, true)}</div>`).join('')}
+      ${cur.length ? '<button class="btn danger full" data-reset="1">Скинути емоції дня</button>' : ''}`;
+  openSheet('Емоції дня', build(), (body, close) => {
     body.addEventListener('click', async (e) => {
       const b = e.target.closest('[data-emo],[data-reset]');
       if (!b) return;
-      if (b.dataset.reset) { delete S.dayMoods[key]; await DB.del('dayMoods', key); }
-      else { S.dayMoods[key] = b.dataset.emo; await DB.put('dayMoods', { key, emotion: b.dataset.emo }); }
-      close();
-      if (onDone) onDone(); else render();
+      if (b.dataset.reset) cur.length = 0;
+      else {
+        const i = cur.indexOf(b.dataset.emo);
+        if (i >= 0) cur.splice(i, 1); else cur.push(b.dataset.emo);
+      }
+      await setDayEmotions(key, cur);
+      const top = body.parentElement.scrollTop;
+      body.innerHTML = build();
+      body.parentElement.scrollTop = top;
+      if (b.dataset.reset) close();
     });
-  });
+  }, { onClose: () => { if (onDone) onDone(); else render(); } });
 }
 
 /* ---------- Вибір кількох емоцій ---------- */
@@ -427,7 +433,8 @@ ROUTES.entry = async (v, parts) => {
   const e = S.entries.find((x) => x.id === parts[1]);
   if (!e) { go('/', true); return; }
   const d = D.parse(e.date);
-  const dayEmo = S.dayMoods[e.date.slice(0, 10)] && Emo.get(S.dayMoods[e.date.slice(0, 10)]);
+  const dayList = dayEmotions(e.date.slice(0, 10)).map(Emo.get).filter(Boolean);
+  const dayEmo = dayList[0];
   v.innerHTML = `${topbar('', `<button class="icon-btn" data-act="favEntry" data-id="${e.id}">${icon(e.favorite ? 'starFill' : 'star')}</button>
       <button class="icon-btn" data-go="/edit/${e.id}">${icon('edit')}</button>
       <button class="icon-btn" data-act="entryMore" data-id="${e.id}">${icon('more')}</button>`)}
@@ -435,7 +442,7 @@ ROUTES.entry = async (v, parts) => {
       <div><div class="hand" style="font-size:18px">${cap(WEEKDAYS[d.getDay()])}</div>
         <div class="row" style="align-items:baseline"><h1 style="font-size:30px">${D.dm(d)}</h1><span class="muted small">${d.getFullYear()} · ${D.time(d)}</span></div></div>
       ${(e.emotions || []).length ? `<div class="chips">${e.emotions.map(Emo.get).filter(Boolean).map((x) => Emo.chip(x)).join('')}</div>` : ''}
-      ${dayEmo ? `<a class="row small muted" data-go="/day/${e.date.slice(0, 10)}">${Emo.badge(dayEmo, 22)} Емоція дня: ${esc(dayEmo.name)} ›</a>` : ''}
+      ${dayEmo ? `<a class="row small muted" data-go="/day/${e.date.slice(0, 10)}">${Emo.stack(dayList.map((x) => x.id), 22, 5)} ${dayList.length > 1 ? 'Емоції дня' : 'Емоція дня: ' + esc(dayEmo.name)} ›</a>` : ''}
       ${e.title ? `<h2 style="font-size:26px">${esc(e.title)}</h2>` : ''}
       ${orn()}
       <div class="rich" id="entry-body" style="min-height:0">${e.html || ''}</div>
@@ -518,8 +525,8 @@ ROUTES.edit = async (v, parts, q) => {
   savedRange = null;
   const t = theme();
   const dayEmoHTML = () => {
-    const de = S.dayMoods[e.date.slice(0, 10)] && Emo.get(S.dayMoods[e.date.slice(0, 10)]);
-    return de ? `${Emo.badge(de, 22)} Емоція дня` : `☀︎ Емоція дня`;
+    const list = dayEmotions(e.date.slice(0, 10));
+    return list.length ? `${Emo.stack(list, 22, 3)} ${list.length > 1 ? 'Емоції дня' : 'Емоція дня'}` : `☀︎ Емоції дня`;
   };
 
   v.innerHTML = `
@@ -887,7 +894,7 @@ function dayPanel(key, days) {
       <div class="grow"><div class="serif" style="font-size:19px">${D.long(d)}</div>
         ${info?.score != null ? `<div class="hand">${Emo.moodLabel(info.score)}</div>` : ''}</div>
       <button data-act="dayEmotion" data-day="${key}" class="center" style="color:var(--accent)">
-        ${main ? `${Emo.badge(main, 40)}<div class="small muted" style="font-size:9px">${info.dayEmotion ? 'емоція дня' : 'авто'}</div>` : `<span class="dashed">＋ Емоція дня</span>`}
+        ${main ? `${Emo.badge(main, 40)}<div class="small muted" style="font-size:9px">${info.dayEmotions ? (info.dayEmotions.length > 1 ? `емоції дня (${info.dayEmotions.length})` : 'емоція дня') : 'авто'}</div>` : `<span class="dashed">＋ Емоції дня</span>`}
       </button>
     </div>
     ${info?.all?.length > 1 ? Emo.stack(info.all, 24, 8) : ''}

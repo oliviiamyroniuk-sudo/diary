@@ -262,7 +262,7 @@ const TEXT_COLORS = [['Як у темі', ''], ['Тьмяне золото', '#C
 const S = {
   entries: [],          // записи (без фото-даних)
   photoMeta: {},        // id -> {id, entryId, caption}
-  dayMoods: {},         // 'YYYY-MM-DD' -> emotionId
+  dayMoods: {},         // 'YYYY-MM-DD' -> [emotionId, ...] (перша — головна)
   highlights: {},       // '2026-11' | '2026' -> {key, url}
   settings: {
     name: '', themeId: 'darkForest', accent: '', card: '', bg: '', decor: true, animate: true,
@@ -274,11 +274,28 @@ async function loadAll() {
   const [entries, metas, moods, kv] = await Promise.all([DB.all('entries'), DB.all('photoMeta'), DB.all('dayMoods'), DB.all('kv')]);
   S.entries = entries.sort((a, b) => b.date.localeCompare(a.date));
   S.photoMeta = Object.fromEntries(metas.map((m) => [m.id, m]));
-  S.dayMoods = Object.fromEntries(moods.map((m) => [m.key, m.emotion]));
+  S.dayMoods = Object.fromEntries(moods.map((m) => [m.key, normDay(m.emotions || m.emotion)]).filter(([, v]) => v.length));
   for (const row of kv) if (row.key === 'settings') Object.assign(S.settings, row.value);
   const hls = await DB.all('highlights');
   S.highlights = {};
   for (const h of hls) S.highlights[h.key] = { key: h.key, url: URL.createObjectURL(h.thumb || h.full), at: h.at };
+}
+
+/** Емоції дня завжди як масив (старі записи мали одну емоцію рядком). */
+function normDay(v) {
+  if (!v) return [];
+  return (Array.isArray(v) ? v : [v]).filter(Boolean);
+}
+function dayEmotions(key) { return normDay(S.dayMoods[key]); }
+async function setDayEmotions(key, list) {
+  list = normDay(list).filter((x, i, a) => a.indexOf(x) === i);
+  if (list.length) {
+    S.dayMoods[key] = list;
+    await DB.put('dayMoods', { key, emotions: list, emotion: list[0] });
+  } else {
+    delete S.dayMoods[key];
+    await DB.del('dayMoods', key);
+  }
 }
 
 async function saveSettings() { await DB.put('kv', { key: 'settings', value: S.settings }); }
@@ -416,14 +433,21 @@ function buildIndex() {
     }
     d.photos += (e.photos || []).length;
   }
-  for (const [k, id] of Object.entries(S.dayMoods)) {
-    if (!id) continue;
+  for (const [k, v] of Object.entries(S.dayMoods)) {
+    const list = normDay(v);
+    if (!list.length) continue;
     const d = days[k] || (days[k] = { key: k, date: D.fromKey(k), entries: [], counts: {}, order: [], photos: 0 });
-    d.dayEmotion = id;
+    d.dayEmotion = list[0];
+    d.dayEmotions = list;
+    // емоції дня, яких немає в записах, теж враховуються
+    for (const id of list) {
+      if (!d.order.includes(id)) { d.order.push(id); d.counts[id] = 1; d.extra = (d.extra || []).concat(id); }
+    }
   }
   for (const d of Object.values(days)) {
     d.main = d.dayEmotion || d.order.slice().sort((a, b) => (d.counts[b] - d.counts[a]) || (d.order.indexOf(a) - d.order.indexOf(b)))[0] || null;
-    d.all = d.main ? [d.main, ...d.order.filter((x) => x !== d.main)] : d.order.slice();
+    const head = d.dayEmotions || (d.main ? [d.main] : []);
+    d.all = [...head, ...d.order.filter((x) => !head.includes(x))];
     const scores = [];
     for (const [id, c] of Object.entries(d.counts)) { const em = Emo.get(id); if (em) for (let i = 0; i < c; i++) scores.push(em.score); }
     const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
@@ -485,7 +509,7 @@ function computeStats(days, start, end) {
         pairs[k] = (pairs[k] || 0) + 1;
       }
     }
-    if (!d.entries.length && d.dayEmotion) counts[d.dayEmotion] = (counts[d.dayEmotion] || 0) + 1;
+    for (const id of d.extra || []) counts[id] = (counts[id] || 0) + 1;
   }
   for (const d of scored) if (d.main) mains[d.main] = (mains[d.main] || 0) + 1;
   st.counts = Object.entries(counts).sort((a, b) => b[1] - a[1]);
@@ -589,7 +613,7 @@ async function restoreBackup(file) {
     S.photoMeta[p.id] = meta;
   }
   for (const [k, v] of Object.entries(manifest.dayMoods || {})) {
-    if (!S.dayMoods[k] && v) { S.dayMoods[k] = v; await DB.put('dayMoods', { key: k, emotion: v }); }
+    if (!dayEmotions(k).length && normDay(v).length) await setDayEmotions(k, v);
   }
   for (const h of manifest.highlights || []) {
     if (S.highlights[h.key]) continue;
