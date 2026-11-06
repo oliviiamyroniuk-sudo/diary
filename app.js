@@ -1,0 +1,1743 @@
+'use strict';
+/* ==========================================================================
+   Мій щоденник — екрани та взаємодія
+   ========================================================================== */
+
+const View = { leave: null, stop: null };
+const scrollMem = {};
+let navDepth = 0;
+let headerURL = '';
+let bgURL = '';
+
+/* ---------- Тема ---------- */
+function theme() {
+  const base = THEMES.find((t) => t.id === S.settings.themeId) || THEMES[0];
+  const t = { ...base };
+  if (S.settings.accent) t.accent = S.settings.accent;
+  if (S.settings.card) t.card = S.settings.card;
+  if (S.settings.bg) { t.bgTop = S.settings.bg; t.bgBottom = S.settings.bg; }
+  return t;
+}
+
+function hexToRgba(hex, a) {
+  const h = hex.replace('#', '');
+  const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h.slice(0, 6), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
+function applyTheme() {
+  const t = theme();
+  const st = document.documentElement.style;
+  st.setProperty('--bg-top', t.bgTop);
+  st.setProperty('--bg-bottom', t.bgBottom);
+  st.setProperty('--card', t.card);
+  st.setProperty('--card-a', hexToRgba(t.card, t.id === 'minimalist' ? 1 : 0.92));
+  st.setProperty('--border', t.border);
+  st.setProperty('--accent', t.accent);
+  st.setProperty('--text', t.text);
+  st.setProperty('--sub', t.subc);
+  st.setProperty('--on-accent', t.dark ? '#141414' : '#ffffff');
+  st.setProperty('--body-font', S.settings.serif ? 'var(--serif)' : 'var(--sans)');
+  st.setProperty('--body-size', (S.settings.size || 17) + 'px');
+  document.documentElement.style.colorScheme = t.dark ? 'dark' : 'light';
+  const meta = $('meta[name="theme-color"]');
+  if (meta) meta.content = t.bgTop;
+
+  if (headerURL) URL.revokeObjectURL(headerURL);
+  headerURL = S.settings.headerImg ? URL.createObjectURL(S.settings.headerImg) : '';
+  if (bgURL) URL.revokeObjectURL(bgURL);
+  bgURL = S.settings.bgImg ? URL.createObjectURL(S.settings.bgImg) : '';
+
+  const bg = $('#bg');
+  let html = '';
+  if (bgURL) html += `<div class="bg-img" style="background-image:url(${bgURL})"></div><div class="bg-fade"></div>`;
+  if (S.settings.decor && t.decor.length) {
+    const r = rng(11);
+    for (let i = 0; i < 16; i++) {
+      html += `<span class="decor" style="left:${(r() * 100).toFixed(1)}%;top:${(r() * 100).toFixed(1)}%;font-size:${Math.round(10 + r() * 12)}px;opacity:${(0.05 + r() * 0.08).toFixed(2)};transform:rotate(${Math.round(-40 + r() * 80)}deg)">${t.decor[i % t.decor.length]}</span>`;
+    }
+  }
+  html += '<div class="grain"></div>';
+  bg.innerHTML = html;
+}
+
+/* ---------- Навігація ---------- */
+function parseHash() {
+  const h = location.hash.slice(1) || '/';
+  const [path, qs] = h.split('?');
+  return { parts: path.split('/').filter(Boolean).map(decodeURIComponent), q: new URLSearchParams(qs || '') };
+}
+function go(path, replace) {
+  if (replace) location.replace('#' + path);
+  else { navDepth++; location.hash = path; }
+}
+function back() {
+  if (navDepth > 0) { navDepth--; history.back(); } else go('/', true);
+}
+
+const ROUTES = {};
+
+async function render() {
+  if (View.leave) { const f = View.leave; View.leave = null; try { await f(); } catch (e) { console.error(e); } }
+  if (View.stop) { View.stop(); View.stop = null; }
+  closeAllSheets();
+  const { parts, q } = parseHash();
+  const name = parts[0] || '';
+  const v = $('#view');
+  v.innerHTML = '';
+  const fn = ROUTES[name] || ROUTES[''];
+  await fn(v, parts, q);
+  hydrate(v);
+  window.scrollTo(0, name === '' ? scrollMem.home || 0 : 0);
+}
+
+window.addEventListener('hashchange', render);
+window.addEventListener('scroll', () => { if ((parseHash().parts[0] || '') === '') scrollMem.home = window.scrollY; }, { passive: true });
+
+/* ---------- Делегування дотиків ---------- */
+const ACT = {};
+document.addEventListener('click', (ev) => {
+  const el = ev.target.closest('[data-go],[data-act]');
+  if (!el || el.closest('.viewer')) return;
+  if (el.dataset.go) { ev.preventDefault(); go(el.dataset.go, !!el.dataset.replace); return; }
+  const f = ACT[el.dataset.act];
+  if (f) { ev.preventDefault(); f(el, ev); }
+});
+
+ACT.back = () => back();
+
+/* ---------- Аркуші (нижні вікна) ---------- */
+function openSheet(title, html, onMount, opts = {}) {
+  const root = $('#sheet-root');
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `<div class="sheet-backdrop"></div><div class="sheet"><div class="grab"></div>
+    <div class="sheet-head"><h3>${title}</h3><button class="text-btn" data-sheet="close">${opts.doneText || 'Готово'}</button></div>
+    <div class="sheet-body">${html}</div></div>`;
+  root.appendChild(wrap);
+  const close = () => { if (!wrap.parentNode) return; wrap.remove(); opts.onClose && opts.onClose(); };
+  wrap.querySelector('.sheet-backdrop').addEventListener('click', close);
+  wrap.querySelector('[data-sheet="close"]').addEventListener('click', close);
+  if (onMount) onMount(wrap.querySelector('.sheet-body'), close);
+  hydrate(wrap);
+  return close;
+}
+function closeAllSheets() { $('#sheet-root').innerHTML = ''; }
+
+function menuSheet(title, items) {
+  const html = `<div class="menu-list">${items.map((it, i) => `<button data-i="${i}" class="${it.danger ? 'danger' : ''}">${it.icon ? icon(it.icon) : ''}<span>${esc(it.label)}</span></button>`).join('')}</div>`;
+  openSheet(title, html, (body, close) => {
+    body.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-i]');
+      if (!b) return;
+      close();
+      items[+b.dataset.i].run();
+    });
+  }, { doneText: 'Закрити' });
+}
+
+/* ---------- Спільні шматочки інтерфейсу ---------- */
+function topbar(title, right = '') {
+  return `<div class="topbar solid"><button class="icon-btn" data-act="back" aria-label="Назад">${icon('back')}</button>
+    <div class="title">${title}</div>${right || '<span style="width:42px;flex:none"></span>'}</div>`;
+}
+const orn = (txt) => `<div class="ornament">${esc(txt || theme().orn)}</div>`;
+const sectionTitle = (t, s) => `<div><div class="section-title">${t}</div>${s ? `<div class="section-sub">${s}</div>` : ''}</div>`;
+
+function entryCard(e, compact = false) {
+  const d = D.parse(e.date);
+  const t = theme();
+  const ph = e.photos || [];
+  let thumbs = '';
+  if (ph.length) {
+    thumbs = '<div class="thumbs">' + [0, 1, 2, 3].map((i) => {
+      const p = ph[i];
+      if (!p) return '<div></div>';
+      const more = i === 3 && ph.length > 4 ? `<div class="more">+${ph.length - 4}</div>` : '';
+      return `<div class="thumb"><img data-pid="${p}" alt="">${more}</div>`;
+    }).join('') + '</div>';
+  }
+  return `<a class="card entry-card ${compact ? 'compact' : ''}" data-go="/entry/${e.id}">
+    <div class="head">
+      <div class="row" style="align-items:baseline;gap:8px">
+        <span class="day">${pad(d.getDate())}</span>
+        <div><div class="month">${MONTHS_GEN[d.getMonth()]}</div><div class="meta">${WEEKDAYS[d.getDay()]} · ${D.time(d)}</div></div>
+      </div>
+      <div class="grow"></div>
+      <div style="text-align:right">${Emo.stack(e.emotions, compact ? 26 : 32, 4)}${e.favorite ? '<div style="color:var(--accent);font-size:13px;margin-top:4px">★</div>' : ''}</div>
+    </div>
+    ${e.title ? `<div class="title">${esc(e.title)}</div>` : ''}
+    ${e.text ? `<div class="preview">${esc(e.text.slice(0, 400))}</div>` : ''}
+    ${thumbs}
+    ${t.corner && S.settings.decor ? `<span class="corner">${t.corner}</span>` : ''}
+  </a>`;
+}
+
+function allPhotos() {
+  const list = [];
+  for (const e of S.entries) for (const p of e.photos || []) list.push({ id: p, entry: e, date: e.date });
+  return list; // від нових до старих
+}
+
+/* ---------- Перегляд фото на весь екран ---------- */
+function openViewer(pids, index = 0) {
+  if (!pids.length) return;
+  const el = document.createElement('div');
+  el.className = 'viewer';
+  el.innerHTML = `<div class="track">${pids.map((p) => `<div class="slide"><img data-pid="${p}" data-kind="full" alt=""></div>`).join('')}</div>
+    <div class="vtop"><button class="icon-btn" data-v="close">${icon('x')}</button><span class="badge" id="v-count"></span></div>
+    <div class="vbottom" id="v-info"></div>`;
+  $('#sheet-root').appendChild(el);
+  hydrate(el);
+  const track = $('.track', el);
+  let cur = index;
+  const info = () => {
+    const pid = pids[cur];
+    const meta = S.photoMeta[pid];
+    const e = meta && S.entries.find((x) => x.id === meta.entryId);
+    $('#v-count', el).textContent = pids.length > 1 ? `${cur + 1} / ${pids.length}` : '';
+    $('#v-info', el).innerHTML = `${meta?.caption ? `<div class="hand" style="color:#fff;font-size:17px;margin-bottom:4px">${esc(meta.caption)}</div>` : ''}
+      <div class="row"><span class="small" style="opacity:.8">${e ? D.dmy(D.parse(e.date)) + ', ' + D.time(D.parse(e.date)) : ''}</span><div class="grow"></div>
+      ${e ? `<button class="text-btn" data-v="open" data-id="${e.id}">Відкрити запис</button>` : ''}</div>`;
+  };
+  requestAnimationFrame(() => { track.scrollLeft = index * track.clientWidth; info(); });
+  track.addEventListener('scroll', () => {
+    const i = Math.round(track.scrollLeft / Math.max(track.clientWidth, 1));
+    if (i !== cur && i >= 0 && i < pids.length) { cur = i; info(); }
+  }, { passive: true });
+  let lastTap = 0;
+  el.addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-v]');
+    if (b?.dataset.v === 'close') { el.remove(); return; }
+    if (b?.dataset.v === 'open') { el.remove(); go('/entry/' + b.dataset.id); return; }
+    const slide = ev.target.closest('.slide');
+    if (slide) {
+      const now = Date.now();
+      if (now - lastTap < 320) slide.classList.toggle('zoom');
+      lastTap = now;
+    }
+  });
+}
+
+/* ==========================================================================
+   ГОЛОВНА
+   ========================================================================== */
+ROUTES[''] = async (v) => {
+  const t = theme();
+  const days = buildIndex();
+  const now = new Date();
+  const todayKey = D.key(now);
+  const mk = D.monthKey(now);
+  const monthEntries = S.entries.filter((e) => e.date.startsWith(mk));
+  const monthPhotos = monthEntries.reduce((a, e) => a + (e.photos || []).length, 0);
+  const monthDays = new Set(monthEntries.map((e) => e.date.slice(0, 10))).size;
+  const today = days[todayKey];
+  const todayEmo = today?.main ? Emo.get(today.main) : null;
+  const hl = S.highlights[mk];
+  const autoPhoto = monthEntries.find((e) => (e.photos || []).length)?.photos[0];
+  const weekStart = D.addDays(D.start(now), -D.wd(now));
+  const md = todayKey.slice(5);
+  const memory = S.entries.find((e) => e.date.slice(5, 10) === md && +e.date.slice(0, 4) < now.getFullYear());
+  const recent = allPhotos().slice(0, 12);
+  const standalone = window.navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+  const needBackup = S.entries.length > 0 && Date.now() - (S.settings.lastBackup || 0) > 7 * 86400000;
+  const name = (S.settings.name || '').trim();
+
+  // групи за місяцями
+  const groups = [];
+  for (const e of S.entries) {
+    const k = e.date.slice(0, 7);
+    if (!groups.length || groups[groups.length - 1].k !== k) groups.push({ k, items: [] });
+    groups[groups.length - 1].items.push(e);
+  }
+
+  v.innerHTML = `
+  <div class="topbar">
+    <button class="icon-btn" data-act="homeMenu" aria-label="Меню">${icon('menu')}</button>
+    <div class="grow"></div>
+    <button class="icon-btn" data-go="/search" aria-label="Пошук">${icon('search')}</button>
+    <button class="icon-btn" data-go="/settings" aria-label="Налаштування">${icon('gear')}</button>
+  </div>
+  <div class="hero">
+    ${headerURL ? `<div class="hero-img" style="background-image:url(${headerURL})"></div>` : '<canvas id="hero-canvas"></canvas>'}
+    <div class="fade"></div>
+    <div class="greet">
+      <div class="hello">${D.greeting()}${name ? ', ' + esc(name) : ''} ✦</div>
+      <div class="today">${D.long(now)}</div>
+      <div class="year">${now.getFullYear()}</div>
+    </div>
+  </div>
+  <div class="stack" style="padding:0 16px">
+    ${!standalone ? `<div class="card banner small"><b>Встанови щоденник на екран «Додому»</b><br>
+      У Safari натисни «Поділитися» ⬆︎ → «На екран „Додому“» і відкривай щоденник з іконки.
+      Записи, зроблені тут у браузері, і записи в застосунку з іконки зберігаються окремо.</div>` : ''}
+    ${needBackup ? `<button class="card banner row small" data-go="/settings" style="text-align:left">${icon('download')}
+      <span class="grow">Давно не було резервної копії. Збережи її, щоб записи точно не загубилися.</span>${icon('right')}</button>` : ''}
+    <div class="grid2">
+      <button class="card tile" data-act="dayEmotion" data-day="${todayKey}">
+        <span class="hand">Сьогодні</span>
+        ${todayEmo ? `${Emo.badge(todayEmo, 54)}<span class="serif" style="font-size:15px">${esc(todayEmo.name)}</span>`
+          : `<span class="emo" style="--c:transparent;--s:54px;border:1.5px dashed var(--accent);box-shadow:none;color:var(--accent)">＋</span><span class="serif" style="font-size:15px">Емоція дня</span>`}
+      </button>
+      <button class="card tile" data-go="/stats">
+        <span class="hand">${cap(MONTHS[now.getMonth()])}</span>
+        <span><span class="big-num">${monthEntries.length}</span> <span class="muted small">записів</span></span>
+        <span class="muted small">${monthDays} дн. · ${monthPhotos} фото</span>
+        <span class="small" style="color:var(--accent);font-weight:600">🔥 Серія: ${streak(days)}</span>
+      </button>
+    </div>
+    <div class="grid2">
+      <button class="photo-card" data-go="/month/${mk}">
+        ${hl ? `<img src="${hl.url}" alt="">` : autoPhoto ? `<img data-pid="${autoPhoto}" alt="">` : '<div class="empty">🖼️<br>Фото місяця</div>'}
+        <div class="shade"></div>
+        <div class="label"><div class="t1">фото місяця</div><div class="t2">${cap(MONTHS[now.getMonth()])}</div></div>
+      </button>
+      <div class="stack" style="gap:12px">
+        <div class="card tight">
+          <div class="hand small" style="margin-bottom:8px;font-size:14px">Цей тиждень</div>
+          <div class="week">${[0, 1, 2, 3, 4, 5, 6].map((i) => {
+            const d = D.addDays(weekStart, i), info = days[D.key(d)], e = info?.main && Emo.get(info.main);
+            return `<a data-go="/day/${D.key(d)}">${e ? Emo.badge(e, 18) : '<span class="dot-empty"></span>'}<div class="wd ${D.isToday(d) ? 'today' : ''}">${WD[i]}</div></a>`;
+          }).join('')}</div>
+        </div>
+        <button class="card tight row" data-go="/calendar">${icon('calendar')}<span class="serif grow" style="text-align:left">Календар</span>${icon('right')}</button>
+      </div>
+    </div>
+    ${memory ? `${sectionTitle('Цього дня колись', `${now.getFullYear() - +memory.date.slice(0, 4)} р. тому`)}${entryCard(memory, true)}` : ''}
+    ${recent.length ? `<div class="row">${sectionTitle('Останні спогади')}<div class="grow"></div><button class="text-btn" data-go="/photos">Усі</button></div>
+      <div class="strip">${recent.map((p, i) => `<button class="thumb" data-act="viewRecent" data-i="${i}" style="transform:rotate(${i % 2 ? 2 : -2}deg)"><img data-pid="${p.id}" alt=""></button>`).join('')}</div>` : ''}
+    ${S.entries.length ? orn() : ''}
+    ${S.entries.length ? groups.map((g) => `
+      <div class="month-head"><span class="name">${D.monthTitle(D.fromKey(g.k + '-01'))}</span><span class="badge">${g.items.length}</span></div>
+      ${g.items.map((e) => entryCard(e)).join('')}`).join('') : `
+      <div class="card empty-state"><div class="big">📖</div><div class="section-title">Тут почнеться історія твого життя</div>
+      <div class="muted small">Натисни «+», щоб зробити перший запис — додай думки, фото й емоції.</div></div>`}
+  </div>
+  <div class="bottombar">
+    <button class="round" data-go="/calendar" aria-label="Календар">${icon('calendar')}</button>
+    <button class="fab" data-go="/edit/new" aria-label="Новий запис">${icon('plus')}</button>
+    <button class="round" data-go="/stats" aria-label="Статистика">${icon('chart')}</button>
+  </div>`;
+
+  ACT.viewRecent = (el) => openViewer(recent.map((p) => p.id), +el.dataset.i);
+  const canvas = $('#hero-canvas', v);
+  if (canvas) View.stop = paintScene(canvas, t, S.settings.animate);
+};
+
+ACT.homeMenu = () => {
+  const now = new Date();
+  menuSheet('Меню', [
+    { label: 'Архів за роками', icon: 'archive', run: () => go('/archive') },
+    { label: 'Обрані спогади', icon: 'star', run: () => go('/favorites') },
+    { label: 'Фотографії', icon: 'photos', run: () => go('/photos') },
+    { label: 'Підсумок місяця', icon: 'book', run: () => go('/month/' + D.monthKey(now)) },
+    { label: 'Календар', icon: 'calendar', run: () => go('/calendar') },
+    { label: 'Статистика настрою', icon: 'chart', run: () => go('/stats') },
+    { label: 'Теми', icon: 'brush', run: () => go('/themes') },
+    { label: 'Налаштування', icon: 'gear', run: () => go('/settings') },
+  ]);
+};
+
+/* ---------- Емоція дня ---------- */
+ACT.dayEmotion = (el) => openDayEmotion(el.dataset.day);
+
+function emotionGrid(list, selected, showOrder) {
+  return `<div class="emo-grid">${list.map((e) => {
+    const i = selected.indexOf(e.id);
+    return `<button class="emo-cell ${i >= 0 ? 'on' : ''}" data-emo="${e.id}">${Emo.badge(e, 50)}
+      ${showOrder && i >= 0 ? `<span class="order">${i === 0 ? '★' : i + 1}</span>` : ''}<span class="name">${esc(e.name)}</span></button>`;
+  }).join('')}</div>`;
+}
+
+function openDayEmotion(key, onDone) {
+  const date = D.fromKey(key);
+  const suggested = S.entries.filter((e) => e.date.startsWith(key)).sort((a, b) => a.date.localeCompare(b.date))
+    .flatMap((e) => e.emotions || []).filter((x, i, a) => a.indexOf(x) === i).map(Emo.get).filter(Boolean);
+  const build = () => {
+    const cur = S.dayMoods[key] ? [S.dayMoods[key]] : [];
+    return `<p class="muted small" style="margin-top:0">${D.long(date)} — одна емоція, яка найкраще описує весь день. Вона показується в календарі, статистиці й підсумках.</p>
+      ${suggested.length ? `<div class="card" style="margin-bottom:12px"><div class="serif" style="margin-bottom:10px">З твоїх записів цього дня</div>${emotionGrid(suggested, cur)}</div>` : ''}
+      ${CATS.map((c) => `<div class="card" style="margin-bottom:12px"><div class="serif" style="margin-bottom:10px">${c.title}</div>${emotionGrid(Emo.inCat(c.id), cur)}</div>`).join('')}
+      ${cur.length ? '<button class="btn danger full" data-reset="1">Скинути емоцію дня</button>' : ''}`;
+  };
+  openSheet('Емоція дня', build(), (body, close) => {
+    body.addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-emo],[data-reset]');
+      if (!b) return;
+      if (b.dataset.reset) { delete S.dayMoods[key]; await DB.del('dayMoods', key); }
+      else { S.dayMoods[key] = b.dataset.emo; await DB.put('dayMoods', { key, emotion: b.dataset.emo }); }
+      close();
+      if (onDone) onDone(); else render();
+    });
+  });
+}
+
+/* ---------- Вибір кількох емоцій ---------- */
+function openEmotionPicker(selected, onChange, title = 'Емоції', onClose) {
+  const build = () => `<p class="muted small" style="margin-top:0">Обери все, що відчуваєш — можна кілька. Перша обрана (★) показується найпомітніше.</p>
+    ${CATS.map((c) => `<div class="card" style="margin-bottom:12px"><div class="serif" style="margin-bottom:10px">${c.title}</div>${emotionGrid(Emo.inCat(c.id), selected, true)}</div>`).join('')}
+    <button class="btn full" data-add="1">${icon('plus')} Додати власну емоцію</button>`;
+  openSheet(title, build(), (body) => {
+    body.addEventListener('click', (e) => {
+      if (e.target.closest('[data-add]')) { openEmotionEditor(() => { body.innerHTML = build(); }); return; }
+      const b = e.target.closest('[data-emo]');
+      if (!b) return;
+      const id = b.dataset.emo;
+      const i = selected.indexOf(id);
+      if (i >= 0) selected.splice(i, 1); else selected.push(id);
+      body.innerHTML = build();
+      onChange(selected);
+    });
+  }, { onClose });
+}
+
+function openEmotionEditor(onSaved) {
+  const html = `<div class="stack">
+    <div class="center" id="ee-prev"></div>
+    <label class="small muted">Емодзі<input class="text-input" id="ee-emoji" value="🌸" maxlength="8"></label>
+    <label class="small muted">Назва<input class="text-input" id="ee-name" placeholder="Наприклад, Мрійливість"></label>
+    <label class="small muted">Група<select class="text-input" id="ee-cat">${CATS.map((c) => `<option value="${c.id}">${c.title}</option>`).join('')}</select></label>
+    <label class="small muted">Колір <input type="color" id="ee-color" value="#C9A95B"></label>
+    <label class="small muted">Рівень настрою на графіку: <b id="ee-lvl"></b><input type="range" id="ee-score" min="-2" max="2" step="0.1" value="1" style="width:100%"></label>
+    <button class="btn solid full" id="ee-save">Зберегти</button></div>`;
+  openSheet('Нова емоція', html, (body, close) => {
+    const upd = () => {
+      const e = { emoji: $('#ee-emoji').value || '🌸', color: $('#ee-color').value, name: $('#ee-name').value };
+      $('#ee-prev').innerHTML = Emo.badge(e, 72);
+      $('#ee-lvl').textContent = Emo.moodLabel(+$('#ee-score').value);
+    };
+    body.addEventListener('input', upd);
+    upd();
+    $('#ee-save').addEventListener('click', async () => {
+      const name = $('#ee-name').value.trim();
+      if (!name) { toast('Напиши назву емоції'); return; }
+      const emoji = Array.from($('#ee-emoji').value.trim())[0] || '🌸';
+      S.settings.customEmotions.push({ id: 'c-' + uid().slice(0, 8), emoji, name, cat: $('#ee-cat').value, score: +$('#ee-score').value, color: $('#ee-color').value, custom: true });
+      await saveSettings();
+      close();
+      toast('Емоцію додано');
+      onSaved && onSaved();
+    });
+  }, { doneText: 'Скасувати' });
+}
+
+/* ==========================================================================
+   ПЕРЕГЛЯД ЗАПИСУ
+   ========================================================================== */
+ROUTES.entry = async (v, parts) => {
+  const e = S.entries.find((x) => x.id === parts[1]);
+  if (!e) { go('/', true); return; }
+  const d = D.parse(e.date);
+  const dayEmo = S.dayMoods[e.date.slice(0, 10)] && Emo.get(S.dayMoods[e.date.slice(0, 10)]);
+  v.innerHTML = `${topbar('', `<button class="icon-btn" data-act="favEntry" data-id="${e.id}">${icon(e.favorite ? 'starFill' : 'star')}</button>
+      <button class="icon-btn" data-go="/edit/${e.id}">${icon('edit')}</button>
+      <button class="icon-btn" data-act="entryMore" data-id="${e.id}">${icon('more')}</button>`)}
+    <div class="page stack">
+      <div><div class="hand" style="font-size:18px">${cap(WEEKDAYS[d.getDay()])}</div>
+        <div class="row" style="align-items:baseline"><h1 style="font-size:30px">${D.dm(d)}</h1><span class="muted small">${d.getFullYear()} · ${D.time(d)}</span></div></div>
+      ${(e.emotions || []).length ? `<div class="chips">${e.emotions.map(Emo.get).filter(Boolean).map((x) => Emo.chip(x)).join('')}</div>` : ''}
+      ${dayEmo ? `<a class="row small muted" data-go="/day/${e.date.slice(0, 10)}">${Emo.badge(dayEmo, 22)} Емоція дня: ${esc(dayEmo.name)} ›</a>` : ''}
+      ${e.title ? `<h2 style="font-size:26px">${esc(e.title)}</h2>` : ''}
+      ${orn()}
+      <div class="rich" id="entry-body" style="min-height:0">${e.html || ''}</div>
+      <div class="center small muted" style="opacity:.7;margin-top:20px">Створено ${D.dmy(new Date(e.createdAt))}, ${D.time(new Date(e.createdAt))}</div>
+    </div>`;
+  const body = $('#entry-body', v);
+  $$('[contenteditable]', body).forEach((n) => n.removeAttribute('contenteditable'));
+  body.addEventListener('click', (ev) => {
+    const fig = ev.target.closest('figure[data-photo]');
+    if (!fig) return;
+    const ids = $$('figure[data-photo]', body).map((f) => f.dataset.photo);
+    openViewer(ids, ids.indexOf(fig.dataset.photo));
+  });
+};
+
+ACT.favEntry = async (el) => {
+  const e = S.entries.find((x) => x.id === el.dataset.id);
+  if (!e) return;
+  e.favorite = !e.favorite;
+  await DB.put('entries', e);
+  el.innerHTML = icon(e.favorite ? 'starFill' : 'star');
+  toast(e.favorite ? 'Додано в обране ★' : 'Прибрано з обраного');
+};
+
+ACT.entryMore = (el) => {
+  const id = el.dataset.id;
+  menuSheet('Запис', [
+    { label: 'Редагувати', icon: 'edit', run: () => go('/edit/' + id) },
+    { label: 'Видалити запис', icon: 'trash', danger: true, run: () => deleteEntry(id, true) },
+  ]);
+};
+
+async function deleteEntry(id, navigate) {
+  if (!confirm('Видалити цей запис назавжди? Його фото теж буде видалено.')) return false;
+  const e = S.entries.find((x) => x.id === id);
+  for (const m of Object.values(S.photoMeta)) if (m.entryId === id) await deletePhoto(m.id);
+  await DB.del('entries', id);
+  S.entries = S.entries.filter((x) => x.id !== id);
+  toast('Запис видалено');
+  if (navigate) back();
+  return !!e;
+}
+
+/* ==========================================================================
+   РЕДАКТОР
+   ========================================================================== */
+let savedRange = null;
+document.addEventListener('selectionchange', () => {
+  const ed = $('#ed-body');
+  if (!ed) return;
+  const s = getSelection();
+  if (s.rangeCount && ed.contains(s.anchorNode)) savedRange = s.getRangeAt(0).cloneRange();
+});
+
+function restoreSelection() {
+  const ed = $('#ed-body');
+  if (!ed) return null;
+  ed.focus({ preventScroll: true });
+  const s = getSelection();
+  if (savedRange && ed.contains(savedRange.startContainer)) {
+    s.removeAllRanges();
+    s.addRange(savedRange);
+  }
+  return s;
+}
+
+ROUTES.edit = async (v, parts, q) => {
+  let e;
+  let isNew = false;
+  if (parts[1] === 'new') {
+    isNew = true;
+    const now = new Date();
+    let d = now;
+    if (q.get('day')) { const dd = D.fromKey(q.get('day')); d = new Date(dd.getFullYear(), dd.getMonth(), dd.getDate(), now.getHours(), now.getMinutes()); }
+    e = { id: uid(), date: D.local(d), createdAt: Date.now(), updatedAt: Date.now(), title: '', html: '', text: '', emotions: [], favorite: false, photos: [], search: '' };
+  } else {
+    e = S.entries.find((x) => x.id === parts[1]);
+    if (!e) { go('/', true); return; }
+  }
+  savedRange = null;
+  const t = theme();
+  const dayEmoHTML = () => {
+    const de = S.dayMoods[e.date.slice(0, 10)] && Emo.get(S.dayMoods[e.date.slice(0, 10)]);
+    return de ? `${Emo.badge(de, 22)} Емоція дня` : `☀︎ Емоція дня`;
+  };
+
+  v.innerHTML = `
+  <div class="topbar solid">
+    <button class="icon-btn" data-act="edDone" aria-label="Готово">${icon('check')}</button>
+    <div class="title">${isNew ? 'Новий запис' : 'Редагування'}<div class="saved" id="ed-saved"></div></div>
+    <button class="icon-btn" id="ed-fav">${icon(e.favorite ? 'starFill' : 'star')}</button>
+    <button class="icon-btn" id="ed-more">${icon('more')}</button>
+  </div>
+  <div class="editor-page editing">
+    <div class="row">
+      <input type="datetime-local" class="date-input" id="ed-date" value="${e.date}">
+      <div class="grow"></div>
+      <button class="dashed" id="ed-dayemo">${dayEmoHTML()}</button>
+    </div>
+    <div class="chips" id="ed-emos" style="margin:12px 0 6px"></div>
+    <textarea class="title-input" id="ed-title" rows="1" placeholder="Заголовок">${esc(e.title)}</textarea>
+    ${orn()}
+    <div class="rich" id="ed-body" contenteditable="true" data-placeholder="Що сьогодні сталося?…">${e.html || ''}</div>
+  </div>
+  <div class="toolbar" id="ed-tools">
+    <button class="tool" data-cmd="size" aria-label="Розмір">${icon('textSize')}</button>
+    <button class="tool" data-cmd="bold" aria-label="Жирний"><b>B</b></button>
+    <button class="tool" data-cmd="italic" aria-label="Курсив"><i>I</i></button>
+    <button class="tool" data-cmd="underline" aria-label="Підкреслений"><u>U</u></button>
+    <button class="tool" data-cmd="color" aria-label="Колір">${icon('palette')}</button>
+    <button class="tool" data-cmd="ul" aria-label="Список">${icon('list')}</button>
+    <button class="tool" data-cmd="ol" aria-label="Нумерований список">${icon('listNum')}</button>
+    <span class="tool sep"></span>
+    <button class="tool" data-cmd="photo" aria-label="Фото">${icon('image')}</button>
+    <button class="tool" data-cmd="quote" aria-label="Цитата">${icon('quote')}</button>
+    <button class="tool" data-cmd="divider" aria-label="Розділювач">${icon('sparkle')}</button>
+    <button class="tool" data-cmd="emotions" aria-label="Емоції">${icon('smile')}</button>
+    <button class="tool" data-cmd="hide" aria-label="Сховати клавіатуру">${icon('keyboard')}</button>
+  </div>
+  <input type="file" id="ed-file" accept="image/*" multiple hidden>`;
+
+  const ed = $('#ed-body', v);
+  const title = $('#ed-title', v);
+  try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch (_) { /* ok */ }
+  if (!ed.innerHTML.trim()) ed.innerHTML = '<p><br></p>';
+  // голий текст на початку обгортаємо в абзац
+  ed.addEventListener('input', () => {
+    const n = ed.firstChild;
+    if (n && n.nodeType === 3 && n.textContent.trim()) {
+      const sel = getSelection();
+      const atNode = sel.anchorNode === n ? sel.anchorOffset : -1;
+      const p = document.createElement('p');
+      n.replaceWith(p); p.appendChild(n);
+      if (atNode >= 0) { const r = document.createRange(); r.setStart(n, atNode); r.collapse(true); sel.removeAllRanges(); sel.addRange(r); }
+    }
+  });
+  const dateIn = $('#ed-date', v);
+  const tools = $('#ed-tools', v);
+  hydrate(ed);
+  $$('figure[data-photo]', ed).forEach((f) => { f.contentEditable = 'false'; const c = $('figcaption', f); if (c) c.contentEditable = 'true'; });
+
+  const autoGrow = () => { title.style.height = 'auto'; title.style.height = title.scrollHeight + 'px'; };
+  autoGrow();
+  const updateEmpty = () => ed.classList.toggle('is-empty', !ed.textContent.trim() && !ed.querySelector('figure,.divider,img,li'));
+  updateEmpty();
+
+  const renderEmos = () => {
+    $('#ed-emos').innerHTML = (e.emotions || []).map(Emo.get).filter(Boolean).map((x, i) => Emo.chip(x, i === 0 && e.emotions.length > 1)).join('')
+      + `<button class="dashed" id="ed-addemo">${icon('smile', 16)} ${e.emotions.length ? 'Ще' : 'Як ти почуваєшся?'}</button>`;
+  };
+  renderEmos();
+  const pickEmotions = () => openEmotionPicker(e.emotions, () => { renderEmos(); schedule(); });
+  $('#ed-emos').addEventListener('click', pickEmotions);
+  $('#ed-dayemo').addEventListener('click', () => openDayEmotion(e.date.slice(0, 10), () => { $('#ed-dayemo').innerHTML = dayEmoHTML(); }));
+
+  // ---- збереження ----
+  let timer = 0;
+  let stored = !isNew;
+  const hasContent = () => !!(e.title.trim() || e.text.trim() || (e.photos || []).length || (e.emotions || []).length);
+  const cleanHTML = () => {
+    const c = ed.cloneNode(true);
+    $$('img', c).forEach((i) => { i.removeAttribute('src'); i.removeAttribute('data-done'); });
+    $$('figure', c).forEach((f) => f.classList.remove('selected'));
+    return c.innerHTML.trim();
+  };
+  const save = async () => {
+    clearTimeout(timer);
+    e.title = title.value.trim();
+    if (dateIn.value) e.date = dateIn.value.slice(0, 16);
+    e.html = cleanHTML();
+    for (const f of $$('figure[data-photo]', ed)) {
+      const m = S.photoMeta[f.dataset.photo];
+      const capTxt = ($('figcaption', f)?.textContent || '').trim();
+      if (m && m.caption !== capTxt) { m.caption = capTxt; await DB.put('photoMeta', m); }
+    }
+    refreshEntry(e);
+    if (!hasContent()) return;
+    await DB.put('entries', e);
+    if (!stored) { S.entries.push(e); stored = true; navigator.storage?.persist?.(); }
+    sortEntries();
+    const s = $('#ed-saved');
+    if (s) s.textContent = 'збережено ✓';
+  };
+  const schedule = () => {
+    updateEmpty();
+    const s = $('#ed-saved');
+    if (s) s.textContent = '…';
+    clearTimeout(timer);
+    timer = setTimeout(save, 700);
+  };
+  ed.addEventListener('input', schedule);
+  title.addEventListener('input', () => { autoGrow(); schedule(); });
+  dateIn.addEventListener('change', () => { schedule(); $('#ed-dayemo').innerHTML = dayEmoHTML(); });
+
+  View.leave = async () => {
+    await save();
+    const ids = new Set(e.photos || []);
+    for (const m of Object.values(S.photoMeta)) if (m.entryId === e.id && !ids.has(m.id)) await deletePhoto(m.id);
+    if (stored && !hasContent()) {
+      await DB.del('entries', e.id);
+      S.entries = S.entries.filter((x) => x.id !== e.id);
+    }
+    window.visualViewport?.removeEventListener('resize', place);
+    window.visualViewport?.removeEventListener('scroll', place);
+  };
+  ACT.edDone = () => back();
+
+  $('#ed-fav').addEventListener('click', () => { e.favorite = !e.favorite; $('#ed-fav').innerHTML = icon(e.favorite ? 'starFill' : 'star'); schedule(); });
+  $('#ed-more').addEventListener('click', () => menuSheet('Запис', [
+    { label: 'Видалити запис', icon: 'trash', danger: true, run: async () => {
+      if (!confirm('Видалити цей запис назавжди?')) return;
+      View.leave = null;
+      for (const m of Object.values(S.photoMeta)) if (m.entryId === e.id) await deletePhoto(m.id);
+      await DB.del('entries', e.id);
+      S.entries = S.entries.filter((x) => x.id !== e.id);
+      toast('Запис видалено');
+      go('/', true);
+    } },
+  ]));
+
+  // ---- панель над клавіатурою ----
+  const place = () => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const kb = Math.max(0, window.innerHeight - (vv.height + vv.offsetTop));
+    tools.style.bottom = kb > 50 ? `${kb + 6}px` : '';
+  };
+  window.visualViewport?.addEventListener('resize', place);
+  window.visualViewport?.addEventListener('scroll', place);
+
+  // ---- вставка блоків у місце курсора ----
+  const ensureTail = () => {
+    const last = ed.lastElementChild;
+    if (!last || last.matches('figure,.divider,blockquote,ul,ol')) ed.insertAdjacentHTML('beforeend', '<p><br></p>');
+  };
+  const caretTo = (node) => {
+    if (!node) return;
+    const r = document.createRange();
+    r.setStart(node, 0);
+    r.collapse(true);
+    const s = getSelection();
+    s.removeAllRanges(); s.addRange(r);
+    savedRange = r.cloneRange();
+  };
+  const insertBlock = (node) => {
+    const range = savedRange && ed.contains(savedRange.startContainer) ? savedRange : null;
+    if (!range) {
+      ed.appendChild(node);
+    } else {
+      let blk = range.startContainer;
+      if (blk === ed) {
+        ed.insertBefore(node, ed.childNodes[range.startOffset] || null);
+      } else {
+        while (blk.parentNode !== ed) blk = blk.parentNode;
+        const tail = document.createRange();
+        tail.setStart(range.startContainer, range.startOffset);
+        if (blk.nodeType === 3) tail.setEnd(blk, blk.length); else tail.setEnd(blk, blk.childNodes.length);
+        const frag = tail.extractContents();
+        const tmp = document.createElement('div');
+        tmp.appendChild(frag.cloneNode(true));
+        const hasTail = tmp.textContent.trim() || tmp.querySelector('img,figure');
+        blk.after(node);
+        if (hasTail) {
+          const nb = blk.nodeType === 1 ? document.createElement(blk.tagName === 'LI' ? 'P' : blk.tagName) : document.createElement('p');
+          nb.appendChild(frag);
+          node.after(nb);
+        }
+        const blkEmpty = blk.nodeType === 3 ? !blk.textContent.trim() : !blk.textContent.trim() && !blk.querySelector?.('img,figure');
+        if (blkEmpty && blk.nodeType === 1 && !blk.matches('ul,ol,blockquote')) blk.remove();
+      }
+    }
+    ensureTail();
+    let next = node.nextSibling;
+    while (next && next.nodeType === 1 && next.matches('figure,.divider')) next = next.nextSibling;
+    caretTo(next || node);
+    updateEmpty();
+  };
+
+  const figure = (pid) => {
+    const f = document.createElement('figure');
+    f.className = 'sz-l al-center';
+    f.dataset.photo = pid;
+    f.contentEditable = 'false';
+    f.innerHTML = `<img data-pid="${pid}" data-kind="full" alt=""><figcaption contenteditable="true"></figcaption>`;
+    return f;
+  };
+
+  const fileIn = $('#ed-file', v);
+  fileIn.addEventListener('change', async () => {
+    const files = Array.from(fileIn.files || []);
+    fileIn.value = '';
+    if (!files.length) return;
+    toast(files.length > 1 ? `Додаю ${files.length} фото…` : 'Додаю фото…', 4000);
+    for (const f of files) {
+      try {
+        const pid = await savePhoto(e.id, f);
+        const fig = figure(pid);
+        if (files.length > 1) fig.className = 'sz-m al-center';
+        insertBlock(fig);
+        hydrate(fig);
+      } catch (err) {
+        console.error(err);
+        toast('Не вдалося додати одне з фото');
+      }
+    }
+    await save();
+    toast('Фото додано 📷');
+  });
+
+  // ---- форматування ----
+  const exec = (cmd, val) => { restoreSelection(); document.execCommand(cmd, false, val); schedule(); };
+  let sizeClass = '';
+  const convertFonts = () => {
+    $$('font[size="7"]', ed).forEach((fnt) => {
+      const sp = document.createElement('span');
+      if (sizeClass) sp.className = sizeClass;
+      while (fnt.firstChild) sp.appendChild(fnt.firstChild);
+      fnt.replaceWith(sp);
+    });
+  };
+  ed.addEventListener('input', convertFonts);
+  const applySize = (cls) => {
+    sizeClass = cls;
+    restoreSelection();
+    document.execCommand('styleWithCSS', false, false);
+    document.execCommand('fontSize', false, '7');
+    convertFonts();
+    schedule();
+  };
+  const applyColor = (hex) => {
+    restoreSelection();
+    document.execCommand('styleWithCSS', false, true);
+    document.execCommand('foreColor', false, hex || '#010203');
+    if (!hex) {
+      $$('[style]', ed).forEach((n) => { if (/rgb\(1,\s*2,\s*3\)|#010203/i.test(n.getAttribute('style'))) n.style.color = ''; });
+      $$('font[color]', ed).forEach((n) => { if (n.getAttribute('color').toLowerCase() === '#010203') n.removeAttribute('color'); });
+    }
+    schedule();
+  };
+  const insideQuote = () => { const s = getSelection(); return s.rangeCount && s.anchorNode && (s.anchorNode.nodeType === 1 ? s.anchorNode : s.anchorNode.parentElement)?.closest('blockquote'); };
+
+  const runCmd = (cmd) => {
+    switch (cmd) {
+      case 'bold': case 'italic': case 'underline': exec(cmd); break;
+      case 'ul': exec('insertUnorderedList'); break;
+      case 'ol': exec('insertOrderedList'); break;
+      case 'quote': restoreSelection(); exec('formatBlock', insideQuote() ? 'p' : 'blockquote'); break;
+      case 'size': menuSheet('Розмір тексту', [
+        { label: 'Дрібний', run: () => applySize('sz-s') },
+        { label: 'Звичайний', run: () => applySize('') },
+        { label: 'Більший', run: () => applySize('sz-l') },
+        { label: 'Заголовок', run: () => applySize('sz-xl') },
+      ]); break;
+      case 'color': menuSheet('Колір тексту', TEXT_COLORS.map(([n, hex]) => ({
+        label: (hex ? '● ' : '○ ') + n, run: () => applyColor(hex),
+      }))); setTimeout(() => {
+        $$('.sheet .menu-list button span').forEach((sp, i) => { const hx = TEXT_COLORS[i]?.[1]; if (hx) sp.style.color = hx; });
+      }, 0); break;
+      case 'divider': {
+        const div = document.createElement('div');
+        div.className = 'divider';
+        div.contentEditable = 'false';
+        div.dataset.orn = theme().orn;
+        insertBlock(div);
+        schedule();
+        break;
+      }
+      case 'photo': fileIn.click(); break;
+      case 'emotions': pickEmotions(); break;
+      case 'hide': ed.blur(); title.blur(); document.activeElement?.blur?.(); break;
+    }
+  };
+  tools.addEventListener('pointerdown', (ev) => { if (ev.target.closest('[data-cmd]')) ev.preventDefault(); });
+  tools.addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-cmd]');
+    if (b) { ev.preventDefault(); runCmd(b.dataset.cmd); }
+  });
+
+  // ---- дії з фото та розділювачами в тексті ----
+  ed.addEventListener('click', (ev) => {
+    const div = ev.target.closest('.divider');
+    if (div) {
+      menuSheet('Розділювач', [
+        ...DIVIDERS.map((dv) => ({ label: dv === 'theme' ? theme().orn + '  (як у темі)' : dv, run: () => { div.dataset.orn = dv === 'theme' ? theme().orn : dv; schedule(); } })),
+        { label: 'Видалити', icon: 'trash', danger: true, run: () => { div.remove(); schedule(); } },
+      ]);
+      return;
+    }
+    const fig = ev.target.closest('figure[data-photo]');
+    if (!fig || ev.target.closest('figcaption')) return;
+    const pid = fig.dataset.photo;
+    const setCls = (re, cls) => { fig.className = fig.className.replace(re, '').trim() + ' ' + cls; schedule(); };
+    menuSheet('Фото', [
+      { label: 'Переглянути', icon: 'image', run: () => openViewer([pid]) },
+      { label: 'Маленьке', run: () => setCls(/sz-\w/g, 'sz-s') },
+      { label: 'Середнє', run: () => setCls(/sz-\w/g, 'sz-m') },
+      { label: 'Велике', run: () => setCls(/sz-\w/g, 'sz-l') },
+      { label: 'На всю ширину', run: () => setCls(/sz-\w/g, 'sz-f') },
+      { label: 'Ліворуч', run: () => setCls(/al-\w+/g, 'al-left') },
+      { label: 'По центру', run: () => setCls(/al-\w+/g, 'al-center') },
+      { label: 'Праворуч', run: () => setCls(/al-\w+/g, 'al-right') },
+      { label: 'Вище', icon: 'up', run: () => { const p = fig.previousElementSibling; if (p) { p.before(fig); schedule(); } } },
+      { label: 'Нижче', icon: 'down', run: () => { const n = fig.nextElementSibling; if (n) { n.after(fig); schedule(); } } },
+      { label: 'Зробити фото місяця', icon: 'calendar', run: async () => { await setHighlight(e.date.slice(0, 7), await photoBlob(pid)); toast('Фото місяця збережено ✨'); } },
+      { label: 'Зробити фото року', icon: 'sparkle', run: async () => { await setHighlight(e.date.slice(0, 4), await photoBlob(pid)); toast('Фото року збережено ✨'); } },
+      { label: 'Видалити фото', icon: 'trash', danger: true, run: () => { fig.remove(); ensureTail(); schedule(); } },
+    ]);
+  });
+  // підпис фото: Enter не створює нових рядків
+  ed.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter' && ev.target.closest && document.activeElement?.closest?.('figcaption')) ev.preventDefault();
+  });
+
+  if (isNew) setTimeout(() => ed.focus(), 300);
+};
+
+/* ==========================================================================
+   КАЛЕНДАР і ДЕНЬ
+   ========================================================================== */
+function monthGrid(month, days, selKey, compact) {
+  const first = D.monthStart(month);
+  const blanks = D.wd(first);
+  const n = D.daysIn(first);
+  let h = `<div class="cal-grid ${compact ? 'compact' : ''}">${WD.map((w) => `<div class="cal-wd">${w}</div>`).join('')}`;
+  for (let i = 0; i < blanks; i++) h += '<div></div>';
+  for (let i = 1; i <= n; i++) {
+    const d = new Date(first.getFullYear(), first.getMonth(), i);
+    const k = D.key(d);
+    const info = days[k];
+    const main = info?.main && Emo.get(info.main);
+    const others = (info?.all || []).slice(1, 4).map(Emo.get).filter(Boolean);
+    const size = compact ? 18 : 26;
+    const bg = main ? `background:${hexToRgba(main.color, 0.16)}` : '';
+    h += `<button class="cal-day ${D.isToday(d) ? 'today' : ''} ${selKey === k ? 'sel' : ''}" data-day="${k}" style="${bg}">
+      <span class="n">${i}</span>
+      ${main ? Emo.badge(main, size) : `<span class="dot-empty" style="--s:${size}px;${info?.entries.length ? 'opacity:2' : ''}">${info?.entries.length ? '<small style="font-size:9px;opacity:.7">✎</small>' : ''}</span>`}
+      ${compact ? '' : `<span class="dots">${others.map((o) => `<i style="background:${o.color}"></i>`).join('')}${info?.photos ? '📷' : ''}</span>`}
+    </button>`;
+  }
+  return h + '</div>';
+}
+
+function dayPanel(key, days) {
+  const d = D.fromKey(key);
+  const info = days[key];
+  const main = info?.main && Emo.get(info.main);
+  return `<div class="card stack">
+    <div class="row top">
+      <div class="grow"><div class="serif" style="font-size:19px">${D.long(d)}</div>
+        ${info?.score != null ? `<div class="hand">${Emo.moodLabel(info.score)}</div>` : ''}</div>
+      <button data-act="dayEmotion" data-day="${key}" class="center" style="color:var(--accent)">
+        ${main ? `${Emo.badge(main, 40)}<div class="small muted" style="font-size:9px">${info.dayEmotion ? 'емоція дня' : 'авто'}</div>` : `<span class="dashed">＋ Емоція дня</span>`}
+      </button>
+    </div>
+    ${info?.all?.length > 1 ? Emo.stack(info.all, 24, 8) : ''}
+    ${info?.entries.length ? info.entries.map((e) => entryCard(e, true)).join('') : '<div class="muted small">Цього дня записів немає.</div>'}
+    <button class="btn full" data-go="/edit/new?day=${key}">${icon('plus')} Новий запис на цей день</button>
+  </div>`;
+}
+
+ROUTES.calendar = async (v, parts, q) => {
+  const days = buildIndex();
+  const month = q.get('m') ? D.fromKey(q.get('m') + '-01') : D.monthStart(new Date());
+  const sel = q.get('d') || (D.monthKey(month) === D.monthKey(new Date()) ? D.key(new Date()) : D.key(month));
+  const mk = D.monthKey(month);
+  const nav = (m, d) => go(`/calendar?m=${m}&d=${d || ''}`, true);
+  v.innerHTML = `${topbar('Календар', `<button class="icon-btn" data-go="/edit/new?day=${sel}">${icon('edit')}</button>`)}
+  <div class="page stack">
+    <div class="card stack" id="cal-card">
+      <div class="cal-head">
+        <button class="icon-btn" data-act="calPrev">${icon('left')}</button>
+        <button data-act="calPick"><div class="m">${cap(MONTHS[month.getMonth()])}</div><div class="y">${month.getFullYear()}</div></button>
+        <button class="icon-btn" data-act="calNext">${icon('right')}</button>
+      </div>
+      ${monthGrid(month, days, sel)}
+      <div class="legend"><span>📷 фото</span><span><span class="dot-empty" style="--s:10px;vertical-align:middle"></span> немає даних</span><span><i style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent)"></i> інші емоції</span>
+      ${mk !== D.monthKey(new Date()) ? '<button class="text-btn small" data-act="calToday" style="padding:0">Сьогодні</button>' : ''}</div>
+    </div>
+    ${dayPanel(sel, days)}
+    <button class="card tight row" data-go="/month/${mk}">${icon('book')}<span class="serif grow" style="text-align:left">Підсумок: ${D.monthTitle(month)}</span>${icon('right')}</button>
+  </div>`;
+  ACT.calPrev = () => nav(D.monthKey(D.addMonths(month, -1)));
+  ACT.calNext = () => nav(D.monthKey(D.addMonths(month, 1)));
+  ACT.calToday = () => nav(D.monthKey(new Date()), D.key(new Date()));
+  ACT.calPick = () => {
+    const y = month.getFullYear();
+    const years = [y + 1, y, y - 1, y - 2, y - 3, y - 4, y - 5];
+    openSheet('Обери місяць', `<div class="seg" id="yp">${years.map((yy) => `<button data-y="${yy}" class="${yy === y ? 'on' : ''}">${yy}</button>`).join('')}</div>
+      <div class="grid3" style="margin-top:14px" id="mp">${MONTHS.map((m, i) => `<button class="pill" data-m="${i}">${cap(m)}</button>`).join('')}</div>`, (body, close) => {
+      let yy = y;
+      body.addEventListener('click', (ev) => {
+        const yb = ev.target.closest('[data-y]');
+        if (yb) { yy = +yb.dataset.y; $$('[data-y]', body).forEach((b) => b.classList.toggle('on', b === yb)); return; }
+        const mb = ev.target.closest('[data-m]');
+        if (mb) { close(); nav(`${yy}-${pad(+mb.dataset.m + 1)}`); }
+      });
+    });
+  };
+  const card = $('#cal-card', v);
+  card.addEventListener('click', (ev) => {
+    const b = ev.target.closest('.cal-day');
+    if (b) nav(mk, b.dataset.day);
+  });
+  let sx = 0;
+  card.addEventListener('touchstart', (ev) => { sx = ev.touches[0].clientX; }, { passive: true });
+  card.addEventListener('touchend', (ev) => {
+    const dx = ev.changedTouches[0].clientX - sx;
+    if (dx < -60) ACT.calNext(); else if (dx > 60) ACT.calPrev();
+  });
+};
+
+ROUTES.day = async (v, parts) => {
+  const key = parts[1];
+  const days = buildIndex();
+  v.innerHTML = `${topbar(D.dmy(D.fromKey(key)))}<div class="page">${dayPanel(key, days)}</div>`;
+};
+
+/* ==========================================================================
+   СТАТИСТИКА
+   ========================================================================== */
+const statState = { p: 'd30', anchor: new Date(), sel: null, allEmo: false, donutEmo: false };
+
+function smoothPath(pts) {
+  if (pts.length < 2) return '';
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+    const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+    d += ` C${c1[0].toFixed(1)},${c1[1].toFixed(1)} ${c2[0].toFixed(1)},${c2[1].toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+  }
+  return d;
+}
+
+function lineChart(st) {
+  const t = theme();
+  const W = 340, H = 210, L = 28, R = 10, T = 10, B = 26, iw = W - L - R, ih = H - T - B;
+  const n = Math.max(st.bucketCount - 1, 1);
+  const X = (i) => L + iw * (i / n);
+  const Y = (s) => T + ih * (1 - (s + 2.3) / 4.6);
+  const segs = {};
+  st.points.forEach((p) => (segs[p.seg] = segs[p.seg] || []).push(p));
+  const labels = { 2: '😁', 1: '🙂', 0: '😐', '-1': '😕', '-2': '😢' };
+  let svg = `<svg viewBox="0 0 ${W} ${H}"><defs><linearGradient id="mg" gradientUnits="userSpaceOnUse" x1="0" y1="${Y(-2.3)}" x2="0" y2="${Y(2.3)}">
+    <stop offset="0" stop-color="#6F86AE"/><stop offset=".5" stop-color="#9A97A8"/><stop offset="1" stop-color="${t.accent}"/></linearGradient></defs>`;
+  for (const v of [-2, -1, 0, 1, 2]) {
+    svg += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="${t.border}" stroke-opacity=".45" stroke-dasharray="${v === 0 ? '' : '3 4'}"/>`;
+    svg += `<text x="2" y="${Y(v) + 5}" font-size="13">${labels[v]}</text>`;
+  }
+  for (const pts of Object.values(segs)) {
+    if (pts.length > 1) svg += `<path d="${smoothPath(pts.map((p) => [X(p.i), Y(p.score)]))}" fill="none" stroke="url(#mg)" stroke-width="3" stroke-linecap="round"/>`;
+  }
+  const big = st.points.length <= 60;
+  for (const p of st.points) {
+    const c = Emo.get(p.main)?.color || t.accent;
+    const on = statState.sel === p.key;
+    svg += `<circle cx="${X(p.i)}" cy="${Y(p.score)}" r="${on ? 7 : big ? 4.5 : 2.5}" fill="${c}" stroke="${on ? t.text : t.bgTop}" stroke-width="${on ? 2 : 1}"/>`;
+    svg += `<circle cx="${X(p.i)}" cy="${Y(p.score)}" r="12" fill="transparent" data-act="statPoint" data-key="${p.key}"/>`;
+  }
+  const fmt = (d) => st.bucket === 'month' ? `${MONTHS_SHORT[d.getMonth()]} ${String(d.getFullYear()).slice(2)}` : `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
+  svg += `<text x="${L}" y="${H - 6}" font-size="10" fill="${t.subc}">${fmt(st.start)}</text>`;
+  svg += `<text x="${W - R}" y="${H - 6}" font-size="10" fill="${t.subc}" text-anchor="end">${fmt(st.end > new Date() ? new Date() : st.end)}</text>`;
+  return svg + '</svg>';
+}
+
+function donut(slices) {
+  const total = slices.reduce((a, s) => a + s.count, 0) || 1;
+  const R = 52, C = 2 * Math.PI * R;
+  let off = 0;
+  const arcs = slices.map((s) => {
+    const len = (C * s.count) / total;
+    const a = `<circle r="${R}" cx="70" cy="70" fill="none" stroke="${s.color}" stroke-width="22" stroke-dasharray="${Math.max(len - 2, 0.5)} ${C}" stroke-dashoffset="${-off}" transform="rotate(-90 70 70)"/>`;
+    off += len;
+    return a;
+  }).join('');
+  return `<svg viewBox="0 0 140 140" style="width:140px;height:140px;flex:none">${arcs}
+    <text x="70" y="70" text-anchor="middle" font-size="20" font-weight="700" fill="var(--text)" font-family="Georgia,serif">${total}</text>
+    <text x="70" y="86" text-anchor="middle" font-size="9" fill="var(--sub)">відміток</text></svg>`;
+}
+
+const pct = (v, t) => (t ? Math.round((v / t) * 100) : 0) + '%';
+
+ROUTES.stats = async (v) => {
+  const t = theme();
+  const days = buildIndex();
+  const [start, end] = periodRange(statState.p, statState.anchor);
+  const st = computeStats(days, start, end);
+  const pn = D.between(start, end) + 1;
+  const prev = computeStats(days, D.addDays(start, -pn), D.addDays(start, -1));
+  const today = D.start(new Date());
+
+  // календар настрою
+  const pStart = D.addDays(start, -D.wd(start));
+  const weeks = Math.max(1, Math.ceil((D.between(pStart, end) + 1) / 7));
+  const cell = weeks <= 6 ? 34 : weeks <= 14 ? 18 : 12;
+  let pixels = `<div class="pixels"><div class="col">${WD.map((w) => `<div class="px small muted" style="width:16px;height:${cell}px;font-size:8px">${w}</div>`).join('')}</div>`;
+  for (let w = 0; w < weeks; w++) {
+    pixels += '<div class="col">';
+    for (let i = 0; i < 7; i++) {
+      const d = D.addDays(pStart, w * 7 + i);
+      const inR = d >= start && d <= end && d <= today;
+      const info = days[D.key(d)];
+      const e = info?.main && Emo.get(info.main);
+      if (!inR) pixels += `<div class="px" style="width:${cell}px;height:${cell}px"></div>`;
+      else if (e) pixels += `<a class="px" data-go="/day/${D.key(d)}" style="width:${cell}px;height:${cell}px;background:${e.color};font-size:${cell * 0.5}px">${cell >= 30 ? e.emoji : ''}</a>`;
+      else pixels += `<div class="px none" style="width:${cell}px;height:${cell}px"></div>`;
+    }
+    pixels += '</div>';
+  }
+  pixels += '</div>';
+
+  const maxC = st.counts[0]?.[1] || 1;
+  const list = statState.allEmo ? st.counts : st.counts.slice(0, 8);
+  const slices = statState.donutEmo
+    ? st.counts.slice(0, 7).map(([id, c]) => { const e = Emo.get(id); return e && { name: `${e.emoji} ${e.name}`, count: c, color: e.color }; }).filter(Boolean)
+    : CATS.map((c) => ({ name: c.title, count: st.cats[c.id], color: c.color })).filter((s) => s.count > 0);
+  const sTotal = slices.reduce((a, s) => a + s.count, 0);
+  const wdData = st.weekdays.map((a, i) => ({ i, a })).filter((x) => x.a != null);
+  const bestWd = wdData.slice().sort((a, b) => b.a - a.a)[0];
+  const sp = statState.sel && st.points.find((p) => p.key === statState.sel);
+
+  const dayRow = (d) => {
+    const e = d.main && Emo.get(d.main);
+    const first = d.entries[0];
+    return `<a class="row" data-go="/day/${d.key}">${e ? Emo.badge(e, 32) : ''}<div class="grow"><div style="font-size:14px;font-weight:500">${D.long(d.date)}</div>
+      <div class="small muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(first ? first.title || first.text.slice(0, 80) : '')}</div></div>${icon('right')}</a>`;
+  };
+  const cmp = (label, a, b) => {
+    const diff = a - b;
+    return `<div class="row"><span class="grow">${label}</span><span class="muted small">${b} → ${a}</span>
+      <b style="color:${diff >= 0 ? 'var(--accent)' : 'var(--sub)'};min-width:34px;text-align:right">${diff === 0 ? '=' : diff > 0 ? '+' + diff : diff}</b></div>`;
+  };
+  const topNow = st.mains[0] && Emo.get(st.mains[0][0]);
+  const topPrev = prev.mains[0] && Emo.get(prev.mains[0][0]);
+
+  v.innerHTML = `${topbar('Статистика настрою')}
+  <div class="page stack">
+    <div class="periods">${PERIODS.map(([id, n]) => `<button class="pill ${statState.p === id ? 'on' : ''}" data-act="statPeriod" data-p="${id}">${n}</button>`).join('')}</div>
+    ${statState.p === 'month' || statState.p === 'year' ? `<div class="row"><button class="icon-btn" data-act="statShift" data-d="-1">${icon('left')}</button>
+      <div class="grow center serif" style="font-size:18px">${statState.p === 'month' ? D.monthTitle(statState.anchor) : statState.anchor.getFullYear()}</div>
+      <button class="icon-btn" data-act="statShift" data-d="1">${icon('right')}</button></div>` : ''}
+    <div class="grid2">
+      <div class="card tight tile-stat">${icon('book')}<span class="v">${st.entryCount}</span><span class="small muted">записів</span></div>
+      <div class="card tight tile-stat">${icon('calendar')}<span class="v">${st.daysWithData}</span><span class="small muted">днів з емоціями</span></div>
+      <div class="card tight tile-stat">${icon('image')}<span class="v">${st.photoCount}</span><span class="small muted">фотографій</span></div>
+      <div class="card tight tile-stat">${icon('smile')}<span class="v">${st.avg != null ? Emo.moodLabel(st.avg) : '—'}</span><span class="small muted">середній настрій</span></div>
+    </div>
+
+    <div class="card stack">
+      ${sectionTitle('Лінія настрою', st.bucket === 'day' ? 'кожна точка — день' : st.bucket === 'week' ? 'середнє за тиждень' : 'середнє за місяць')}
+      ${st.points.length ? `<div class="chart">${lineChart(st)}</div>
+        ${sp ? `<a class="sel-box row" data-go="${st.bucket === 'month' ? '/month/' + sp.key.slice(0, 7) : '/day/' + sp.key}">${sp.main ? Emo.badge(Emo.get(sp.main), 30) : ''}
+            <div class="grow"><b style="font-size:14px">${st.bucket === 'day' ? D.long(sp.date) : st.bucket === 'week' ? 'Тиждень з ' + D.dm(sp.date) : D.monthTitle(sp.date)}</b>
+            <div class="small muted">${Emo.moodLabel(sp.score)}</div></div><span style="color:var(--accent);font-weight:600" class="small">Відкрити ›</span></a>`
+          : '<div class="small muted">Торкнись точки, щоб відкрити день. Розриви лінії — дні без записів (це не поганий настрій).</div>'}`
+        : '<div class="muted small">Тут зʼявиться графік, коли ти обереш емоції в записах.</div>'}
+      ${st.noData ? `<div class="small muted">◌ Днів без даних: ${st.noData}</div>` : ''}
+    </div>
+
+    <div class="card stack">${sectionTitle('Календар настрою', 'колір — головна емоція дня')}${pixels}</div>
+
+    <div class="card stack">
+      ${sectionTitle('Які емоції переважали', 'скільки разів і який відсоток')}
+      ${list.length ? list.map(([id, c]) => {
+        const e = Emo.get(id);
+        if (!e) return '';
+        return `<div class="bar-row">${Emo.badge(e, 28)}<div class="grow"><div class="row" style="margin-bottom:4px"><span class="grow" style="font-size:14px">${esc(e.name)}</span>
+          <span class="small muted">${c} · ${pct(c, st.total)}</span></div><div class="bar"><i style="width:${(c / maxC) * 100}%;background:${e.color}"></i></div></div></div>`;
+      }).join('') : '<div class="muted small">Поки що немає емоцій за цей період.</div>'}
+      ${st.counts.length > 8 ? `<button class="text-btn small" data-act="statAll">${statState.allEmo ? 'Згорнути' : `Показати всі (${st.counts.length})`}</button>` : ''}
+    </div>
+
+    <div class="card stack">
+      <div class="row">${sectionTitle('Настрій у відсотках')}<div class="grow"></div>
+        <div class="seg" style="width:150px"><button class="${statState.donutEmo ? '' : 'on'}" data-act="statDonut" data-v="0">Групи</button><button class="${statState.donutEmo ? 'on' : ''}" data-act="statDonut" data-v="1">Емоції</button></div></div>
+      ${slices.length ? `<div class="row" style="gap:16px">${donut(slices)}<div class="grow stack" style="gap:8px">${slices.map((s) => `<div class="row small" style="gap:6px">
+        <i style="width:9px;height:9px;border-radius:50%;background:${s.color};flex:none"></i><span class="grow" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.name)}</span><span class="muted">${pct(s.count, sTotal)}</span></div>`).join('')}</div></div>`
+        : '<div class="muted small">Немає даних за цей період.</div>'}
+      ${st.noData ? `<div class="small muted">Дні без записів (${st.noData}) не враховуються і не вважаються поганими.</div>` : ''}
+    </div>
+
+    <div class="card stack">
+      ${sectionTitle('Настрій за днями тижня', bestWd ? 'найкращий — ' + WD[bestWd.i] : '')}
+      ${wdData.length ? `<svg viewBox="0 0 340 150" style="width:100%">${WD.map((w, i) => {
+        const a = st.weekdays[i], x = 20 + i * 46, mid = 70;
+        const h = a == null ? 0 : (Math.abs(a) / 2) * 60;
+        const y = a == null ? mid : a >= 0 ? mid - h : mid;
+        return `${a != null ? `<rect x="${x}" y="${y}" width="30" height="${Math.max(h, 2)}" rx="5" fill="${a >= 0 ? t.accent : '#6F86AE'}"/>` : ''}
+          <text x="${x + 15}" y="146" font-size="11" text-anchor="middle" fill="${t.subc}">${w}</text>`;
+      }).join('')}<line x1="10" x2="335" y1="70" y2="70" stroke="${t.border}"/></svg>` : '<div class="muted small">Недостатньо даних.</div>'}
+    </div>
+
+    <div class="card stack">
+      ${sectionTitle('Емоції, що приходять разом')}
+      ${st.pairs.length ? st.pairs.map(([a, b, c]) => {
+        const ea = Emo.get(a), eb = Emo.get(b);
+        if (!ea || !eb) return '';
+        return `<div class="row">${Emo.badge(ea, 28)}<span class="muted small">+</span>${Emo.badge(eb, 28)}
+          <span class="grow small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(ea.name)} і ${esc(eb.name.toLowerCase())}</span><b style="color:var(--accent)">×${c}</b></div>`;
+      }).join('') : '<div class="muted small">Обирай кілька емоцій у записі — і тут зʼявляться пари.</div>'}
+    </div>
+
+    <div class="card stack">
+      ${sectionTitle('Найсвітліші дні')}
+      ${st.best.length ? st.best.map(dayRow).join('') : '<div class="muted small">Ще немає.</div>'}
+      ${orn()}
+      ${sectionTitle('Найскладніші дні', 'бережи себе 🤍')}
+      ${st.hardest.length ? st.hardest.map(dayRow).join('') : '<div class="muted small">Складних днів не було.</div>'}
+    </div>
+
+    <div class="card stack">
+      ${sectionTitle('У порівнянні з попереднім періодом')}
+      ${cmp('Записів', st.entryCount, prev.entryCount)}
+      ${cmp('Днів з емоціями', st.daysWithData, prev.daysWithData)}
+      ${st.avg != null && prev.avg != null ? `<div class="row"><span class="grow">Настрій</span><span class="muted small">${Emo.moodLabel(prev.avg)} → ${Emo.moodLabel(st.avg)}</span>
+        <b style="color:${st.avg >= prev.avg ? 'var(--accent)' : 'var(--sub)'};min-width:34px;text-align:right">${st.avg > prev.avg + 0.1 ? '↗' : st.avg < prev.avg - 0.1 ? '↘' : '→'}</b></div>` : ''}
+      ${topNow ? `<div class="row"><span class="grow">Найчастіша емоція дня</span>${topPrev ? topPrev.emoji + ' → ' : ''}${Emo.badge(topNow, 26)}</div>` : ''}
+    </div>
+  </div>`;
+};
+
+ACT.statPeriod = (el) => { statState.p = el.dataset.p; statState.sel = null; if (['month', 'year'].includes(statState.p)) statState.anchor = new Date(); render(); };
+ACT.statShift = (el) => {
+  const d = +el.dataset.d;
+  statState.anchor = statState.p === 'month' ? D.addMonths(statState.anchor, d) : new Date(statState.anchor.getFullYear() + d, 0, 1);
+  statState.sel = null;
+  render();
+};
+ACT.statPoint = (el) => { statState.sel = statState.sel === el.dataset.key ? null : el.dataset.key; const y = scrollY; render().then(() => scrollTo(0, y)); };
+ACT.statAll = () => { statState.allEmo = !statState.allEmo; const y = scrollY; render().then(() => scrollTo(0, y)); };
+ACT.statDonut = (el) => { statState.donutEmo = el.dataset.v === '1'; const y = scrollY; render().then(() => scrollTo(0, y)); };
+
+/* ==========================================================================
+   ФОТО, МІСЯЦЬ, РІК, АРХІВ, ОБРАНЕ
+   ========================================================================== */
+function highlightPicker(key, title, candidates) {
+  openSheet(title, `<div class="stack">
+      <label class="btn full">${icon('image')} Обрати з галереї телефону<input type="file" accept="image/*" id="hl-file" hidden></label>
+      ${candidates.length ? `<div class="serif">Пропозиції з твоїх записів</div>
+        <div class="grid3">${candidates.map((p) => `<button class="thumb" data-pid-pick="${p}"><img data-pid="${p}" alt=""></button>`).join('')}</div>`
+        : '<div class="muted small">У записах за цей період ще немає фото.</div>'}
+      ${S.highlights[key] ? '<button class="btn danger full" data-hl-remove="1">Прибрати фото</button>' : ''}
+    </div>`, (body, close) => {
+    $('#hl-file', body).addEventListener('change', async (ev) => {
+      const f = ev.target.files?.[0];
+      if (!f) return;
+      await setHighlight(key, f);
+      close(); toast('Збережено ✨'); render();
+    });
+    body.addEventListener('click', async (ev) => {
+      const b = ev.target.closest('[data-pid-pick]');
+      if (b) { await setHighlight(key, await photoBlob(b.dataset.pidPick)); close(); toast('Збережено ✨'); render(); return; }
+      if (ev.target.closest('[data-hl-remove]')) { await setHighlight(key, null); close(); render(); }
+    });
+  });
+}
+
+function monthsGallery(year, photos) {
+  const yk = String(year);
+  const yearHl = S.highlights[yk];
+  const cards = MONTHS.map((m, i) => {
+    const key = `${year}-${pad(i + 1)}`;
+    const hl = S.highlights[key];
+    const auto = photos.filter((p) => p.date.startsWith(key)).slice(-1)[0];
+    return `<a class="month-card" data-go="/month/${key}"><div class="img">${hl ? `<img src="${hl.url}" alt="">` : auto ? `<img data-pid="${auto.id}" alt="">` : '<span class="ph">🌿</span>'}</div>
+      <div class="nm"><span>${cap(m)}</span>${hl ? '<span style="color:var(--accent)">★</span>' : ''}</div></a>`;
+  }).join('');
+  return `<button class="photo-card" style="height:200px" data-act="pickHl" data-key="${yk}">
+      ${yearHl ? `<img src="${yearHl.url}" alt="">` : `<div class="empty">✨<br>Обери фото, що символізує ${year} рік</div>`}
+      <div class="shade"></div><div class="label"><div class="t1">фото року</div><div class="t2">${year}</div></div></button>
+    <div class="month-cards">${cards}</div>
+    <div class="small muted">Фото місяця обирається на сторінці місяця. Якщо не обрано — показується фото з записів.</div>`;
+}
+
+ACT.pickHl = (el) => {
+  const key = el.dataset.key;
+  const cands = allPhotos().filter((p) => p.date.startsWith(key)).map((p) => p.id);
+  highlightPicker(key, key.length === 4 ? `Фото ${key} року` : 'Фото місяця', cands);
+};
+
+ROUTES.photos = async (v, parts, q) => {
+  const all = allPhotos();
+  const nowY = new Date().getFullYear();
+  const years = [...new Set([nowY, ...all.map((p) => +p.date.slice(0, 4))])].sort((a, b) => b - a);
+  const year = +(q.get('y') || nowY);
+  const mode = q.get('mode') || 'months';
+  const list = all.filter((p) => p.date.startsWith(String(year)));
+  let content = '';
+  if (mode === 'months') content = monthsGallery(year, list);
+  else {
+    const groups = [];
+    list.forEach((p, i) => {
+      const k = p.date.slice(0, 7);
+      if (!groups.length || groups[groups.length - 1].k !== k) groups.push({ k, items: [] });
+      groups[groups.length - 1].items.push([p, i]);
+    });
+    content = list.length ? groups.map((g) => `<div class="hand" style="font-size:22px;color:var(--text)">${cap(MONTHS[+g.k.slice(5) - 1])}</div>
+      <div class="grid3">${g.items.map(([p, i]) => `<button class="thumb" data-act="photoOpen" data-i="${i}"><img data-pid="${p.id}" alt=""></button>`).join('')}</div>`).join('')
+      : '<div class="muted">У цьому році ще немає фото.</div>';
+  }
+  v.innerHTML = `${topbar('Фотографії')}
+  <div class="page stack">
+    <div class="seg"><button class="${mode === 'months' ? 'on' : ''}" data-replace="1" data-go="/photos?y=${year}&mode=months">Місяці</button><button class="${mode === 'all' ? 'on' : ''}" data-replace="1" data-go="/photos?y=${year}&mode=all">Усі фото</button></div>
+    <div class="periods">${years.map((y) => `<button class="pill ${y === year ? 'on' : ''}" data-replace="1" data-go="/photos?y=${y}&mode=${mode}">${y}</button>`).join('')}</div>
+    <div class="muted small">${list.length} фото</div>
+    ${content}
+  </div>`;
+  ACT.photoOpen = (el) => openViewer(list.map((p) => p.id), +el.dataset.i);
+};
+
+ROUTES.month = async (v, parts) => {
+  const key = parts[1];
+  const first = D.fromKey(key + '-01');
+  const days = buildIndex();
+  const st = computeStats(days, first, new Date(first.getFullYear(), first.getMonth(), D.daysIn(first)));
+  const entries = S.entries.filter((e) => e.date.startsWith(key));
+  const photos = allPhotos().filter((p) => p.date.startsWith(key));
+  const hl = S.highlights[key];
+  const fav = entries.filter((e) => e.favorite);
+  const bright = st.best.flatMap((d) => d.entries).filter((e) => !e.favorite);
+  const moments = [...fav, ...bright].slice(0, 4);
+  v.innerHTML = `${topbar(D.monthTitle(first))}
+  <div class="page stack">
+    <button class="photo-card" style="height:240px" data-act="pickHl" data-key="${key}">
+      ${hl ? `<img src="${hl.url}" alt="">` : photos[0] ? `<img data-pid="${photos[photos.length - 1].id}" alt="">` : '<div class="empty">🖼️</div>'}
+      <div class="shade"></div><div class="label"><div class="t1">${hl ? 'фото місяця' : 'натисни, щоб обрати фото місяця'}</div><div class="t2">${D.monthTitle(first)}</div></div>
+    </button>
+    <div class="grid3">
+      <div class="card tight center"><div class="big-num">${entries.length}</div><div class="small muted">записів</div></div>
+      <div class="card tight center"><div class="big-num">${photos.length}</div><div class="small muted">фото</div></div>
+      <div class="card tight center"><div class="big-num">${new Set(entries.map((e) => e.date.slice(0, 10))).size}</div><div class="small muted">днів</div></div>
+    </div>
+    <div class="card stack">
+      ${sectionTitle('Емоції місяця', st.avg != null ? 'загалом — ' + Emo.moodLabel(st.avg).toLowerCase() : '')}
+      ${st.counts.length ? `<div class="chips">${st.counts.slice(0, 8).map(([id, c]) => { const e = Emo.get(id); return e ? `<div class="center" style="width:64px;flex:none">${Emo.badge(e, 42)}<div style="font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.name)}</div><div class="small muted" style="font-size:10px">×${c}</div></div>` : ''; }).join('')}</div>` : '<div class="muted small">Без відміток емоцій.</div>'}
+      <div id="mgrid">${monthGrid(first, days, null, true)}</div>
+    </div>
+    ${moments.length ? `${sectionTitle('Найяскравіші моменти')}${moments.map((e) => entryCard(e, true)).join('')}` : ''}
+    ${photos.length ? `${sectionTitle('Фотографії місяця')}<div class="grid4">${photos.map((p, i) => `<button class="thumb" data-act="monthPhoto" data-i="${i}"><img data-pid="${p.id}" alt=""></button>`).join('')}</div>` : ''}
+    ${entries.length ? `${sectionTitle('Усі записи')}${entries.map((e) => entryCard(e, true)).join('')}` : ''}
+  </div>`;
+  ACT.monthPhoto = (el) => openViewer(photos.map((p) => p.id), +el.dataset.i);
+  $('#mgrid', v).addEventListener('click', (ev) => { const b = ev.target.closest('.cal-day'); if (b) go('/day/' + b.dataset.day); });
+};
+
+ROUTES.year = async (v, parts) => {
+  const year = +parts[1];
+  const days = buildIndex();
+  const st = computeStats(days, new Date(year, 0, 1), new Date(year, 11, 31));
+  const entries = S.entries.filter((e) => e.date.startsWith(String(year)));
+  const photos = allPhotos().filter((p) => p.date.startsWith(String(year)));
+  v.innerHTML = `${topbar(String(year))}
+  <div class="page stack">
+    ${monthsGallery(year, photos)}
+    <div class="card stack">
+      ${sectionTitle(`Підсумки ${year} року`)}
+      <div class="grid3"><div><div class="big-num">${entries.length}</div><div class="small muted">записів</div></div>
+        <div><div class="big-num">${photos.length}</div><div class="small muted">фото</div></div>
+        <div><div class="big-num">${st.daysWithData}</div><div class="small muted">днів з емоціями</div></div></div>
+      ${st.counts.length ? `<div class="hand">Найчастіші емоції</div><div class="chips">${st.counts.slice(0, 6).map(([id, c]) => { const e = Emo.get(id); return e ? `<div class="center" style="flex:none">${Emo.badge(e, 40)}<div class="small muted">${c}</div></div>` : ''; }).join('')}</div>` : ''}
+      <button class="btn full" data-act="yearStats" data-y="${year}">${icon('chart')} Статистика року</button>
+    </div>
+    ${entries.filter((e) => e.favorite).length ? `${sectionTitle('Обрані моменти року')}${entries.filter((e) => e.favorite).slice(0, 5).map((e) => entryCard(e, true)).join('')}` : ''}
+  </div>`;
+};
+ACT.yearStats = (el) => { statState.p = 'year'; statState.anchor = new Date(+el.dataset.y, 0, 1); statState.sel = null; go('/stats'); };
+
+ROUTES.archive = async (v) => {
+  const years = {};
+  for (const e of S.entries) (years[e.date.slice(0, 4)] = years[e.date.slice(0, 4)] || []).push(e);
+  const ys = Object.keys(years).sort((a, b) => b - a);
+  v.innerHTML = `${topbar('Архів')}
+  <div class="page stack">
+    ${ys.length ? '' : '<div class="muted center">Архів зʼявиться, коли будуть записи.</div>'}
+    ${ys.map((y) => {
+      const list = years[y];
+      const hl = S.highlights[y];
+      const ph = list.find((e) => (e.photos || []).length)?.photos[0];
+      const counts = {};
+      list.forEach((e) => (e.emotions || []).forEach((id) => (counts[id] = (counts[id] || 0) + 1)));
+      const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 4).map((x) => x[0]);
+      return `<a class="photo-card" style="height:170px" data-go="/year/${y}">
+        ${hl ? `<img src="${hl.url}" alt="">` : ph ? `<img data-pid="${ph}" alt="">` : ''}
+        <div class="shade" style="background:linear-gradient(180deg,transparent,rgba(0,0,0,.7))"></div>
+        <div class="label"><div class="t2" style="font-size:34px">${y}</div><div class="small" style="opacity:.85">${list.length} записів · ${list.reduce((a, e) => a + (e.photos || []).length, 0)} фото</div></div>
+        <div style="position:absolute;right:14px;bottom:14px">${Emo.stack(top, 30, 4)}</div></a>`;
+    }).join('')}
+    <button class="card tight row" data-go="/favorites"><span style="color:var(--accent)">★</span><span class="serif grow" style="text-align:left">Обрані спогади</span>
+      <span class="muted">${S.entries.filter((e) => e.favorite).length}</span>${icon('right')}</button>
+  </div>`;
+};
+
+ROUTES.favorites = async (v) => {
+  const fav = S.entries.filter((e) => e.favorite);
+  v.innerHTML = `${topbar('Обрані спогади')}<div class="page stack">
+    ${fav.length ? fav.map((e) => entryCard(e)).join('') : '<div class="empty-state"><div class="big">★</div><div class="muted">Познач важливі записи зірочкою — вони зберуться тут.</div></div>'}</div>`;
+};
+
+/* ==========================================================================
+   ПОШУК
+   ========================================================================== */
+const searchState = { q: '', scope: 'entries', emotions: [], useDates: false, from: '', to: '', fav: false };
+
+function searchResults() {
+  const s = searchState;
+  const tokens = fold(s.q).split(/\s+/).filter(Boolean);
+  const active = tokens.length || s.emotions.length || s.useDates || s.fav;
+  if (!active) return { active, tokens, entries: [], photos: [] };
+  const from = s.from || '0000', to = (s.to || '9999') + 'T99';
+  const entries = S.entries.filter((e) => {
+    if (s.fav && !e.favorite) return false;
+    if (s.useDates && (e.date < from || e.date > to)) return false;
+    if (s.emotions.length && !s.emotions.every((id) => (e.emotions || []).includes(id))) return false;
+    if (tokens.length && !tokens.every((t) => (e.search || '').includes(t))) return false;
+    return true;
+  });
+  const photos = [];
+  for (const e of entries) {
+    const ids = e.photos || [];
+    const byCap = tokens.length ? ids.filter((id) => tokens.every((t) => fold(S.photoMeta[id]?.caption).includes(t))) : [];
+    (byCap.length ? byCap : ids).forEach((id) => photos.push({ id, date: e.date }));
+  }
+  return { active, tokens, entries, photos };
+}
+
+function snippet(e, tokens) {
+  if (!tokens.length) return '';
+  const text = (e.text + ' ' + (e.photos || []).map((p) => S.photoMeta[p]?.caption || '').join(' ')).replace(/\s+/g, ' ');
+  const f = fold(text);
+  const at = f.indexOf(tokens[0]);
+  if (at < 0) return '';
+  const s = Math.max(0, at - 50), en = Math.min(text.length, at + 110);
+  let piece = esc(text.slice(s, en));
+  for (const t of tokens) {
+    const re = new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    piece = piece.replace(re, (m) => `<b style="color:var(--accent)">${m}</b>`);
+  }
+  return `<div class="small muted" style="padding:0 12px">${s > 0 ? '…' : ''}${piece}${en < text.length ? '…' : ''}</div>`;
+}
+
+ROUTES.search = async (v) => {
+  const s = searchState;
+  v.innerHTML = `${topbar('Пошук')}
+  <div class="page stack">
+    <input class="text-input" id="sq" type="search" placeholder="Слова, людина, подія, «липень», «12 березня»…" value="${esc(s.q)}" autocomplete="off">
+    <div class="seg"><button data-sc="entries" class="${s.scope === 'entries' ? 'on' : ''}">Записи</button><button data-sc="photos" class="${s.scope === 'photos' ? 'on' : ''}">Фото</button></div>
+    <div class="periods">
+      <button class="pill ${s.emotions.length ? 'on' : ''}" id="s-emo">${s.emotions.length ? `Емоції: ${s.emotions.length}` : '☺︎ Емоції'}</button>
+      <button class="pill ${s.useDates ? 'on' : ''}" id="s-dates">📅 Період</button>
+      <button class="pill ${s.fav ? 'on' : ''}" id="s-fav">★ Обране</button>
+      <button class="pill" id="s-reset">Скинути</button>
+    </div>
+    ${s.emotions.length ? Emo.stack(s.emotions, 26, 10) : ''}
+    ${s.useDates ? `<div class="row"><input type="date" class="date-input grow" id="s-from" value="${s.from}"><span class="muted">—</span><input type="date" class="date-input grow" id="s-to" value="${s.to}"></div>` : ''}
+    <div id="sres" class="stack"></div>
+  </div>`;
+  const out = $('#sres', v);
+  const draw = () => {
+    const r = searchResults();
+    if (!r.active) {
+      out.innerHTML = `<div class="empty-state"><div class="big">🔎</div><div class="muted small">Введи слово, імʼя людини, подію, назву місяця чи дату. Можна шукати за емоціями та підписами до фото.</div></div>`;
+      return;
+    }
+    if (s.scope === 'entries') {
+      out.innerHTML = `<div class="hand">${r.entries.length ? 'Знайдено: ' + r.entries.length : 'Нічого не знайдено'}</div>`
+        + r.entries.slice(0, 200).map((e) => `<div class="stack" style="gap:6px">${entryCard(e, true)}${snippet(e, r.tokens)}</div>`).join('');
+    } else {
+      out.innerHTML = `<div class="hand">${r.photos.length ? 'Фото: ' + r.photos.length : 'Фото не знайдено'}</div>
+        <div class="grid3">${r.photos.map((p, i) => `<button class="thumb" data-act="searchPhoto" data-i="${i}"><img data-pid="${p.id}" alt="">
+          <span class="badge" style="position:absolute;left:4px;bottom:4px;background:rgba(0,0,0,.5);color:#fff;font-size:9px">${p.date.slice(8, 10)}.${p.date.slice(5, 7)}.${p.date.slice(2, 4)}</span></button>`).join('')}</div>`;
+      ACT.searchPhoto = (el) => openViewer(r.photos.map((p) => p.id), +el.dataset.i);
+    }
+    hydrate(out);
+  };
+  draw();
+  const qIn = $('#sq', v);
+  qIn.addEventListener('input', () => { s.q = qIn.value; draw(); });
+  if (!s.q) setTimeout(() => qIn.focus(), 200);
+  $$('[data-sc]', v).forEach((b) => b.addEventListener('click', () => { s.scope = b.dataset.sc; render(); }));
+  $('#s-emo', v).addEventListener('click', () => openEmotionPicker(s.emotions, () => {}, 'Пошук за емоціями', () => render()));
+  $('#s-dates', v).addEventListener('click', () => {
+    s.useDates = !s.useDates;
+    if (s.useDates && !s.from) { s.to = D.key(new Date()); s.from = D.key(D.addMonths(new Date(), -1)); }
+    render();
+  });
+  $('#s-fav', v).addEventListener('click', () => { s.fav = !s.fav; render(); });
+  $('#s-reset', v).addEventListener('click', () => { Object.assign(s, { q: '', emotions: [], useDates: false, fav: false }); render(); });
+  $('#s-from', v)?.addEventListener('change', (e) => { s.from = e.target.value; draw(); });
+  $('#s-to', v)?.addEventListener('change', (e) => { s.to = e.target.value; draw(); });
+};
+
+/* ==========================================================================
+   НАЛАШТУВАННЯ
+   ========================================================================== */
+let preparedBackup = null;
+
+ROUTES.settings = async (v) => {
+  const st = S.settings;
+  const totalPhotos = S.entries.reduce((a, e) => a + (e.photos || []).length, 0);
+  let usage = '';
+  try {
+    const est = await navigator.storage?.estimate?.();
+    if (est) usage = `${(est.usage / 1048576).toFixed(1)} МБ`;
+  } catch (_) { /* немає даних */ }
+  let persisted = false;
+  try { persisted = navigator.storage?.persisted ? await navigator.storage.persisted() : false; } catch (_) { persisted = false; }
+  const sw = (id, on, label) => `<div class="form-row"><label for="${id}">${label}</label><span class="switch"><input type="checkbox" id="${id}" ${on ? 'checked' : ''}><span></span></span></div>`;
+  const last = st.lastBackup ? D.dmy(new Date(st.lastBackup)) : 'ще не було';
+
+  v.innerHTML = `${topbar('Налаштування')}
+  <div class="page stack">
+    <div class="card">
+      <div class="section-title" style="font-size:17px;margin-bottom:8px">Про мене</div>
+      <input class="text-input" id="set-name" placeholder="Як до тебе звертатися?" value="${esc(st.name)}">
+    </div>
+
+    <div class="card">
+      <div class="section-title" style="font-size:17px">Оформлення</div>
+      <button class="link-row" data-go="/themes" style="padding:12px 0">${icon('brush')}<span class="grow">Бібліотека тем</span><span class="muted small">${esc(theme().name)}</span>${icon('right')}</button>
+      <button class="link-row" data-go="/style" style="padding:12px 0">${icon('sparkle')}<span class="grow">Мій стиль: кольори, фон, шапка</span>${icon('right')}</button>
+      ${sw('set-decor', st.decor, 'Декоративні дрібнички')}
+      ${sw('set-anim', st.animate, 'Анімація шапки (світлячки, сніг…)')}
+      ${sw('set-serif', st.serif, 'Текст записів шрифтом із засічками')}
+      <div class="form-row"><label>Розмір тексту: <b id="sz-lbl">${st.size}</b></label><input type="range" id="set-size" min="14" max="24" step="1" value="${st.size}" style="width:45%"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title" style="font-size:17px">Емоції</div>
+      <button class="link-row" data-go="/emotions" style="padding:12px 0">${icon('smile')}<span class="grow">Бібліотека емоцій (${Emo.all().length})</span>${icon('right')}</button>
+    </div>
+
+    <div class="card stack">
+      <div class="section-title" style="font-size:17px">Резервна копія і новий телефон</div>
+      <div class="small muted">Записи й фото зберігаються тільки на цьому телефоні. Копія — це <b>один файл</b> з усім щоденником: текстами, емоціями, фото. Збережи його у «Файли» / iCloud Drive або надішли собі. На новому телефоні: встанови щоденник → «Відновити з копії».</div>
+      <div class="small">Остання копія: <b>${last}</b></div>
+      <button class="btn solid full" id="bk-make">${icon('download')} Створити резервну копію</button>
+      <button class="btn full hidden" id="bk-share">${icon('upload')} Зберегти / надіслати файл</button>
+      <label class="btn full">${icon('upload')} Відновити з копії<input type="file" id="bk-restore" hidden></label>
+    </div>
+
+    <div class="card stack">
+      <div class="section-title" style="font-size:17px">Захист</div>
+      <div class="small muted">${st.pinHash ? 'Щоденник відкривається тільки з твоїм паролем.' : 'Можна поставити пароль із 4 цифр — він питатиметься при відкритті.'}</div>
+      <button class="btn full" id="pin-set">${icon('lock')} ${st.pinHash ? 'Змінити пароль' : 'Встановити пароль'}</button>
+      ${st.pinHash ? '<button class="btn danger full" id="pin-del">Прибрати пароль</button>' : ''}
+      <div class="small muted">Якщо забудеш пароль, відкрити записи не вийде — тому обовʼязково роби резервні копії.</div>
+    </div>
+
+    <div class="card stack">
+      <div class="section-title" style="font-size:17px">Нагадування</div>
+      <div class="small muted">Веб-застосунок не може сам надсилати щоденні сповіщення. Найпростіше: відкрий «Нагадування» на iPhone → нове нагадування «Записати день у щоденник» → щодня в потрібний час.</div>
+    </div>
+
+    <div class="card">
+      <div class="section-title" style="font-size:17px">Про щоденник</div>
+      <div class="form-row"><span class="grow">Записів</span><b>${S.entries.length}</b></div>
+      <div class="form-row"><span class="grow">Фото</span><b>${totalPhotos}</b></div>
+      ${usage ? `<div class="form-row"><span class="grow">Займає на телефоні</span><b>${usage}</b></div>` : ''}
+      <div class="form-row"><span class="grow">Захищене сховище</span><b>${persisted ? 'так ✓' : 'звичайне'}</b></div>
+    </div>
+  </div>`;
+
+  $('#set-name', v).addEventListener('change', async (e) => { st.name = e.target.value.trim(); await saveSettings(); toast('Збережено'); });
+  const toggle = (id, key) => $('#' + id, v).addEventListener('change', async (e) => { st[key] = e.target.checked; await saveSettings(); applyTheme(); });
+  toggle('set-decor', 'decor'); toggle('set-anim', 'animate'); toggle('set-serif', 'serif');
+  $('#set-size', v).addEventListener('input', async (e) => { st.size = +e.target.value; $('#sz-lbl').textContent = st.size; applyTheme(); await saveSettings(); });
+
+  $('#bk-make', v).addEventListener('click', async () => {
+    const btn = $('#bk-make');
+    btn.disabled = true;
+    btn.textContent = 'Готую копію…';
+    try {
+      preparedBackup = await makeBackup();
+      $('#bk-share').classList.remove('hidden');
+      btn.innerHTML = `${icon('check')} Копію підготовлено (${(preparedBackup.size / 1048576).toFixed(1)} МБ)`;
+      toast('Тепер натисни «Зберегти / надіслати файл»');
+    } catch (err) {
+      console.error(err);
+      btn.textContent = 'Не вдалося. Спробуй ще раз';
+    }
+    btn.disabled = false;
+  });
+  $('#bk-share', v).addEventListener('click', async () => {
+    if (!preparedBackup) return;
+    const done = async () => { st.lastBackup = Date.now(); await saveSettings(); toast('Копію збережено ✓'); };
+    if (navigator.canShare && navigator.canShare({ files: [preparedBackup] })) {
+      try { await navigator.share({ files: [preparedBackup], title: preparedBackup.name }); await done(); }
+      catch (err) { if (err.name !== 'AbortError') toast('Не вдалося поділитися файлом'); }
+    } else {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(preparedBackup);
+      a.download = preparedBackup.name;
+      document.body.appendChild(a); a.click(); a.remove();
+      await done();
+    }
+  });
+  $('#bk-restore', v).addEventListener('change', async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    toast('Відновлюю…', 8000);
+    try {
+      const n = await restoreBackup(f);
+      applyTheme();
+      toast(n ? `Відновлено записів: ${n} 🌿` : 'Нових записів у копії не знайдено (усі вже є)', 4000);
+      render();
+    } catch (err) {
+      console.error(err);
+      toast('Не вдалося прочитати файл. Обери файл копії щоденника (.diary)', 4000);
+    }
+  });
+  $('#pin-set', v).addEventListener('click', () => setupPin());
+  $('#pin-del', v)?.addEventListener('click', async () => { if (confirm('Прибрати пароль?')) { st.pinHash = ''; await saveSettings(); render(); } });
+};
+
+/* ---------- Теми ---------- */
+function themePreview(t, h, selected) {
+  return `<div class="theme-prev ${selected ? 'sel' : ''}" style="background:linear-gradient(${t.bgTop},${t.bgBottom})">
+    <canvas data-theme="${t.id}" style="height:${h}px"></canvas>
+    <div class="mock">${[0, 1].map((i) => `<div class="mc" style="background:${t.card}">
+      <div style="display:flex;gap:5px;align-items:center"><i style="width:18px;height:9px;background:${t.text};opacity:.7"></i><i style="width:26px;background:${t.subc};opacity:.5"></i>
+      <span style="flex:1"></span><i style="width:10px;height:10px;border-radius:50%;background:${CATS[i].color}"></i></div>
+      <i style="background:${t.text};opacity:.25"></i><i style="width:60%;background:${t.text};opacity:.18"></i>
+      ${i ? `<div style="display:flex;gap:3px">${[0, 1, 2, 3].map(() => `<i style="flex:1;height:14px;background:${t.border};border-radius:3px"></i>`).join('')}</div>` : ''}</div>`).join('')}
+      <div style="display:flex;justify-content:center;gap:14px;align-items:center"><i style="width:11px;height:11px;border-radius:50%;background:${t.card}"></i>
+      <i style="width:18px;height:18px;border-radius:50%;background:${t.accent}"></i><i style="width:11px;height:11px;border-radius:50%;background:${t.card}"></i></div></div>
+    ${selected ? `<span class="check" style="background:${t.accent};color:${t.dark ? '#111' : '#fff'}">✓</span>` : ''}</div>`;
+}
+
+function paintPreviews(root) {
+  for (const c of $$('canvas[data-theme]', root)) {
+    const t = THEMES.find((x) => x.id === c.dataset.theme);
+    if (t) paintScene(c, t, false);
+  }
+}
+
+ROUTES.themes = async (v) => {
+  const cols = [[], []];
+  THEMES.forEach((t, i) => cols[i % 2].push([t, (Math.floor(i / 2) + i) % 2 === 0 ? 130 : 90]));
+  v.innerHTML = `${topbar('Теми')}
+  <div class="page stack">
+    <div class="small muted">Тема змінює фон, картки, кнопки, ілюстрацію шапки, декор, календар і графіки. Підлаштувати кольори й поставити свої картинки можна в «Мій стиль».</div>
+    <div class="masonry">${cols.map((col) => `<div class="col">${col.map(([t, h]) => `<button class="theme-tile" data-act="pickTheme" data-id="${t.id}">
+      ${themePreview(t, h, S.settings.themeId === t.id)}<div class="serif" style="font-size:15px;margin-top:8px">${t.name}</div><div class="small muted">${t.sub}</div></button>`).join('')}</div>`).join('')}</div>
+    <button class="btn full" data-go="/style">${icon('sparkle')} Створити власну комбінацію</button>
+  </div>`;
+  requestAnimationFrame(() => paintPreviews(v));
+};
+ACT.pickTheme = async (el) => {
+  Object.assign(S.settings, { themeId: el.dataset.id, accent: '', card: '', bg: '' });
+  await saveSettings();
+  applyTheme();
+  const y = scrollY;
+  await render();
+  scrollTo(0, y);
+  toast('Тему змінено ✨');
+};
+
+ROUTES.style = async (v) => {
+  const t = theme();
+  const st = S.settings;
+  v.innerHTML = `${topbar('Мій стиль')}
+  <div class="page stack">
+    <div style="width:200px;margin:0 auto">${themePreview(t, 110, false)}</div>
+    <div class="card">
+      <button class="link-row" data-go="/themes" style="padding:10px 0"><span class="grow">Основа</span><span class="muted">${esc(t.name)}</span>${icon('right')}</button>
+      <div class="form-row"><label>Акцент (кнопки, лінії)</label><input type="color" id="c-accent" value="${t.accent}"></div>
+      <div class="form-row"><label>Картки записів</label><input type="color" id="c-card" value="${t.card}"></div>
+      <div class="form-row"><label>Фон</label><input type="color" id="c-bg" value="${t.bgTop}"></div>
+    </div>
+    <div class="card stack">
+      <div class="section-title" style="font-size:17px">Картинки</div>
+      <div class="small muted">Можна поставити будь-яку картинку з телефону — наприклад, збережену з Pinterest атмосферну ілюстрацію лісу чи бібліотеки.</div>
+      <label class="btn full">${icon('image')} ${st.headerImg ? 'Змінити картинку шапки' : 'Власна картинка шапки'}<input type="file" accept="image/*" id="i-head" hidden></label>
+      ${st.headerImg ? '<button class="btn danger full" id="i-head-del">Повернути ілюстрацію теми</button>' : ''}
+      <label class="btn full">${icon('photos')} ${st.bgImg ? 'Змінити фон' : 'Власний фон'}<input type="file" accept="image/*" id="i-bg" hidden></label>
+      ${st.bgImg ? '<button class="btn danger full" id="i-bg-del">Прибрати фон</button>' : ''}
+    </div>
+    ${st.accent || st.card || st.bg || st.headerImg || st.bgImg ? '<button class="btn danger full" id="style-reset">Скинути мій стиль</button>' : ''}
+  </div>`;
+  requestAnimationFrame(() => paintPreviews(v));
+  const color = (id, key) => $('#' + id, v).addEventListener('change', async (e) => { st[key] = e.target.value; await saveSettings(); applyTheme(); render(); });
+  color('c-accent', 'accent'); color('c-card', 'card'); color('c-bg', 'bg');
+  const img = (id, key, max) => $('#' + id, v).addEventListener('change', async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const im = await loadImage(f);
+    st[key] = await resizeTo(im, max, 0.85);
+    await saveSettings(); applyTheme(); render(); toast('Готово ✨');
+  });
+  img('i-head', 'headerImg', 1600); img('i-bg', 'bgImg', 1600);
+  $('#i-head-del', v)?.addEventListener('click', async () => { st.headerImg = null; await saveSettings(); applyTheme(); render(); });
+  $('#i-bg-del', v)?.addEventListener('click', async () => { st.bgImg = null; await saveSettings(); applyTheme(); render(); });
+  $('#style-reset', v)?.addEventListener('click', async () => { Object.assign(st, { accent: '', card: '', bg: '', headerImg: null, bgImg: null }); await saveSettings(); applyTheme(); render(); });
+};
+
+ROUTES.emotions = async (v) => {
+  v.innerHTML = `${topbar('Емоції', `<button class="icon-btn" data-act="addEmotion">${icon('plus')}</button>`)}
+  <div class="page stack">
+    <div class="small muted">${Emo.all().length} емоцій. Власні емоції можна видалити, торкнувшись їх.</div>
+    ${CATS.map((c) => `<div class="card"><div class="serif" style="margin-bottom:10px">${c.title}</div>
+      <div class="emo-grid">${Emo.inCat(c.id).map((e) => `<button class="emo-cell" ${e.custom ? `data-act="delEmotion" data-id="${e.id}"` : ''}>${Emo.badge(e, 46)}<span class="name">${esc(e.name)}${e.custom ? ' ✎' : ''}</span></button>`).join('')}</div></div>`).join('')}
+    <button class="btn full" data-act="addEmotion">${icon('plus')} Додати власну емоцію</button>
+  </div>`;
+};
+ACT.addEmotion = () => openEmotionEditor(() => render());
+ACT.delEmotion = async (el) => {
+  if (!confirm('Видалити цю емоцію з бібліотеки? У старих записах вона зникне.')) return;
+  S.settings.customEmotions = S.settings.customEmotions.filter((e) => e.id !== el.dataset.id);
+  await saveSettings();
+  render();
+};
+
+/* ==========================================================================
+   ПАРОЛЬ
+   ========================================================================== */
+function pinPad(onDone, subtitle) {
+  const el = document.createElement('div');
+  el.className = 'lock';
+  el.innerHTML = `<div class="hero" style="height:calc(250px + var(--safe-top))">${headerURL ? `<div class="hero-img" style="background-image:url(${headerURL})"></div>` : '<canvas></canvas>'}<div class="fade"></div>
+      <div class="greet" style="text-align:center"><div style="color:var(--accent)">${icon('lock', 22)}</div><div class="today">Мій щоденник</div><div class="hello" id="pin-sub">${subtitle}</div></div></div>
+    <div class="pin-dots" id="pin-dots"><i></i><i></i><i></i><i></i></div>
+    <div class="pinpad">${['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'].map((k) => `<button class="${k === '' || k === '⌫' ? 'ghost' : ''}" data-k="${k}">${k}</button>`).join('')}</div>
+    <div style="height:30px"></div>`;
+  document.body.appendChild(el);
+  const cv = $('canvas', el);
+  const stop = cv ? paintScene(cv, theme(), false) : null;
+  let pin = '';
+  const dots = $('#pin-dots', el);
+  const draw = () => $$('i', dots).forEach((d, i) => d.classList.toggle('f', i < pin.length));
+  el.addEventListener('click', async (ev) => {
+    const b = ev.target.closest('[data-k]');
+    if (!b || !b.dataset.k) return;
+    if (b.dataset.k === '⌫') pin = pin.slice(0, -1);
+    else if (pin.length < 4) pin += b.dataset.k;
+    draw();
+    if (pin.length === 4) {
+      const val = pin;
+      await sleep(120);
+      const res = await onDone(val, el);
+      if (res === true) { stop && stop(); el.remove(); }
+      else { dots.classList.add('shake'); setTimeout(() => dots.classList.remove('shake'), 400); if (typeof res === 'string') $('#pin-sub', el).textContent = res; }
+      pin = '';
+      draw();
+    }
+  });
+  return el;
+}
+
+function setupPin() {
+  let first = null;
+  const el = pinPad(async (val, root) => {
+    if (!first) { first = val; $('#pin-sub', root).textContent = 'Повтори пароль'; return 'Повтори пароль'; }
+    if (first !== val) { first = null; return 'Не збігається. Придумай пароль ще раз'; }
+    S.settings.pinHash = await sha256(val);
+    await saveSettings();
+    toast('Пароль встановлено 🔒');
+    render();
+    return true;
+  }, 'Придумай пароль із 4 цифр');
+  const cancel = document.createElement('button');
+  cancel.className = 'text-btn';
+  cancel.textContent = 'Скасувати';
+  cancel.addEventListener('click', () => el.remove());
+  el.appendChild(cancel);
+}
+
+let locked = false;
+function lockScreen() {
+  if (!S.settings.pinHash || locked) return;
+  locked = true;
+  pinPad(async (val) => {
+    if ((await sha256(val)) === S.settings.pinHash) { locked = false; return true; }
+    return 'Неправильний пароль';
+  }, 'тут живуть твої спогади');
+}
+
+let hiddenAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { hiddenAt = Date.now(); return; }
+  if (S.settings.pinHash && hiddenAt && Date.now() - hiddenAt > 60000) lockScreen();
+  if ((parseHash().parts[0] || '') === '' && !$('#ed-body')) render();
+});
+
+/* ==========================================================================
+   ЗАПУСК
+   ========================================================================== */
+async function start() {
+  try {
+    await DB.open();
+    await loadAll();
+  } catch (err) {
+    console.error(err);
+    $('#view').innerHTML = `<div class="page"><div class="card">Не вдалося відкрити сховище щоденника. Перевір, що Safari не в режимі «Приватний доступ», і перезапусти.<br><small class="muted">${esc(err.message)}</small></div></div>`;
+    return;
+  }
+  applyTheme();
+  if (S.settings.pinHash) lockScreen();
+  if (location.hash && location.hash !== '#/' && location.hash !== '#') location.replace('#/');
+  else await render();
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if (S.entries.length) navigator.storage?.persist?.();
+}
+
+start();
