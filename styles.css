@@ -386,16 +386,23 @@ button > svg, a > svg, label > svg, .row > svg, .link-row svg, .tile-stat > svg 
 .ttitle { font-size: 15px; font-weight: 500; }
 .planner { --pline: color-mix(in srgb, var(--border) 70%, transparent); }
 /* паперовий стиль, як у паперовому планері */
-.planner-paper .psheet { background: #FBF8F2; color: #4A4440; border-color: #E6DED0;
-  background-image: radial-gradient(#D9D1C2 1px, transparent 1.2px); background-size: 16px 16px; }
-.planner-paper { --pline: #DDD5C6; }
-.planner-paper .psheet .ptitle { color: #4A4440; }
-.planner-paper .psheet .pwd { color: #8A7F72; }
-.planner-paper .psheet .pnum { background: #EFE8DC; color: #6A6058; }
-.planner-paper .psheet .pcell.today .pnum { background: #E89A6A; color: #fff; }
-.planner-paper .psheet .pcell.sel { background: rgba(232,154,106,.14); }
-.planner-paper .psheet .icon-btn { background: #EFE8DC; color: #6A6058; border-color: #E0D6C6; }
-.planner-paper .psheet .text-btn { color: #C47A4A; }
+.planner-paper { --pbg: #FBF8F2; --pink: #4A4440; --psub: #8A7F72; --pmix: #000; --pacc: #E89A6A;
+  --pline: color-mix(in srgb, var(--pbg) 84%, var(--pmix)); }
+.planner-paper .psheet { background-color: var(--pbg); color: var(--pink); border-color: color-mix(in srgb, var(--pbg) 88%, var(--pmix));
+  background-image: radial-gradient(color-mix(in srgb, var(--pbg) 80%, var(--pmix)) 1px, transparent 1.2px); background-size: 16px 16px; }
+.planner-paper .psheet .ptitle { color: var(--pink); }
+.planner-paper .psheet .pwd { color: var(--psub); }
+.planner-paper .psheet .pnum { background: color-mix(in srgb, var(--pbg) 90%, var(--pmix)); color: var(--psub); }
+.planner-paper .psheet .pcell.today .pnum { background: var(--pacc); color: #fff; }
+.planner-paper .psheet .pcell.sel { background: color-mix(in srgb, var(--pacc) 16%, transparent); }
+.planner-paper .psheet .pcell.empty { background: color-mix(in srgb, var(--pbg) 94%, var(--pmix)); }
+.planner-paper .psheet .icon-btn { background: color-mix(in srgb, var(--pbg) 90%, var(--pmix)); color: var(--psub); border-color: color-mix(in srgb, var(--pbg) 84%, var(--pmix)); }
+.planner-paper .psheet .text-btn { color: var(--pacc); }
+.pcolors { display: flex; flex-wrap: wrap; gap: 10px; }
+.pcolors button, .pcolors label { width: 40px; height: 40px; border-radius: 50%; border: 3px solid transparent; box-shadow: 0 0 0 1px rgba(255,255,255,.25); }
+.pcolors .on { border-color: var(--accent); }
+.pthumb { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 4px; display: block; margin-top: 1px; }
+.trow .tdel { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: var(--sub); }
 .planner-minimal .psheet { background: transparent; box-shadow: none; border: 0; }
 .planner-minimal .pcell { min-height: 60px; }
 .grid2 .photo-card .label .t2 { font-size: 21px; }

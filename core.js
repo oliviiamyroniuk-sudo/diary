@@ -9,7 +9,7 @@ const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
-const fold = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ё/g, 'е');
+const fold = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ё/g, 'e');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function toast(msg, ms = 2400) {
@@ -78,11 +78,11 @@ function icon(name, size) {
 }
 
 /* ---------- Дати ---------- */
-const MONTHS = ['січень', 'лютий', 'березень', 'квітень', 'травень', 'червень', 'липень', 'серпень', 'вересень', 'жовтень', 'листопад', 'грудень'];
-const MONTHS_GEN = ['січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'];
-const MONTHS_SHORT = ['січ', 'лют', 'бер', 'кві', 'тра', 'чер', 'лип', 'сер', 'вер', 'жов', 'лис', 'гру'];
-const WEEKDAYS = ['неділя', 'понеділок', 'вівторок', 'середа', 'четвер', 'пʼятниця', 'субота'];
-const WD = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const MONTHS_GEN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const WD = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 const pad = (n) => String(n).padStart(2, '0');
 
 const D = {
@@ -104,17 +104,17 @@ const D = {
   wd(d) { return (d.getDay() + 6) % 7; },
   between(a, b) { return Math.round((D.start(b) - D.start(a)) / 86400000); },
   isToday(d) { return D.key(d) === D.key(new Date()); },
-  long(d) { return `${cap(WEEKDAYS[d.getDay()])}, ${d.getDate()} ${MONTHS_GEN[d.getMonth()]}`; },
-  dm(d) { return `${d.getDate()} ${MONTHS_GEN[d.getMonth()]}`; },
-  dmy(d) { return `${d.getDate()} ${MONTHS_GEN[d.getMonth()]} ${d.getFullYear()}`; },
+  long(d) { return `${WEEKDAYS[d.getDay()]}, ${MONTHS_GEN[d.getMonth()]} ${d.getDate()}`; },
+  dm(d) { return `${MONTHS_GEN[d.getMonth()]} ${d.getDate()}`; },
+  dmy(d) { return `${MONTHS_GEN[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`; },
   time(d) { return `${pad(d.getHours())}:${pad(d.getMinutes())}`; },
   monthTitle(d) { return `${cap(MONTHS[d.getMonth()])} ${d.getFullYear()}`; },
   greeting() {
     const h = new Date().getHours();
-    if (h >= 5 && h < 12) return 'Доброго ранку';
-    if (h >= 12 && h < 18) return 'Добрий день';
-    if (h >= 18 && h < 23) return 'Добрий вечір';
-    return 'Тихої ночі';
+    if (h >= 5 && h < 12) return 'Good morning';
+    if (h >= 12 && h < 18) return 'Good afternoon';
+    if (h >= 18 && h < 23) return 'Good evening';
+    return 'Quiet night';
   },
 };
 
@@ -188,13 +188,18 @@ const CATS = [
 ];
 
 const Emo = {
-  all() { return BUILTIN_EMOTIONS.concat(S.settings.customEmotions || []); },
+  all() {
+    const nm = S.settings.emoNames || {};
+    const rename = (e) => (nm[e.id] ? { ...e, name: nm[e.id] } : e);
+    return BUILTIN_EMOTIONS.map(rename).concat((S.settings.customEmotions || []).map(rename));
+  },
   get(id) { return Emo._map()[id]; },
   _map() {
     const list = Emo.all();
-    if (Emo._cacheLen !== list.length) {
+    const sig = list.length + '|' + JSON.stringify(S.settings.emoNames || {});
+    if (Emo._cacheLen !== sig) {
       Emo._cache = Object.fromEntries(list.map((e) => [e.id, e]));
-      Emo._cacheLen = list.length;
+      Emo._cacheLen = sig;
     }
     return Emo._cache;
   },
@@ -213,60 +218,60 @@ const Emo = {
     return `<span class="chip" style="--c:${e.color}">${Emo.badge(e, 24)}${esc(e.name)}${star ? ' <span style="color:var(--accent);font-size:10px">★</span>' : ''}</span>`;
   },
   moodLabel(s) {
-    if (s >= 1.3) return 'Чудово';
-    if (s >= 0.5) return 'Добре';
-    if (s >= -0.5) return 'Рівно';
-    if (s >= -1.3) return 'Непросто';
-    return 'Важко';
+    if (s >= 1.3) return 'Great';
+    if (s >= 0.5) return 'Good';
+    if (s >= -0.5) return 'Okay';
+    if (s >= -1.3) return 'Not easy';
+    return 'Hard';
   },
 };
 
 /* ---------- Теми ---------- */
 const THEMES = [
-  { id: 'darkForest', name: 'Dark Forest', sub: 'Мох, туман і світлячки', dark: true,
+  { id: 'darkForest', name: 'Dark Forest', sub: 'Moss, mist and fireflies', dark: true,
     bgTop: '#0F1A14', bgBottom: '#18271D', card: '#1D2C22', border: '#3A5241', accent: '#9BBF84', text: '#E8E4D4', subc: '#A9B3A0',
     sky: ['#0A130F', '#1D3527', '#2E4A33'], layers: ['#1B3022', '#132219', '#0C1610'], scene: 'forest', particles: 'fireflies', moon: '#E9E3C4',
     decor: ['❦', '✦', '☾', '🍃'], orn: '· ✦ ❦ ✦ ·', corner: '🍃', mushrooms: true },
-  { id: 'cozyLibrary', name: 'Cozy Library', sub: 'Книжкові полиці й свічки', dark: true,
+  { id: 'cozyLibrary', name: 'Cozy Library', sub: 'Bookshelves and candles', dark: true,
     bgTop: '#1C120B', bgBottom: '#2A1A11', card: '#382316', border: '#5C3D27', accent: '#D9914E', text: '#F1E3CF', subc: '#C2A88C',
     sky: ['#2A1910', '#3B2416'], layers: ['#6B3A2A', '#3E4F38', '#8A6A3B', '#5A2E3A', '#2F3D52', '#7A5232'], scene: 'library', particles: 'dust',
     decor: ['📖', '🕯️', '✧', '☕️'], orn: '— ✧ 📖 ✧ —', corner: '📖' },
-  { id: 'fairycore', name: 'Fairycore', sub: 'Квіти, метелики, магія', dark: true,
+  { id: 'fairycore', name: 'Fairycore', sub: 'Flowers, butterflies, magic', dark: true,
     bgTop: '#272035', bgBottom: '#352B45', card: '#41354F', border: '#6E5C86', accent: '#E3B7D9', text: '#F4ECF7', subc: '#CBB9D4',
     sky: ['#2B2140', '#5B4775', '#A07C9E'], layers: ['#4E5E4A', '#3A4A3A', '#2A382C'], scene: 'meadow', particles: 'fireflies', moon: '#F6E7F0',
     decor: ['✿', '🦋', '✧', '❀'], orn: '˚ ✿ ˚ ✧ ˚ ✿ ˚', corner: '🦋' },
-  { id: 'cottagecore', name: 'Cottagecore', sub: 'Будиночок, сад і льон', dark: false,
+  { id: 'cottagecore', name: 'Cottagecore', sub: 'Cottage, garden and linen', dark: false,
     bgTop: '#EEE5D1', bgBottom: '#E3D6BB', card: '#FBF6EA', border: '#D6C7A6', accent: '#6F8247', text: '#3B3226', subc: '#7A6B55',
     sky: ['#F3E3C3', '#EBD3A8', '#E7C79A'], layers: ['#A9B27E', '#8C9A62', '#6F8247'], scene: 'meadow', particles: 'petals', moon: '#FFF3D6', cottage: true,
     decor: ['❀', '🌿', '✿', '🍄'], orn: '~ ❀ ~ ✿ ~ ❀ ~', corner: '🌿' },
-  { id: 'gothicNature', name: 'Gothic Nature', sub: 'Місяць, туман, бордо', dark: true,
+  { id: 'gothicNature', name: 'Gothic Nature', sub: 'Moon, mist, burgundy', dark: true,
     bgTop: '#110D15', bgBottom: '#1B1318', card: '#23191F', border: '#4A2C35', accent: '#B0566A', text: '#E9DFE3', subc: '#A8949C',
     sky: ['#0B0A12', '#1E1527', '#3A2033'], layers: ['#1E1720', '#151017', '#0C090D'], scene: 'night', particles: 'stars', moon: '#EFE8DA',
     decor: ['☾', '✶', '🥀', '⋆'], orn: '☾ ⋆ ✶ ⋆ ☽', corner: '🥀' },
-  { id: 'minimalist', name: 'Minimalist', sub: 'Тиша, текст і фото', dark: true,
+  { id: 'minimalist', name: 'Minimalist', sub: 'Quiet, text and photos', dark: true,
     bgTop: '#161719', bgBottom: '#18191B', card: '#212226', border: '#2E3034', accent: '#C9B88A', text: '#ECECEC', subc: '#9A9A9A',
     sky: ['#1B1C1F', '#232428'], layers: ['#2A2B2F'], scene: 'minimal', particles: '', decor: [], orn: '—  ·  —', corner: '' },
-  { id: 'autumn', name: 'Осінь', sub: 'Листопад і теплий чай', dark: true,
+  { id: 'autumn', name: 'Autumn', sub: 'Falling leaves and warm tea', dark: true,
     bgTop: '#22140C', bgBottom: '#311E0F', card: '#3B2615', border: '#6B4423', accent: '#D9822B', text: '#F3E2CC', subc: '#C6A580',
     sky: ['#3A1F10', '#7A3F1C', '#C47A3A'], layers: ['#6B3A1A', '#4A2812', '#2B170B'], scene: 'forest', particles: 'leaves', moon: '#F5C98A', mushrooms: true,
     decor: ['🍂', '🍁', '☕️', '✦'], orn: '🍂 · ✦ · 🍂', corner: '🍁' },
-  { id: 'winter', name: 'Зима', sub: 'Сніг, тиша, вогники', dark: true,
+  { id: 'winter', name: 'Winter', sub: 'Snow, silence, little lights', dark: true,
     bgTop: '#0E1624', bgBottom: '#172236', card: '#1E2B42', border: '#34476A', accent: '#A9C8E8', text: '#E9F0F8', subc: '#A6B6CC',
     sky: ['#0B1322', '#1D2C49', '#3A4E74'], layers: ['#2C3B57', '#1D2840', '#DDE7F2'], scene: 'forest', particles: 'snow', moon: '#F2F5FA', cottage: true,
     decor: ['❄︎', '✧', '⋆'], orn: '❄︎ · ✧ · ❄︎', corner: '❄︎' },
-  { id: 'spring', name: 'Весна', sub: 'Цвіт і перші листочки', dark: false,
+  { id: 'spring', name: 'Spring', sub: 'Blossoms and first leaves', dark: false,
     bgTop: '#EEF3E6', bgBottom: '#E1EAD4', card: '#FAFCF5', border: '#CADBB5', accent: '#7E9C5E', text: '#2F3A28', subc: '#6E7D62',
     sky: ['#DDEBDC', '#F3E3E8', '#F7EEDC'], layers: ['#B9CF9A', '#9DBA7C', '#7E9C5E'], scene: 'meadow', particles: 'petals', moon: '#FFF7E0',
     decor: ['🌸', '🌿', '🐞', '✿'], orn: '✿ · ❀ · ✿', corner: '🌸' },
-  { id: 'summer', name: 'Літо', sub: 'Теплий вечір і світлячки', dark: true,
+  { id: 'summer', name: 'Summer', sub: 'Warm evening and fireflies', dark: true,
     bgTop: '#1A1D2B', bgBottom: '#272834', card: '#2D303F', border: '#4B4F66', accent: '#E8B86A', text: '#F2EEE6', subc: '#B9B3A6',
     sky: ['#262848', '#6A4E6A', '#C9875A'], layers: ['#3B4A3A', '#2A3529', '#1B231B'], scene: 'meadow', particles: 'fireflies', moon: '#FFD9A0',
     decor: ['☼', '✧', '🌾'], orn: '☼ · ✦ · ☼', corner: '🌾' },
 ];
 
 const DIVIDERS = ['theme', '🌿 ❦ 🌿', '✦ ⋆ ✧ ⋆ ✦', '☾ ⋆ ☽', '✿ ❀ ✿', '· · · · ·', '─────'];
-const TEXT_COLORS = [['Як у темі', ''], ['Тьмяне золото', '#C9A95B'], ['Шавлія', '#9BBF84'], ['Мох', '#6F8247'], ['Бордо', '#B0566A'],
-  ['Троянда', '#E0A3B2'], ['Лаванда', '#B9A6E0'], ['Нічне небо', '#7F9CCB'], ['Кава', '#A87A55'], ['Бурштин', '#D9914E']];
+const TEXT_COLORS = [['Theme default', ''], ['Muted gold', '#C9A95B'], ['Sage', '#9BBF84'], ['Moss', '#6F8247'], ['Burgundy', '#B0566A'],
+  ['Rose', '#E0A3B2'], ['Lavender', '#B9A6E0'], ['Night sky', '#7F9CCB'], ['Coffee', '#A87A55'], ['Amber', '#D9914E']];
 
 /* ---------- Стан застосунку ---------- */
 const S = {
@@ -351,7 +356,7 @@ function loadImage(blob) {
     const url = URL.createObjectURL(blob);
     const img = new Image();
     img.onload = () => { res(img); setTimeout(() => URL.revokeObjectURL(url), 1000); };
-    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Не вдалося відкрити фото')); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Could not open the photo')); };
     img.src = url;
   });
 }
@@ -486,8 +491,8 @@ function streak(days) {
 }
 
 const PERIODS = [
-  ['week', '7 днів'], ['d30', '30 днів'], ['month', 'Місяць'], ['m3', '3 місяці'],
-  ['m6', '6 місяців'], ['m12', '12 місяців'], ['year', 'Рік'], ['all', 'Увесь час'],
+  ['week', '7 days'], ['d30', '30 days'], ['month', 'Month'], ['m3', '3 months'],
+  ['m6', '6 months'], ['m12', '12 months'], ['year', 'Year'], ['all', 'All time'],
 ];
 
 function periodRange(p, anchor) {
@@ -605,7 +610,7 @@ async function makeBackup() {
 
 async function restoreBackup(file) {
   const head = await file.slice(0, 20).text();
-  if (!head.startsWith('MYDIARY1')) throw new Error('Це не файл резервної копії щоденника');
+  if (!head.startsWith('MYDIARY1')) throw new Error('This is not a journal backup file');
   const len = parseInt(head.slice(8, 20), 10);
   const manifest = JSON.parse(await file.slice(20, 20 + len).text());
   const base = 20 + len;

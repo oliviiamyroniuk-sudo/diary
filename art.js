@@ -38,8 +38,8 @@ function emoArtKey(id) { return (S.settings.artEmo || {})[id] || ''; }
 /* ---------- імпорт набору картинок (один файл) ---------- */
 async function importArtPack(file) {
   let pack;
-  try { pack = JSON.parse(await file.text()); } catch { throw new Error('Це не той файл — вибери own-journal-картинки'); }
-  if (pack.kind !== 'own-journal-art') throw new Error('Це не набір картинок own journal');
+  try { pack = JSON.parse(await file.text()); } catch { throw new Error('Wrong file — choose own-journal-pictures'); }
+  if (pack.kind !== 'own-journal-art') throw new Error('This is not a picture pack for own journal');
   let n = 0;
   for (const [k, data] of Object.entries(pack.lib || {})) {
     S.art.lib[k] = await (await fetch(data)).blob();
@@ -81,7 +81,7 @@ async function pickOwnImage(kind) {
   const blob = await new Promise((res) => cv.toBlob(res, kind === 'face' ? 'image/png' : 'image/jpeg', 0.9));
   const key = `own:${kind}:${uid()}`;
   S.art.lib[key] = blob;
-  S.art.names[key] = 'Моя картинка';
+  S.art.names[key] = 'My picture';
   await saveArt();
   return key;
 }
@@ -89,6 +89,14 @@ async function pickOwnImage(kind) {
 /* ---------- сторінка «Мої картинки» ---------- */
 const MOOD_ORDER = ['neutral', 'happy', 'ecstatic', 'love', 'cozy', 'tired', 'sad', 'depressed', 'angry', 'afraid', 'stressed'];
 const MOOD_UA = { neutral: 'Neutral', happy: 'Happy', ecstatic: 'Ecstatic', love: 'In love', cozy: 'Cozy', tired: 'Tired', sad: 'Sad', depressed: 'Depressed', angry: 'Angry', afraid: 'Afraid', stressed: 'Stressed out' };
+
+function moodName(m) { return (S.settings.moodNames || {})[m] || MOOD_UA[m] || m; }
+function moodHeadline(m) {
+  const own = (S.settings.moodNames || {})[m];
+  if (own) return own;
+  const sub = (MOODS[m] || {}).sub || '';
+  return sub.charAt(0).toUpperCase() + sub.slice(1);
+}
 
 function libKeys(kind) {
   return Object.keys(S.art.lib).filter((k) => (kind === 'face' ? k.startsWith('f:') || k.startsWith('own:face') : k.startsWith('m') || k.startsWith('own:mood'))).sort();
@@ -99,21 +107,21 @@ ROUTES.art = async (v) => {
   const am = S.settings.artMood || {}, ae = S.settings.artEmo || {};
   const sets = Object.keys(S.art.moodSets || {});
   const credits = Object.values(S.art.credits || {}).filter(Boolean);
-  v.innerHTML = `${topbar('Мої картинки')}
+  v.innerHTML = `${topbar('My pictures')}
   <div class="page stack">
     <div class="card stack">
-      <div class="small muted">Тут можна поставити свої картинки замість намальованих: для настрою дня і для кожного смайлика. Картинки зберігаються тільки на цьому телефоні та входять у повну копію щоденника.</div>
-      <button class="btn full solid" data-act="artImport">${icon('download')} Імпортувати набір картинок</button>
-      ${haveLib ? `<div class="small muted">У бібліотеці: ${libKeys('mood').length} картинок настрою, ${libKeys('face').length} смайликів.${credits.length ? ` Автори: ${credits.map(esc).join(', ')}.` : ''}</div>` : ''}
+      <div class="small muted">Here you can use your own pictures instead of the drawn ones: for the mood of the day and for each smiley. Pictures are stored only on this phone and are included in the full backup.</div>
+      <button class="btn full solid" data-act="artImport">${icon('download')} Import picture pack</button>
+      ${haveLib ? `<div class="small muted">In the library: ${libKeys('mood').length} mood pictures, ${libKeys('face').length} smileys.${credits.length ? ` Artists: ${credits.map(esc).join(', ')}.` : ''}</div>` : ''}
     </div>
     <div class="card stack">
-      <div class="serif" style="font-size:18px">Настрій дня</div>
-      ${sets.length ? `<div class="row" style="flex-wrap:wrap;gap:6px">${sets.map((k, i) => `<button class="pill" data-artset="${k}">Набір ${i + 1}</button>`).join('')}<button class="pill" data-artset="">Намальовані</button></div>` : ''}
-      <div class="art-mood-grid">${MOOD_ORDER.map((m) => `<button class="art-mood" data-artmood="${m}">${moodCardSVG(m, 'am' + m)}<span class="small">${MOOD_UA[m]}</span></button>`).join('')}</div>
+      <div class="serif" style="font-size:18px">Mood of the day</div>
+      ${sets.length ? `<div class="row" style="flex-wrap:wrap;gap:6px">${sets.map((k, i) => `<button class="pill" data-artset="${k}">Set ${i + 1}</button>`).join('')}<button class="pill" data-artset="">Drawn</button></div>` : ''}
+      <div class="art-mood-grid">${MOOD_ORDER.map((m) => `<button class="art-mood" data-artmood="${m}">${moodCardSVG(m, 'am' + m)}<span class="small">${esc(moodName(m))}</span></button>`).join('')}</div>
     </div>
     <div class="card stack">
-      <div class="serif" style="font-size:18px">Смайлики емоцій</div>
-      ${Object.keys(S.art.faceMap || {}).length ? `<div class="row" style="flex-wrap:wrap;gap:6px"><button class="pill" data-artfaces="pack">З набору</button><button class="pill" data-artfaces="">Намальовані</button></div>` : ''}
+      <div class="serif" style="font-size:18px">Emotion smileys</div>
+      ${Object.keys(S.art.faceMap || {}).length ? `<div class="row" style="flex-wrap:wrap;gap:6px"><button class="pill" data-artfaces="pack">From pack</button><button class="pill" data-artfaces="">Drawn</button></div>` : ''}
       <div class="art-face-grid">${Emo.all().map((e) => `<button class="art-face" data-artemo="${e.id}"><span class="emo face" style="--s:52px">${Faces.svg(e)}</span><span class="small">${esc(e.name)}</span></button>`).join('')}</div>
     </div>
   </div>`;
@@ -130,17 +138,29 @@ ROUTES.art = async (v) => {
 function chooseArt(kind, slot) {
   const keys = libKeys(kind);
   const cur = kind === 'face' ? emoArtKey(slot) : moodArtKey(slot);
-  const title = kind === 'face' ? esc(Emo.get(slot)?.name || '') : MOOD_UA[slot];
+  const title = kind === 'face' ? esc(Emo.get(slot)?.name || '') : esc(moodName(slot));
   const html = `<div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px">
-      <button class="btn" data-pick="__own">${icon('photos', 18)} З галереї</button>
-      <button class="btn" data-pick="__none">Намальований</button></div>
+      <button class="btn" data-pick="__own">${icon('photos', 18)} From photos</button>
+      <button class="btn" data-pick="__none">Drawn</button>
+      <button class="btn" data-pick="__rename">${icon('pen', 18)} Rename</button></div>
     ${keys.length ? `<div class="${kind === 'face' ? 'art-pick-faces' : 'art-pick-moods'}">${keys.map((k) => `<button class="art-pick ${k === cur ? 'on' : ''}" data-pick="${k}"><img src="${artURL(k)}" alt="" loading="lazy"></button>`).join('')}</div>`
-      : '<div class="small muted">Бібліотека порожня — імпортуй набір або додай свою картинку з галереї.</div>'}`;
+      : '<div class="small muted">The library is empty — import a pack or add your own picture from photos.</div>'}`;
   openSheet(title, html, (body, close) => {
     body.addEventListener('click', async (e) => {
       const b = e.target.closest('[data-pick]');
       if (!b) return;
       let key = b.dataset.pick;
+      if (key === '__rename') {
+        const isFace = kind === 'face';
+        const cur = isFace ? Emo.get(slot)?.name : moodName(slot);
+        const name = prompt(isFace ? 'New name for this emotion:' : 'New name for this mood:', cur || '');
+        if (name == null) return;
+        const field = isFace ? 'emoNames' : 'moodNames';
+        const map = { ...(S.settings[field] || {}) };
+        if (name.trim()) map[slot] = name.trim(); else delete map[slot];
+        S.settings[field] = map;
+        await saveSettings(); close(); render(); return;
+      }
       if (key === '__own') { key = await pickOwnImage(kind); if (!key) return; }
       const field = kind === 'face' ? 'artEmo' : 'artMood';
       const map = { ...(S.settings[field] || {}) };
@@ -149,7 +169,7 @@ function chooseArt(kind, slot) {
       await saveSettings();
       close(); render();
     });
-  }, { doneText: 'Закрити' });
+  }, { doneText: 'Close' });
 }
 
 ACT.artImport = async () => {
@@ -161,9 +181,9 @@ ACT.artImport = async () => {
   });
   if (!file) return;
   try {
-    toast('Імпортую картинки…', 1500);
+    toast('Importing pictures…', 1500);
     const n = await importArtPack(file);
-    toast(`Додано картинок: ${n} ✨`);
+    toast(`Pictures added: ${n} ✨`);
     render();
-  } catch (e) { console.error(e); toast(e.message || 'Не вдалося імпортувати набір', 3500); }
+  } catch (e) { console.error(e); toast(e.message || 'Couldn’t import the pack', 3500); }
 };

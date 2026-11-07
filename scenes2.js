@@ -388,48 +388,48 @@ Scene.particles = (c, w, h, kind, time) => {
 /* Нові теми з категоріями */
 const T = (o) => Object.assign({ decor: [], orn: '· ✦ ·', corner: '' }, o);
 THEMES.push(
-  T({ id: 'springBloom', cat: 'season', name: 'Весна в цвіту', sub: 'Сакура, метелики, ранковий туман', dark: false,
+  T({ id: 'springBloom', cat: 'season', name: 'Spring in bloom', sub: 'Sakura, butterflies, morning mist', dark: false,
     bgTop: '#F6ECEF', bgBottom: '#EEE3EA', card: '#FFFBFC', border: '#E8CFD8', accent: '#C9708E', text: '#3E2E34', subc: '#87707A',
     sky: ['#F9D9E3', '#FBE8DD', '#F4F0E4'], layers: ['#CFE2BE', '#B6D3A2', '#9FC28A'], scene: 'springBloom', particles: 'butterflies', decor: ['🌸', '🦋', '✿'], orn: '✿ · 🌸 · ✿', corner: '🌸' }),
-  T({ id: 'summerMeadow', cat: 'season', name: 'Літня галявина', sub: 'Сонце, луки, ягоди', dark: false,
+  T({ id: 'summerMeadow', cat: 'season', name: 'Summer meadow', sub: 'Sun, meadows, berries', dark: false,
     bgTop: '#EEF4E6', bgBottom: '#E4EDD6', card: '#FCFDF7', border: '#CFDDB8', accent: '#5E9A4E', text: '#2C3A26', subc: '#6A7D5E',
     sky: ['#A9D8F2', '#D4EEF6', '#F4F6E4'], layers: ['#A9CF7E', '#8FBF62', '#78A94E'], scene: 'summerMeadow', particles: 'butterflies', decor: ['🍓', '🌼', '☀︎'], orn: '🌼 · ✦ · 🌼', corner: '🍓' }),
-  T({ id: 'autumnPath', cat: 'season', name: 'Осіння стежка', sub: 'Листя, гарбузи, будиночок', dark: true,
+  T({ id: 'autumnPath', cat: 'season', name: 'Autumn path', sub: 'Leaves, pumpkins, a cottage', dark: true,
     bgTop: '#24160E', bgBottom: '#311E10', card: '#3B2615', border: '#6B4423', accent: '#E08A3A', text: '#F6E6D0', subc: '#C9A880',
     sky: ['#5A2E1A', '#B5602E', '#E8A35A'], layers: ['#7A4420', '#5A3218', '#3A200E'], scene: 'autumnPath', particles: 'leaves', moon: '#FFE0A8', decor: ['🍂', '🎃', '🍄'], orn: '🍂 · 🎃 · 🍂', corner: '🍁' }),
-  T({ id: 'winterNight', cat: 'season', name: 'Різдвяна зима', sub: 'Сніг, гірлянди, вогники в хатинках', dark: true,
+  T({ id: 'winterNight', cat: 'season', name: 'Christmas winter', sub: 'Snow, garlands, lights in cottages', dark: true,
     bgTop: '#0E1726', bgBottom: '#16223A', card: '#1D2A42', border: '#34476A', accent: '#E8C26A', text: '#EEF3FA', subc: '#A9B8CE',
     sky: ['#0A1222', '#1C2C4C', '#3A5078'], layers: ['#2A3A58', '#1E2B44', '#F4F8FC'], scene: 'winterVillage', particles: 'snow', moon: '#F4F6FA', dark2: true, decor: ['❄︎', '✧', '🎄'], orn: '❄︎ · 🎄 · ❄︎', corner: '❄︎' }),
-  T({ id: 'winterDay', cat: 'season', name: 'Морозний ранок', sub: 'Засніжений ліс і морозні візерунки', dark: false,
+  T({ id: 'winterDay', cat: 'season', name: 'Frosty morning', sub: 'Snowy forest and frost patterns', dark: false,
     bgTop: '#EEF3F9', bgBottom: '#E3EBF4', card: '#FBFDFF', border: '#CAD8E8', accent: '#5C88BA', text: '#24344A', subc: '#6A7E96',
     sky: ['#BFD6EE', '#DDE9F5', '#F3F6FA'], layers: ['#7F9CBC', '#9DB6D0', '#F4F8FC'], scene: 'winterVillage', particles: 'snow', decor: ['❄︎', '⋆'], orn: '❄︎ · ✧ · ❄︎', corner: '❄︎' }),
-  T({ id: 'mushroomOasis', cat: 'fairy', name: 'Mushroom Oasis', sub: 'Грибні будиночки й чарівні рослини', dark: true,
+  T({ id: 'mushroomOasis', cat: 'fairy', name: 'Mushroom Oasis', sub: 'Mushroom houses and magic plants', dark: true,
     bgTop: '#142420', bgBottom: '#1C2E2A', card: '#22362F', border: '#3E5A4E', accent: '#E8846A', text: '#F0EAD8', subc: '#A9BCA8',
     sky: ['#1E2A44', '#3A4A6A', '#5E7A78'], layers: ['#2E4A3A', '#22382C', '#16261E'], scene: 'mushroomOasis', particles: 'fireflies', decor: ['🍄', '🌿', '✦'], orn: '🍄 · ✦ · 🍄', corner: '🍄' }),
-  T({ id: 'forestGlade', cat: 'fairy', name: 'Лісова атмосфера', sub: 'Мох, світлячки, лісові створіння', dark: true,
+  T({ id: 'forestGlade', cat: 'fairy', name: 'Forest mood', sub: 'Moss, fireflies, forest creatures', dark: true,
     bgTop: '#0F1A14', bgBottom: '#18271D', card: '#1D2C22', border: '#3A5241', accent: '#B8CF7A', text: '#E8E4D4', subc: '#A9B3A0',
     sky: ['#0E1A14', '#22402E', '#3E5E40'], layers: ['#1E3424', '#14241A', '#0C1610'], scene: 'forestGlade', particles: 'fireflies', moon: '#F0EAC8', mushrooms: true, decor: ['🌿', '🍄', '✦'], orn: '· 🌿 ✦ 🌿 ·', corner: '🌿' }),
-  T({ id: 'halloween', cat: 'fairy', name: 'Halloween', sub: 'Гарбузи, привиди, чорний кіт', dark: true,
+  T({ id: 'halloween', cat: 'fairy', name: 'Halloween', sub: 'Pumpkins, ghosts, a black cat', dark: true,
     bgTop: '#140E18', bgBottom: '#1E1422', card: '#261A2A', border: '#4A2E4E', accent: '#F08A2E', text: '#F2E6EE', subc: '#B39AB0',
     sky: ['#0E0A16', '#2A1A38', '#5A2E46'], layers: ['#1A1220', '#120C16'], scene: 'halloween', particles: 'ghosts', decor: ['🎃', '🦇', '👻'], orn: '🦇 · 🎃 · 🦇', corner: '🎃' }),
-  T({ id: 'circus', cat: 'fairy', name: 'Вінтажний цирк', sub: 'Намет, каруселі, куліси', dark: true,
+  T({ id: 'circus', cat: 'fairy', name: 'Vintage circus', sub: 'Tent, carousels, curtains', dark: true,
     bgTop: '#1C1220', bgBottom: '#24162A', card: '#2E1C30', border: '#5A3448', accent: '#E8B84A', text: '#F6EADA', subc: '#C2A6A8',
     sky: ['#1A1430', '#3A2448', '#6A3A50'], layers: ['#3A2430'], scene: 'circus', particles: 'confetti', decor: ['🎪', '✦', '🎠'], orn: '✦ · 🎪 · ✦', corner: '🎠' }),
-  T({ id: 'jellyfish', cat: 'fairy', name: 'Медузи', sub: 'Підводний світ і світні медузи', dark: true,
+  T({ id: 'jellyfish', cat: 'fairy', name: 'Jellyfish', sub: 'Underwater world and glowing jellyfish', dark: true,
     bgTop: '#0C1430', bgBottom: '#141A3E', card: '#1A2248', border: '#36407A', accent: '#9FC8FF', text: '#EAF0FF', subc: '#A6B2DA',
     sky: ['#0A1A3A', '#1E2A6A', '#3A2A7A'], layers: ['#1A1E4A', '#121636'], scene: 'jellyfish', particles: 'jelly', decor: ['🫧', '✧'], orn: '◦ ✧ ◦ ✧ ◦', corner: '🫧' }),
-  T({ id: 'fairyGlade', cat: 'fairy', name: 'Феї', sub: 'Магічне світло й квіткова галявина', dark: false,
+  T({ id: 'fairyGlade', cat: 'fairy', name: 'Fairies', sub: 'Magic light and a flower meadow', dark: false,
     bgTop: '#F1EEF6', bgBottom: '#E8E2F0', card: '#FDFBFF', border: '#DCD0EA', accent: '#9A6FC2', text: '#33283E', subc: '#7D6E8C',
     sky: ['#E8D8F2', '#F6E6EE', '#FFF2DA'], layers: ['#9FC29A', '#86B080', '#6E9A6A'], scene: 'fairyGlade', particles: 'fairies', decor: ['✨', '🧚', '✿'], orn: '˚ ✧ ˚ 🧚 ˚ ✧ ˚', corner: '✨' }),
-  T({ id: 'unicorns', cat: 'fairy', name: 'Єдинороги', sub: 'Хмари, веселка, пастельні зорі', dark: false,
+  T({ id: 'unicorns', cat: 'fairy', name: 'Unicorns', sub: 'Clouds, rainbow, pastel stars', dark: false,
     bgTop: '#F6F0FA', bgBottom: '#EEE6F6', card: '#FFFCFF', border: '#E2D2EE', accent: '#D07AB0', text: '#3A2C44', subc: '#86729A',
     sky: ['#C9C2F2', '#F2D2EA', '#FFE8E0'], layers: [], scene: 'unicornSky', particles: 'stars', decor: ['🦄', '☁︎', '✧'], orn: '☁︎ · 🦄 · ☁︎', corner: '🦄' }),
-  T({ id: 'space', cat: 'fairy', name: 'Космос', sub: 'Сузіря, планети, місяць', dark: true,
+  T({ id: 'space', cat: 'fairy', name: 'Space', sub: 'Constellations, planets, the moon', dark: true,
     bgTop: '#0A0C1E', bgBottom: '#121430', card: '#181C3A', border: '#30366A', accent: '#C8A6FF', text: '#ECEAFF', subc: '#A6A6D2',
     sky: ['#06081A', '#141A40', '#2A1E4A'], layers: [], scene: 'space', particles: 'twinkle', decor: ['✦', '☾', '🪐'], orn: '✦ · 🪐 · ✦', corner: '🪐' }),
 );
 
-const THEME_CATS = [['all', 'Усі'], ['season', 'Пори року'], ['fairy', 'Казкові'], ['cozy', 'Затишні'], ['mine', 'Мої теми']];
+const THEME_CATS = [['all', 'All'], ['season', 'Seasons'], ['fairy', 'Fairy tale'], ['cozy', 'Cozy'], ['mine', 'My themes']];
 const OLD_CATS = { darkForest: 'fairy', cozyLibrary: 'cozy', fairycore: 'fairy', cottagecore: 'cozy', gothicNature: 'fairy', minimalist: 'cozy', autumn: 'season', winter: 'season', spring: 'season', summer: 'season' };
 THEMES.forEach((t) => { if (!t.cat) t.cat = OLD_CATS[t.id] || 'cozy'; });
 // впорядкувати: пори року → казкові → затишні
@@ -437,14 +437,14 @@ THEMES.sort((a, b) => ['season', 'fairy', 'cozy'].indexOf(a.cat) - ['season', 'f
 
 /* Шрифти, доступні на iPhone (з кирилицею) */
 const FONTS = [
-  ['system', 'Системний', '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif'],
-  ['newyork', 'New York (засічки)', '"New York", ui-serif, "Iowan Old Style", Georgia, serif'],
+  ['system', 'System', '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif'],
+  ['newyork', 'New York (serif)', '"New York", ui-serif, "Iowan Old Style", Georgia, serif'],
   ['georgia', 'Georgia', 'Georgia, "Times New Roman", serif'],
   ['palatino', 'Palatino', 'Palatino, "Palatino Linotype", "Book Antiqua", serif'],
   ['times', 'Times', '"Times New Roman", Times, serif'],
   ['avenir', 'Avenir Next', '"Avenir Next", Avenir, "Segoe UI", sans-serif'],
-  ['rounded', 'Округлий', 'ui-rounded, "SF Pro Rounded", -apple-system, sans-serif'],
-  ['typewriter', 'Друкарська машинка', '"American Typewriter", "Courier New", Courier, monospace'],
-  ['mono', 'Моноширинний', 'ui-monospace, Menlo, "Courier New", monospace'],
+  ['rounded', 'Rounded', 'ui-rounded, "SF Pro Rounded", -apple-system, sans-serif'],
+  ['typewriter', 'Typewriter', '"American Typewriter", "Courier New", Courier, monospace'],
+  ['mono', 'Monospace', 'ui-monospace, Menlo, "Courier New", monospace'],
 ];
 const fontStack = (id, fallback) => (FONTS.find((f) => f[0] === id) || FONTS.find((f) => f[0] === fallback))[2];

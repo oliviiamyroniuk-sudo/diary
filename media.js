@@ -21,10 +21,10 @@ async function hydrateVoices(root, editable) {
     el.contentEditable = 'false';
     el.innerHTML = rec
       ? `<button class="vplay" data-vplay="${rec.id}">${icon('play', 16)}</button>
-         <div class="grow"><div class="vname">${esc(rec.name || 'Голосовий запис')}</div>
+         <div class="grow"><div class="vname">${esc(rec.name || 'Voice note')}</div>
          <div class="vbar"><i></i></div></div><span class="vdur">${fmtDur(rec.duration || 0)}</span>
          ${editable ? `<button class="vmore" data-vmore="${rec.id}">${icon('more', 16)}</button>` : ''}`
-      : '<span class="small muted">Запис не знайдено</span>';
+      : '<span class="small muted">Recording not found</span>';
   }
 }
 
@@ -49,7 +49,7 @@ document.addEventListener('click', async (ev) => {
   const bar = $('.vbar i', box);
   a.ontimeupdate = () => { if (bar) bar.style.width = `${(a.currentTime / (a.duration && isFinite(a.duration) ? a.duration : rec.duration || 1)) * 100}%`; };
   a.onended = () => { p.innerHTML = icon('play', 16); if (bar) bar.style.width = '0'; currentAudio = null; };
-  a.play().catch(() => toast('Не вдалося відтворити запис'));
+  a.play().catch(() => toast('Couldn’t play the recording'));
   p.innerHTML = icon('pause', 16);
 }, true);
 
@@ -61,17 +61,17 @@ function openRecorder(entryId, onSaved) {
   const build = () => `<div class="stack center">
     <div class="rec-dot ${state === 'rec' ? 'on' : ''}">${icon('mic', 34)}</div>
     <div class="rec-time" id="rec-time">${fmtDur(elapsed)}</div>
-    <div class="small muted" id="rec-state">${{ idle: 'Натисни, щоб почати запис', rec: 'Іде запис…', paused: 'Пауза', done: 'Запис готовий — послухай і збережи' }[state]}</div>
+    <div class="small muted" id="rec-state">${{ idle: 'Tap to start recording', rec: 'Recording…', paused: 'Paused', done: 'Recording ready — listen and save' }[state]}</div>
     ${state === 'done' ? `<audio controls src="${URL.createObjectURL(blob)}" style="width:100%"></audio>
-      <input class="text-input" id="rec-name" value="Голосовий запис ${D.time(now)}" placeholder="Назва запису">` : ''}
+      <input class="text-input" id="rec-name" value="Voice note ${D.time(now)}" placeholder="Recording name">` : ''}
     <div class="row" style="justify-content:center;gap:12px">
-      ${state === 'idle' ? `<button class="btn solid" data-r="start">${icon('mic', 18)} Записати</button>` : ''}
-      ${state === 'rec' ? `<button class="btn" data-r="pause">${icon('pause', 18)} Пауза</button><button class="btn solid" data-r="stop">${icon('stop', 18)} Стоп</button>` : ''}
-      ${state === 'paused' ? `<button class="btn" data-r="resume">${icon('mic', 18)} Продовжити</button><button class="btn solid" data-r="stop">${icon('stop', 18)} Стоп</button>` : ''}
-      ${state === 'done' ? `<button class="btn danger" data-r="discard">${icon('trash', 18)}</button><button class="btn solid" data-r="save">${icon('check', 18)} Зберегти в запис</button>` : ''}
+      ${state === 'idle' ? `<button class="btn solid" data-r="start">${icon('mic', 18)} Record</button>` : ''}
+      ${state === 'rec' ? `<button class="btn" data-r="pause">${icon('pause', 18)} Paused</button><button class="btn solid" data-r="stop">${icon('stop', 18)} Stop</button>` : ''}
+      ${state === 'paused' ? `<button class="btn" data-r="resume">${icon('mic', 18)} Resume</button><button class="btn solid" data-r="stop">${icon('stop', 18)} Stop</button>` : ''}
+      ${state === 'done' ? `<button class="btn danger" data-r="discard">${icon('trash', 18)}</button><button class="btn solid" data-r="save">${icon('check', 18)} Save to entry</button>` : ''}
     </div></div>`;
   const cleanup = () => { clearInterval(timer); try { stream?.getTracks().forEach((t) => t.stop()); } catch (_) { /* ok */ } };
-  const close = openSheet('Голосовий запис', build(), (body, closeFn) => {
+  const close = openSheet('Voice note', build(), (body, closeFn) => {
     const redraw = () => { body.innerHTML = build(); };
     const tick = () => { const el = $('#rec-time', body); if (el) el.textContent = fmtDur(elapsed + (Date.now() - startedAt) / 1000); };
     body.addEventListener('click', async (e) => {
@@ -98,7 +98,7 @@ function openRecorder(entryId, onSaved) {
           blob = null; elapsed = 0; state = 'idle'; redraw();
         } else if (a === 'save') {
           const id = uid();
-          const name = ($('#rec-name', body)?.value || '').trim() || 'Голосовий запис';
+          const name = ($('#rec-name', body)?.value || '').trim() || 'Voice note';
           const recd = { id, entryId, blob, name, duration: Math.round(elapsed), mime: blob.type, createdAt: Date.now() };
           await DB.put('voices', recd);
           VoiceCache[id] = recd;
@@ -108,23 +108,23 @@ function openRecorder(entryId, onSaved) {
       } catch (err) {
         console.error(err);
         cleanup();
-        toast('Немає доступу до мікрофона. Дозволь його в Параметрах → Safari → Мікрофон.', 4500);
+        toast('No microphone access. Allow it in Settings → Safari → Microphone.', 4500);
       }
     });
-  }, { doneText: 'Закрити', onClose: cleanup });
+  }, { doneText: 'Close', onClose: cleanup });
   return close;
 }
 
 async function voiceMenu(id, el, onChange) {
   const rec = await getVoice(id);
   if (!rec) return;
-  menuSheet(rec.name || 'Голосовий запис', [
-    { label: 'Перейменувати', icon: 'edit', run: async () => {
-      const n = prompt('Нова назва запису:', rec.name || '');
+  menuSheet(rec.name || 'Voice note', [
+    { label: 'Rename', icon: 'edit', run: async () => {
+      const n = prompt('New recording name:', rec.name || '');
       if (n === null) return;
       rec.name = n.trim() || rec.name; await DB.put('voices', rec); await hydrateVoices(el.parentElement, true); onChange();
     } },
-    { label: 'Видалити запис', icon: 'trash', danger: true, run: () => { if (confirm('Видалити цей голосовий запис?')) { el.remove(); onChange(); } } },
+    { label: 'Delete entry', icon: 'trash', danger: true, run: () => { if (confirm('Delete this voice note?')) { el.remove(); onChange(); } } },
   ]);
 }
 
@@ -135,16 +135,16 @@ function openDrawing(onSave) {
   const colors = ['#3b2b25', '#6F8247', '#C8473B', '#E8A23A', '#5C88BA', '#9A6FC2', '#E0A3B2', '#FFFFFF'];
   const el = document.createElement('div');
   el.className = 'drawer';
-  el.innerHTML = `<div class="dtop"><button class="text-btn" data-d="cancel">Скасувати</button><div class="grow center serif">Малюнок</div><button class="text-btn" data-d="save">Зберегти</button></div>
+  el.innerHTML = `<div class="dtop"><button class="text-btn" data-d="cancel">Cancel</button><div class="grow center serif">Drawing</div><button class="text-btn" data-d="save">Save</button></div>
     <div class="dcanvas"><canvas></canvas></div>
     <div class="dtools">
       <div class="row" style="gap:6px;justify-content:center">
-        <button class="pill on" data-tool="pen">✎ Олівець</button><button class="pill" data-tool="brush">🖌 Пензлик</button><button class="pill" data-tool="eraser">⌫ Гумка</button>
+        <button class="pill on" data-tool="pen">✎ Pencil</button><button class="pill" data-tool="brush">🖌 Brush</button><button class="pill" data-tool="eraser">⌫ Eraser</button>
       </div>
       <div class="row" style="gap:6px;justify-content:center;flex-wrap:wrap">${colors.map((c, i) => `<button class="dcol ${i === 0 ? 'on' : ''}" data-col="${c}" style="background:${c}"></button>`).join('')}
         <label class="dcol" style="background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red)"><input type="color" id="d-custom" hidden></label></div>
-      <div class="row" style="gap:10px"><span class="small muted">Товщина</span><input type="range" id="d-size" min="1" max="30" value="4" class="grow">
-        <button class="icon-btn" data-d="undo" title="Скасувати">↶</button><button class="icon-btn" data-d="redo" title="Повернути">↷</button><button class="icon-btn" data-d="clear" title="Очистити">${icon('trash', 18)}</button></div>
+      <div class="row" style="gap:10px"><span class="small muted">Size</span><input type="range" id="d-size" min="1" max="30" value="4" class="grow">
+        <button class="icon-btn" data-d="undo" title="Cancel">↶</button><button class="icon-btn" data-d="redo" title="Redo">↷</button><button class="icon-btn" data-d="clear" title="Clear">${icon('trash', 18)}</button></div>
     </div>`;
   document.body.appendChild(el);
   const cv = $('canvas', el);
@@ -185,8 +185,8 @@ function openDrawing(onSave) {
     if (!d) return;
     if (d.dataset.d === 'undo' && strokes.length) { redo.push(strokes.pop()); redraw(); }
     if (d.dataset.d === 'redo' && redo.length) { strokes.push(redo.pop()); redraw(); }
-    if (d.dataset.d === 'clear' && strokes.length && confirm('Очистити полотно?')) { strokes.length = 0; redraw(); }
-    if (d.dataset.d === 'cancel') { if (!strokes.length || confirm('Вийти без збереження малюнка?')) el.remove(); }
+    if (d.dataset.d === 'clear' && strokes.length && confirm('Clear the canvas?')) { strokes.length = 0; redraw(); }
+    if (d.dataset.d === 'cancel') { if (!strokes.length || confirm('Leave without saving the drawing?')) el.remove(); }
     if (d.dataset.d === 'save') {
       if (!strokes.length) { el.remove(); return; }
       cv.toBlob((b) => { el.remove(); onSave(b); }, 'image/png');
@@ -195,7 +195,7 @@ function openDrawing(onSave) {
 }
 
 /* ==========================================================================
-   FACE ID (через захищений ключ телефона — WebAuthn)
+   FACE ID (via the phone’s secure key — WebAuthn)
    ========================================================================== */
 const b64 = { enc: (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))), dec: (s) => Uint8Array.from(atob(s), (ch) => ch.charCodeAt(0)) };
 
@@ -269,35 +269,35 @@ async function exportArchive() {
   const exportDoc = document.implementation.createHTMLDocument('export');
   const entries = S.entries.slice().sort((a, b) => a.date.localeCompare(b.date));
   const ext = (t) => (t || '').includes('webm') ? 'webm' : (t || '').includes('aac') ? 'aac' : 'm4a';
-  let html = `<!DOCTYPE html><html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>own journal — архів</title>
+  let html = `<!DOCTYPE html><html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>own journal — archive</title>
     <style>body{font-family:Georgia,serif;max-width:720px;margin:auto;padding:20px;background:#FBF8F2;color:#3b2b25}article{border-bottom:1px dashed #c9b9a6;padding:18px 0}
     h1{font-style:italic}h2{margin:.2em 0}.meta{color:#8a7a6a;font-size:14px}img{max-width:100%;border-radius:12px}figure{margin:12px 0}figcaption{font-style:italic;color:#8a7a6a}
-    .tags span{background:#efe6d6;border-radius:10px;padding:2px 8px;margin-right:4px;font-size:13px}</style></head><body><h1>own journal</h1><p class="meta">Експорт від ${D.dmy(new Date())} · записів: ${entries.length}</p>`;
+    .tags span{background:#efe6d6;border-radius:10px;padding:2px 8px;margin-right:4px;font-size:13px}</style></head><body><h1>own journal</h1><p class="meta">Export from ${D.dmy(new Date())} · entries: ${entries.length}</p>`;
   for (const e of entries) {
     const d = D.parse(e.date);
     const div = exportDoc.createElement('div'); // окремий документ — щоб браузер не завантажував картинки
     div.innerHTML = e.html || '';
-    Array.from(div.querySelectorAll('figure[data-photo]')).forEach((f) => { const img = f.querySelector('img'); if (img) { img.removeAttribute('data-pid'); img.removeAttribute('data-kind'); img.src = `фото/${f.dataset.photo}.jpg`; } f.removeAttribute('contenteditable'); });
+    Array.from(div.querySelectorAll('figure[data-photo]')).forEach((f) => { const img = f.querySelector('img'); if (img) { img.removeAttribute('data-pid'); img.removeAttribute('data-kind'); img.src = `photos/${f.dataset.photo}.jpg`; } f.removeAttribute('contenteditable'); });
     for (const v of Array.from(div.querySelectorAll('.voice[data-voice]'))) {
       const rec = await getVoice(v.dataset.voice);
-      v.outerHTML = rec ? `<p>🎙 <a href="голос/${rec.id}.${ext(rec.mime)}">${esc(rec.name)}</a> (${fmtDur(rec.duration || 0)})</p>` : '';
+      v.outerHTML = rec ? `<p>🎙 <a href="voice/${rec.id}.${ext(rec.mime)}">${esc(rec.name)}</a> (${fmtDur(rec.duration || 0)})</p>` : '';
     }
     Array.from(div.querySelectorAll('[contenteditable]')).forEach((n) => n.removeAttribute('contenteditable'));
     html += `<article><div class="meta">${D.long(d)} ${d.getFullYear()}, ${D.time(d)}${e.emotions?.length ? ' · ' + e.emotions.map((id) => Emo.get(id)?.name).filter(Boolean).join(', ') : ''}</div>
       ${e.title ? `<h2>${esc(e.title)}</h2>` : ''}${e.tags?.length ? `<p class="tags">${e.tags.map((t) => `<span>#${esc(t)}</span>`).join('')}</p>` : ''}${div.innerHTML}</article>`;
   }
   html += '</body></html>';
-  files.push({ name: 'own-journal/записи.html', data: html });
-  files.push({ name: 'own-journal/записи.json', data: JSON.stringify(entries, null, 1) });
-  files.push({ name: 'own-journal/справи.json', data: JSON.stringify(TS.tasks, null, 1) });
-  files.push({ name: 'own-journal/настрій.json', data: JSON.stringify({ marks: S.dayMoods, times: S.dayTimes }, null, 1) });
+  files.push({ name: 'own-journal/entries.html', data: html });
+  files.push({ name: 'own-journal/entries.json', data: JSON.stringify(entries, null, 1) });
+  files.push({ name: 'own-journal/plans.json', data: JSON.stringify(TS.tasks.filter((t) => t.type !== 'dayart').map(({ media, ...t }) => t), null, 1) });
+  files.push({ name: 'own-journal/mood.json', data: JSON.stringify({ marks: S.dayMoods, times: S.dayTimes }, null, 1) });
   for (const id of Object.keys(S.photoMeta)) {
     const rec = await DB.get('photoData', id);
-    if (rec?.full || rec?.thumb) files.push({ name: `own-journal/фото/${id}.jpg`, data: rec.full || rec.thumb });
+    if (rec?.full || rec?.thumb) files.push({ name: `own-journal/photos/${id}.jpg`, data: rec.full || rec.thumb });
   }
-  for (const v of await DB.all('voices')) if (v.blob) files.push({ name: `own-journal/голос/${v.id}.${ext(v.mime)}`, data: v.blob });
+  for (const v of await DB.all('voices')) if (v.blob) files.push({ name: `own-journal/voice/${v.id}.${ext(v.mime)}`, data: v.blob });
   const zip = await makeZip(files);
-  return new File([zip], `own-journal-архів-${D.key(new Date())}.zip`, { type: 'application/zip' });
+  return new File([zip], `own-journal-archive-${D.key(new Date())}.zip`, { type: 'application/zip' });
 }
 
 async function shareFile(file) {
@@ -331,14 +331,14 @@ makeBackup = async function makeBackupV2() {
   const manifest = { app: 'MyDiary', version: 2, createdAt: Date.now(), stores, settings, art };
   const json = new TextEncoder().encode(JSON.stringify(manifest));
   const header = 'MYDIARY2' + String(json.length).padStart(12, '0');
-  return new File([header, json, ...blobs], `own-journal-копія-${D.key(new Date())}.diary`, { type: 'application/octet-stream' });
+  return new File([header, json, ...blobs], `own-journal-backup-${D.key(new Date())}.diary`, { type: 'application/octet-stream' });
 };
 
 const restoreV1 = restoreBackup;
 restoreBackup = async function restoreBackupV2(file) {
   const head = await file.slice(0, 20).text();
   if (head.startsWith('MYDIARY1')) return restoreV1(file);
-  if (!head.startsWith('MYDIARY2')) throw new Error('Це не файл резервної копії щоденника');
+  if (!head.startsWith('MYDIARY2')) throw new Error('This is not a journal backup file');
   const len = parseInt(head.slice(8, 20), 10);
   const manifest = JSON.parse(await file.slice(20, 20 + len).text());
   const base = 20 + len;

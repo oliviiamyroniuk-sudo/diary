@@ -120,7 +120,7 @@ const MESSAGES = [
 ].map(([kind, text], i) => ({ id: 'b' + i, kind, text }));
 
 const MSG_FREQ = [
-  ['off', 'Ніколи'], ['rare', 'Зрідка (як сюрприз)'], ['sometimes', 'Іноді'], ['daily', 'Раз на день'], ['always', 'Щоразу'],
+  ['off', 'Never'], ['rare', 'Rarely (as a surprise)'], ['sometimes', 'Sometimes'], ['daily', 'Once a day'], ['always', 'Every time'],
 ];
 
 let sessionMessage;   // одне послання на одне відкриття застосунку
@@ -155,5 +155,5 @@ function pickMessageHTML() {
   const m = sessionMessage;
   return `<div class="card message-card" id="msg-card"><span style="font-size:24px;line-height:1">✉︎</span>
     <div class="grow"><div class="m-kind">${MESSAGE_KINDS[m.kind] || ''}</div><div class="m-text">${esc(m.text)}</div></div>
-    <button class="text-btn" data-act="closeMsg" aria-label="Закрити" style="padding:0 4px">${icon('x', 18)}</button></div>`;
+    <button class="text-btn" data-act="closeMsg" aria-label="Close" style="padding:0 4px">${icon('x', 18)}</button></div>`;
 }

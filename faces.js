@@ -282,17 +282,17 @@ const Faces = {
    Дівчинка з каштановим бобом і заколкою-грибочком; рамка з підписом,
    градієнт із точковим растром і різні вирази обличчя. */
 const MOODS = {
-  neutral: { title: 'NEUTRAL', sub: 'рівний, тихий день', bg: ['#ffffff', '#1d1d1f'], label: '#ffffff' },
-  happy: { title: 'HAPPY', sub: 'день із теплим світлом', bg: ['#fff04a', '#ff5fc8'], label: '#fff7a8' },
-  ecstatic: { title: 'ECSTATIC', sub: 'день, що сяє', bg: ['#fff23a', '#ff2fa8'], label: '#fff25a' },
-  love: { title: 'IN LOVE', sub: 'серце сповнене любові', bg: ['#ffe0ec', '#ff6f9f'], label: '#ffc2d6' },
-  cozy: { title: 'COZY', sub: 'спокій і тепло', bg: ['#fff1c9', '#7fc08e'], label: '#d8f3c9' },
-  tired: { title: 'TIRED', sub: 'час відпочити', bg: ['#d8d0ff', '#4a4486'], label: '#d6ceff' },
-  sad: { title: 'SAD', sub: 'бережи себе сьогодні', bg: ['#2f5fe0', '#52f0e6'], label: '#8fd6ff' },
-  depressed: { title: 'DEPRESSED', sub: 'ти не сама, усе мине', bg: ['#1b2a6e', '#3fb3c4'], label: '#7fa6ff' },
-  angry: { title: 'ANGRY', sub: 'видихни, ти маєш право', bg: ['#ffd23a', '#f0231e'], label: '#ff8a7a' },
-  afraid: { title: 'AFRAID', sub: 'крок за кроком', bg: ['#4a4a4a', '#0e0e0e'], label: '#e6e6e6' },
-  stressed: { title: 'STRESSED OUT', sub: 'забагато всього — пауза', bg: ['#262626', '#050505'], label: '#f0f0f0' },
+  neutral: { title: 'NEUTRAL', sub: 'a calm, quiet day', bg: ['#ffffff', '#1d1d1f'], label: '#ffffff' },
+  happy: { title: 'HAPPY', sub: 'a day full of warm light', bg: ['#fff04a', '#ff5fc8'], label: '#fff7a8' },
+  ecstatic: { title: 'ECSTATIC', sub: 'a day that shines', bg: ['#fff23a', '#ff2fa8'], label: '#fff25a' },
+  love: { title: 'IN LOVE', sub: 'a heart full of love', bg: ['#ffe0ec', '#ff6f9f'], label: '#ffc2d6' },
+  cozy: { title: 'COZY', sub: 'calm and warmth', bg: ['#fff1c9', '#7fc08e'], label: '#d8f3c9' },
+  tired: { title: 'TIRED', sub: 'time to rest', bg: ['#d8d0ff', '#4a4486'], label: '#d6ceff' },
+  sad: { title: 'SAD', sub: 'be gentle with yourself today', bg: ['#2f5fe0', '#52f0e6'], label: '#8fd6ff' },
+  depressed: { title: 'DEPRESSED', sub: 'you’re not alone, this will pass', bg: ['#1b2a6e', '#3fb3c4'], label: '#7fa6ff' },
+  angry: { title: 'ANGRY', sub: 'breathe out, you’re allowed to feel this', bg: ['#ffd23a', '#f0231e'], label: '#ff8a7a' },
+  afraid: { title: 'AFRAID', sub: 'step by step', bg: ['#4a4a4a', '#0e0e0e'], label: '#e6e6e6' },
+  stressed: { title: 'STRESSED OUT', sub: 'too much at once — take a pause', bg: ['#262626', '#050505'], label: '#f0f0f0' },
 };
 
 /** Градієнт, що переходить точковим растром (дизерингом) — як у картках емоцій. */
@@ -366,7 +366,7 @@ function moodCardSVG(moodKey, uidStr) {
   }[moodKey] || '';
   const cozyMug = moodKey === 'cozy' ? `<g><path d="M84,186 L84,206 Q84,214 92,214 L108,214 Q116,214 116,206 L116,186Z" fill="#f4f0e6" stroke="${ink}" stroke-width="2.4"/><path d="M116,192 q9,0 9,7 q0,7 -9,7" fill="none" stroke="${ink}" stroke-width="2.4"/><path d="M90,196 c-3,-3 -7,1 -3,4 l3,3 l3,-3 c4,-3 0,-7 -3,-4z" fill="#ec7a8a"/>
     <path d="M76,214 Q78,196 86,190 L90,200 Z M124,214 Q122,196 114,190 L110,200Z" fill="${sk}" stroke="${ink}" stroke-width="2.2" stroke-linejoin="round"/></g>` : '';
-  const t = m.title;
+  const t = ((S.settings.moodNames || {})[moodKey] || '').toUpperCase() || m.title;
   const fs = t.length > 11 ? 10 : t.length > 8 ? 12 : 14;
   const label = (dx, dy, c, o) => `<text x="${100 + dx}" y="${24 + dy}" text-anchor="middle" font-size="${fs}" font-weight="700" letter-spacing="1.5" fill="${c}" opacity="${o}" font-family="'Courier New',ui-monospace,monospace">${t}</text>`;
   return `<svg viewBox="0 0 200 220" class="mood-art" aria-label="${t}">
