@@ -152,6 +152,7 @@ const RU = {
   'Big diary: it’s safest to import about 100 pages at a time. Entries are saved as they are read, so nothing is lost if the page closes. When a part is done (or if it stopped), choose the same file again — it continues by itself.': 'Большой дневник: надёжнее импортировать примерно по 100 страниц. Записи сохраняются сразу при чтении, поэтому ничего не потеряется, даже если страница закроется. Когда часть готова (или если импорт прервался), выбери тот же файл снова — он сам продолжится.',
   'Something went wrong while saving': 'Что-то пошло не так при сохранении', 'Try again': 'Попробовать ещё раз',
   'The PDF is already read — tap “Try again” to save the entries without reading it again. Please send a screenshot of this screen to Claude.': 'PDF уже прочитан — нажми «Попробовать ещё раз», чтобы сохранить записи без повторного чтения. Пришли скриншот этого экрана Claude.',
+  'No mood marks this month yet.': 'В этом месяце пока нет отметок настроения.',
   '— no emotion —': '— без эмоции —', 'Finish import': 'Завершить импорт', 'Open my journal': 'Открыть дневник', 'Opening…': 'Открываю…', 'Saving entries…': 'Сохраняю записи…',
   // пароль
   'Repeat password': 'Повтори пароль', 'Doesn’t match. Choose a password again': 'Не совпадает. Придумай пароль ещё раз', 'Password set 🔒': 'Пароль установлен 🔒',
@@ -248,6 +249,8 @@ const RU_PATTERNS = [
   [/^Delete “(.+)”\?$/, 'Удалить «$1»?'],
   [/^Saving entries… (\d+) \/ (\d+)$/, 'Сохраняю записи… $1 / $2'],
   [/^Show more entries \((\d+)\)$/, 'Показать ещё записи ($1)'],
+  [/^Mood of (.+)$/, (_, m) => 'Настроение: ' + m],
+  [/^(\d+) of (\d+) days$/, '$1 из $2 дней'],
   [/^Imported (\d+) entries$/, 'Импортировано записей: $1'],
   [/^(\d+) pages$/, 'Страниц: $1'],
   [/^used (\d+)×$/, 'встречается $1×'],

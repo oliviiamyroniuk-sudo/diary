@@ -1140,6 +1140,40 @@ function dayPanel(key, days) {
   </div>`;
 }
 
+/** Настрій місяця: настрій, який найчастіше був настроєм дня за цей місяць. */
+function monthMood(month, days) {
+  const mk = D.monthKey(month);
+  const list = Object.values(days).filter((d) => d.key.startsWith(mk) && d.marks.length);
+  if (!list.length) return null;
+  const votes = {}, emo = {};
+  for (const d of list) {
+    const r = dayMood(d);
+    if (r) votes[r.mood] = (votes[r.mood] || 0) + 1;
+    d.marks.forEach((id) => (emo[id] = (emo[id] || 0) + 1));
+  }
+  const max = Math.max(...Object.values(votes));
+  const top = Object.keys(votes).filter((m) => votes[m] === max);
+  const mood = top.length === 1 ? top[0] : (dayMood({ marks: list.flatMap((d) => d.marks) }) || { mood: top[0] }).mood;
+  return { mood, days: list.length, moodDays: votes[mood] || 0, emo: Object.entries(emo).sort((a, b) => b[1] - a[1]) };
+}
+
+function monthMoodCard(month, days) {
+  const r = monthMood(month, days);
+  const title = `Mood of ${cap(MONTHS[month.getMonth()])}`;
+  if (!r) return `<div class="card"><div class="hand">${title}</div><p class="small muted" style="margin:6px 0 0">No mood marks this month yet.</p></div>`;
+  const own = (S.settings.moodNames || {})[r.mood];
+  return `<div class="card mood-day">
+    <div class="row top"><div class="grow"><div class="hand">${title}</div>
+      <div class="serif" style="font-size:19px"><span ${own ? 'translate="no"' : ''}>${esc(moodHeadline(r.mood))}</span> <button class="text-btn" data-act="renameMood" data-m="${r.mood}" aria-label="Rename" style="padding:0 4px;vertical-align:middle">${icon('pen', 15)}</button></div></div></div>
+    <div class="row top" style="gap:14px;margin-top:10px">
+      <div class="mood-art-wrap">${moodCardSVG(r.mood, 'mm' + D.monthKey(month))}</div>
+      <div class="grow stack" style="gap:8px">
+        ${r.emo.slice(0, 5).map(([id, c]) => Emo.get(id) ? `<div class="row small" style="gap:8px">${Emo.badge(Emo.get(id), 26)}<span class="grow">${esc(Emo.get(id).name)}</span><b class="muted">×${c}</b></div>` : '').join('')}
+        <div class="small muted">${r.moodDays} of ${r.days} days</div>
+      </div></div>
+  </div>`;
+}
+
 ROUTES.calendar = async (v, parts, q) => {
   const days = buildIndex();
   const month = q.get('m') ? D.fromKey(q.get('m') + '-01') : D.monthStart(new Date());
@@ -1158,6 +1192,7 @@ ROUTES.calendar = async (v, parts, q) => {
       <div class="legend"><span>📷 photos</span><span><span class="dot-empty" style="--s:10px;vertical-align:middle"></span> no data</span><span><i style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent)"></i> other emotions</span>
       ${mk !== D.monthKey(new Date()) ? '<button class="text-btn small" data-act="calToday" style="padding:0">Today</button>' : ''}</div>
     </div>
+    ${monthMoodCard(month, days)}
     ${dayPanel(sel, days)}
     <button class="card tight row" data-go="/month/${mk}">${icon('book')}<span class="serif grow" style="text-align:left">Summary: ${D.monthTitle(month)}</span>${icon('right')}</button>
   </div>`;
