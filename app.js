@@ -216,7 +216,13 @@ const orn = (txt) => `<div class="ornament">${esc(txt || theme().orn)}</div>`;
 const sectionTitle = (t, s) => `<div><div class="section-title">${t}</div>${s ? `<div class="section-sub">${s}</div>` : ''}</div>`;
 
 function entryCard(e, compact = false) {
+  if (e.hidden && !showHidden) return '';
   const d = D.parse(e.date);
+  if (e.locked && !unlockedEntries.has(e.id)) {
+    return `<a class="card entry-card ${compact ? 'compact' : ''}" data-go="/entry/${e.id}"><div class="head">
+      <div class="row" style="align-items:baseline;gap:8px"><span class="day">${pad(d.getDate())}</span><div><div class="month">${MONTHS_GEN[d.getMonth()]}</div><div class="meta">${WEEKDAYS[d.getDay()]} · ${D.time(d)}</div></div></div>
+      <div class="grow"></div><span style="font-size:22px">🔒</span></div><div class="preview muted">Захищений запис</div></a>`;
+  }
   const t = theme();
   const ph = e.photos || [];
   let thumbs = '';
@@ -240,6 +246,7 @@ function entryCard(e, compact = false) {
     ${e.title ? `<div class="title">${esc(e.title)}</div>` : ''}
     ${e.text ? `<div class="preview">${esc(e.text.slice(0, 400))}</div>` : ''}
     ${thumbs}
+    ${(e.voices || []).length || (e.tags || []).length ? `<div class="row small muted" style="margin-top:8px;flex-wrap:wrap;gap:6px">${(e.voices || []).length ? `<span>🎙 ${e.voices.length}</span>` : ''}${(e.tags || []).map((t) => `<span class="tag">#${esc(t)}</span>`).join('')}</div>` : ''}
     ${t.corner && S.settings.decor ? `<span class="corner">${t.corner}</span>` : ''}
   </a>`;
 }
@@ -572,6 +579,11 @@ function openEmotionEditor(onSaved) {
 ROUTES.entry = async (v, parts) => {
   const e = S.entries.find((x) => x.id === parts[1]);
   if (!e) { go('/', true); return; }
+  if (e.locked && !unlockedEntries.has(e.id)) {
+    v.innerHTML = `${topbar('')}<div class="page"><div class="card empty-state"><div class="big">🔒</div><div class="serif">Захищений запис</div>
+      <button class="btn solid" data-act="unlockEntry" data-id="${e.id}">Відкрити паролем</button></div></div>`;
+    return;
+  }
   const d = D.parse(e.date);
   const dayList = dayEmotions(e.date.slice(0, 10)).map(Emo.get).filter(Boolean);
   const dayEmo = dayList[0];
@@ -584,11 +596,14 @@ ROUTES.entry = async (v, parts) => {
       ${(e.emotions || []).length ? `<div class="chips">${e.emotions.map(Emo.get).filter(Boolean).map((x) => Emo.chip(x)).join('')}</div>` : ''}
       ${dayEmo ? `<a class="row small muted" data-go="/day/${e.date.slice(0, 10)}">${Emo.stack([...new Set(dayList.map((x) => x.id))], 22, 5)} Настрій дня ›</a>` : ''}
       ${e.title ? `<h2 style="font-size:26px">${esc(e.title)}</h2>` : ''}
+      ${(e.tags || []).length ? `<div class="chips">${e.tags.map((t) => `<a class="tag" data-act="tagSearch" data-tag="${esc(t)}">#${esc(t)}</a>`).join('')}</div>` : ''}
+      ${e.hidden || e.locked ? `<div class="small muted">${e.hidden ? '👁 прихований у стрічці ' : ''}${e.locked ? '🔒 захищений паролем' : ''}</div>` : ''}
       ${orn()}
       <div class="rich" id="entry-body" style="min-height:0">${e.html || ''}</div>
       <div class="center small muted" style="opacity:.7;margin-top:20px">Створено ${D.dmy(new Date(e.createdAt))}, ${D.time(new Date(e.createdAt))}</div>
     </div>`;
   const body = $('#entry-body', v);
+  await hydrateVoices(body, false);
   $$('[contenteditable]', body).forEach((n) => n.removeAttribute('contenteditable'));
   body.addEventListener('click', (ev) => {
     const fig = ev.target.closest('figure[data-photo]');
@@ -609,11 +624,44 @@ ACT.favEntry = async (el) => {
 
 ACT.entryMore = (el) => {
   const id = el.dataset.id;
+  const e = S.entries.find((x) => x.id === id);
   menuSheet('Запис', [
     { label: 'Редагувати', icon: 'edit', run: () => go('/edit/' + id) },
+    { label: e.hidden ? 'Показувати в стрічці' : 'Приховати зі стрічки', icon: 'eyeOff', run: () => toggleHidden(e) },
+    { label: e.locked ? 'Зняти захист паролем' : 'Захистити паролем', icon: 'lock', run: () => toggleLocked(e) },
     { label: 'Видалити запис', icon: 'trash', danger: true, run: () => deleteEntry(id, true) },
   ]);
 };
+
+const unlockedEntries = new Set();
+let showHidden = false;
+
+/** Попросити пароль (або спершу створити його) і виконати дію. */
+function requirePin(cb, subtitle = 'Введи пароль') {
+  if (!S.settings.pinHash) { toast('Спершу встанови пароль'); setupPin(cb); return; }
+  pinPad(async (val) => {
+    if ((await sha256(val)) !== S.settings.pinHash) return 'Неправильний пароль';
+    setTimeout(cb, 50);
+    return true;
+  }, subtitle, true);
+}
+async function toggleHidden(e) {
+  e.hidden = !e.hidden;
+  await DB.put('entries', e);
+  toast(e.hidden ? 'Запис приховано зі стрічки, календаря й пошуку' : 'Запис знову видно');
+  render();
+}
+function toggleLocked(e) {
+  requirePin(async () => {
+    e.locked = !e.locked;
+    if (!e.locked) unlockedEntries.delete(e.id); else unlockedEntries.add(e.id);
+    await DB.put('entries', e);
+    toast(e.locked ? 'Запис захищено паролем 🔒' : 'Захист знято');
+    render();
+  }, e.locked ? 'Пароль, щоб зняти захист' : 'Пароль для захисту запису');
+}
+ACT.unlockEntry = (el) => requirePin(() => { unlockedEntries.add(el.dataset.id); render(); }, 'Пароль до запису');
+ACT.tagSearch = (el) => { Object.assign(searchState, { q: '', tags: [el.dataset.tag], emotions: [], mood: '', useDates: false, fav: false }); go('/search'); };
 
 async function deleteEntry(id, navigate) {
   if (!confirm('Видалити цей запис назавжди? Його фото теж буде видалено.')) return false;
@@ -683,6 +731,7 @@ ROUTES.edit = async (v, parts, q) => {
       <button class="dashed" id="ed-dayemo">${dayEmoHTML()}</button>
     </div>
     <div class="chips" id="ed-emos" style="margin:12px 0 6px"></div>
+    <div class="chips" id="ed-tags" style="margin:0 0 6px;flex-wrap:wrap"></div>
     <textarea class="title-input" id="ed-title" rows="1" placeholder="Заголовок">${esc(e.title)}</textarea>
     ${orn()}
     <div class="rich" id="ed-body" contenteditable="true" data-placeholder="Що сьогодні сталося?…">${e.html || ''}</div>
@@ -697,6 +746,8 @@ ROUTES.edit = async (v, parts, q) => {
     <button class="tool" data-cmd="ol" aria-label="Нумерований список">${icon('listNum')}</button>
     <span class="tool sep"></span>
     <button class="tool" data-cmd="photo" aria-label="Фото">${icon('image')}</button>
+    <button class="tool" data-cmd="voice" aria-label="Голосовий запис">${icon('mic')}</button>
+    <button class="tool" data-cmd="draw" aria-label="Малюнок">${icon('pen')}</button>
     <button class="tool" data-cmd="quote" aria-label="Цитата">${icon('quote')}</button>
     <button class="tool" data-cmd="divider" aria-label="Розділювач">${icon('sparkle')}</button>
     <button class="tool" data-cmd="emotions" aria-label="Емоції">${icon('smile')}</button>
@@ -734,6 +785,23 @@ ROUTES.edit = async (v, parts, q) => {
       + `<button class="dashed" id="ed-addemo">${icon('smile', 16)} ${e.emotions.length ? 'Ще' : 'Як ти почуваєшся?'}</button>`;
   };
   renderEmos();
+  e.tags = e.tags || [];
+  const renderTags = () => {
+    const all = [...new Set(S.entries.flatMap((x) => x.tags || []))].filter((t) => !e.tags.includes(t)).slice(0, 8);
+    $('#ed-tags').innerHTML = e.tags.map((t, i) => `<button class="tag on" data-rmtag="${i}">#${esc(t)} ✕</button>`).join('')
+      + `<input class="tag-input" id="ed-tagin" placeholder="${e.tags.length ? '+ тег' : '+ тег (напр. творчість)'}" list="tag-list"><datalist id="tag-list">${all.map((t) => `<option value="${esc(t)}">`).join('')}</datalist>`;
+  };
+  renderTags();
+  const addTag = (raw) => {
+    const t = raw.replace(/^#/, '').trim().toLowerCase();
+    if (t && !e.tags.includes(t)) { e.tags.push(t); schedule(); }
+    renderTags();
+    setTimeout(() => $('#ed-tagin')?.focus(), 30);
+  };
+  $('#ed-tags').addEventListener('click', (ev) => { const b = ev.target.closest('[data-rmtag]'); if (b) { e.tags.splice(+b.dataset.rmtag, 1); renderTags(); schedule(); } });
+  $('#ed-tags').addEventListener('keydown', (ev) => { if (ev.target.id === 'ed-tagin' && (ev.key === 'Enter' || ev.key === ',')) { ev.preventDefault(); addTag(ev.target.value); } });
+  $('#ed-tags').addEventListener('change', (ev) => { if (ev.target.id === 'ed-tagin' && ev.target.value.trim()) addTag(ev.target.value); });
+  hydrateVoices(ed, true);
   const pickEmotions = () => openEmotionPicker(e.emotions, () => { renderEmos(); schedule(); });
   $('#ed-emos').addEventListener('click', pickEmotions);
   $('#ed-dayemo').addEventListener('click', () => openDayEmotion(e.date.slice(0, 10), () => { $('#ed-dayemo').innerHTML = dayEmoHTML(); }));
@@ -741,11 +809,12 @@ ROUTES.edit = async (v, parts, q) => {
   // ---- збереження ----
   let timer = 0;
   let stored = !isNew;
-  const hasContent = () => !!(e.title.trim() || e.text.trim() || (e.photos || []).length || (e.emotions || []).length);
+  const hasContent = () => !!(e.title.trim() || e.text.trim() || (e.photos || []).length || (e.voices || []).length || (e.emotions || []).length);
   const cleanHTML = () => {
     const c = ed.cloneNode(true);
     $$('img', c).forEach((i) => { i.removeAttribute('src'); i.removeAttribute('data-done'); });
     $$('figure', c).forEach((f) => f.classList.remove('selected'));
+    $$('.voice', c).forEach((n) => { n.innerHTML = ''; });
     return c.innerHTML.trim();
   };
   const save = async () => {
@@ -781,6 +850,8 @@ ROUTES.edit = async (v, parts, q) => {
     await save();
     const ids = new Set(e.photos || []);
     for (const m of Object.values(S.photoMeta)) if (m.entryId === e.id && !ids.has(m.id)) await deletePhoto(m.id);
+    const vids = new Set(e.voices || []);
+    for (const vr of await DB.all('voices')) if (vr.entryId === e.id && !vids.has(vr.id)) await DB.del('voices', vr.id);
     if (stored && !hasContent()) {
       await DB.del('entries', e.id);
       S.entries = S.entries.filter((x) => x.id !== e.id);
@@ -816,7 +887,7 @@ ROUTES.edit = async (v, parts, q) => {
   // ---- вставка блоків у місце курсора ----
   const ensureTail = () => {
     const last = ed.lastElementChild;
-    if (!last || last.matches('figure,.divider,blockquote,ul,ol')) ed.insertAdjacentHTML('beforeend', '<p><br></p>');
+    if (!last || last.matches('figure,.divider,.voice,blockquote,ul,ol')) ed.insertAdjacentHTML('beforeend', '<p><br></p>');
   };
   const caretTo = (node) => {
     if (!node) return;
@@ -837,6 +908,13 @@ ROUTES.edit = async (v, parts, q) => {
         ed.insertBefore(node, ed.childNodes[range.startOffset] || null);
       } else {
         while (blk.parentNode !== ed) blk = blk.parentNode;
+        if (blk.nodeType === 1 && blk.matches('figure,.divider,.voice')) {
+          blk.after(node);
+          ensureTail();
+          caretTo(node.nextSibling || node);
+          updateEmpty();
+          return;
+        }
         const tail = document.createRange();
         tail.setStart(range.startContainer, range.startOffset);
         if (blk.nodeType === 3) tail.setEnd(blk, blk.length); else tail.setEnd(blk, blk.childNodes.length);
@@ -856,7 +934,7 @@ ROUTES.edit = async (v, parts, q) => {
     }
     ensureTail();
     let next = node.nextSibling;
-    while (next && next.nodeType === 1 && next.matches('figure,.divider')) next = next.nextSibling;
+    while (next && next.nodeType === 1 && next.matches('figure,.divider,.voice')) next = next.nextSibling;
     caretTo(next || node);
     updateEmpty();
   };
@@ -951,6 +1029,19 @@ ROUTES.edit = async (v, parts, q) => {
         break;
       }
       case 'photo': fileIn.click(); break;
+      case 'voice': openRecorder(e.id, (vid) => {
+        const box = document.createElement('div');
+        box.className = 'voice'; box.contentEditable = 'false'; box.dataset.voice = vid;
+        insertBlock(box); hydrateVoices(ed, true); save(); toast('Голосовий запис додано 🎙');
+      }); break;
+      case 'draw': openDrawing(async (blob) => {
+        try {
+          const pid = await savePhoto(e.id, blob);
+          S.photoMeta[pid].drawing = true; await DB.put('photoMeta', S.photoMeta[pid]);
+          const fig = figure(pid); fig.classList.add('drawing');
+          insertBlock(fig); hydrate(fig); await save(); toast('Малюнок додано 🎨');
+        } catch (err) { console.error(err); toast('Не вдалося зберегти малюнок'); }
+      }); break;
       case 'emotions': pickEmotions(); break;
       case 'hide': ed.blur(); title.blur(); document.activeElement?.blur?.(); break;
     }
@@ -963,6 +1054,9 @@ ROUTES.edit = async (v, parts, q) => {
 
   // ---- дії з фото та розділювачами в тексті ----
   ed.addEventListener('click', (ev) => {
+    const vm = ev.target.closest('[data-vmore]');
+    if (vm) { ev.preventDefault(); voiceMenu(vm.dataset.vmore, vm.closest('.voice'), schedule); return; }
+    if (ev.target.closest('.voice')) return;
     const div = ev.target.closest('.divider');
     if (div) {
       menuSheet('Розділювач', [
@@ -1477,16 +1571,27 @@ ROUTES.favorites = async (v) => {
 /* ==========================================================================
    ПОШУК
    ========================================================================== */
-const searchState = { q: '', scope: 'entries', emotions: [], useDates: false, from: '', to: '', fav: false };
+const searchState = { q: '', scope: 'entries', emotions: [], tags: [], mood: '', useDates: false, from: '', to: '', fav: false };
+
+function allTags() {
+  const c = {};
+  S.entries.forEach((e) => (e.tags || []).forEach((t) => (c[t] = (c[t] || 0) + 1)));
+  return Object.entries(c).sort((a, b) => b[1] - a[1]).map((x) => x[0]);
+}
 
 function searchResults() {
   const s = searchState;
   const tokens = fold(s.q).split(/\s+/).filter(Boolean);
-  const active = tokens.length || s.emotions.length || s.useDates || s.fav;
+  const active = tokens.length || s.emotions.length || s.tags.length || s.mood || s.useDates || s.fav;
   if (!active) return { active, tokens, entries: [], photos: [] };
   const from = s.from || '0000', to = (s.to || '9999') + 'T99';
+  const days = s.mood ? buildIndex() : null;
   const entries = S.entries.filter((e) => {
+    if (e.hidden && !showHidden) return false;
+    if (e.locked && !unlockedEntries.has(e.id) && tokens.length) return false;
     if (s.fav && !e.favorite) return false;
+    if (s.tags.length && !s.tags.every((t) => (e.tags || []).includes(t))) return false;
+    if (s.mood && dayMood(days[e.date.slice(0, 10)])?.mood !== s.mood) return false;
     if (s.useDates && (e.date < from || e.date > to)) return false;
     if (s.emotions.length && !s.emotions.every((id) => (e.emotions || []).includes(id))) return false;
     if (tokens.length && !tokens.every((t) => (e.search || '').includes(t))) return false;
@@ -1526,9 +1631,11 @@ ROUTES.search = async (v) => {
       <button class="pill ${s.emotions.length ? 'on' : ''}" id="s-emo">${s.emotions.length ? `Емоції: ${s.emotions.length}` : '☺︎ Емоції'}</button>
       <button class="pill ${s.useDates ? 'on' : ''}" id="s-dates">📅 Період</button>
       <button class="pill ${s.fav ? 'on' : ''}" id="s-fav">★ Обране</button>
+      <button class="pill ${s.mood ? 'on' : ''}" id="s-mood">${s.mood ? 'Настрій: ' + MOODS[s.mood].title.toLowerCase() : '☁︎ Настрій дня'}</button>
       <button class="pill" id="s-reset">Скинути</button>
     </div>
     ${s.emotions.length ? Emo.stack(s.emotions, 26, 10) : ''}
+    ${allTags().length ? `<div class="chips" style="flex-wrap:wrap">${allTags().map((t) => `<button class="tag ${s.tags.includes(t) ? 'on' : ''}" data-stag="${esc(t)}">#${esc(t)}</button>`).join('')}</div>` : ''}
     ${s.useDates ? `<div class="row"><input type="date" class="date-input grow" id="s-from" value="${s.from}"><span class="muted">—</span><input type="date" class="date-input grow" id="s-to" value="${s.to}"></div>` : ''}
     <div id="sres" class="stack"></div>
   </div>`;
@@ -1562,7 +1669,12 @@ ROUTES.search = async (v) => {
     render();
   });
   $('#s-fav', v).addEventListener('click', () => { s.fav = !s.fav; render(); });
-  $('#s-reset', v).addEventListener('click', () => { Object.assign(s, { q: '', emotions: [], useDates: false, fav: false }); render(); });
+  $('#s-reset', v).addEventListener('click', () => { Object.assign(s, { q: '', emotions: [], tags: [], mood: '', useDates: false, fav: false }); render(); });
+  $$('[data-stag]', v).forEach((b) => b.addEventListener('click', () => { const t = b.dataset.stag; s.tags = s.tags.includes(t) ? s.tags.filter((x) => x !== t) : [...s.tags, t]; render(); }));
+  $('#s-mood', v).addEventListener('click', () => menuSheet('Дні, коли переважав настрій', [
+    { label: 'Будь-який', run: () => { s.mood = ''; render(); } },
+    ...Object.entries(MOODS).map(([k, m]) => ({ label: `${m.title.charAt(0) + m.title.slice(1).toLowerCase()} — ${m.sub}`, run: () => { s.mood = k; render(); } })),
+  ]));
   $('#s-from', v)?.addEventListener('change', (e) => { s.from = e.target.value; draw(); });
   $('#s-to', v)?.addEventListener('change', (e) => { s.to = e.target.value; draw(); });
 };
@@ -1580,6 +1692,7 @@ ROUTES.settings = async (v) => {
     const est = await navigator.storage?.estimate?.();
     if (est) usage = `${(est.usage / 1048576).toFixed(1)} МБ`;
   } catch (_) { /* немає даних */ }
+  const faceOK = await faceIdAvailable();
   let persisted = false;
   try { persisted = navigator.storage?.persisted ? await navigator.storage.persisted() : false; } catch (_) { persisted = false; }
   const sw = (id, on, label) => `<div class="form-row"><label for="${id}">${label}</label><span class="switch"><input type="checkbox" id="${id}" ${on ? 'checked' : ''}><span></span></span></div>`;
@@ -1610,11 +1723,13 @@ ROUTES.settings = async (v) => {
 
     <div class="card stack">
       <div class="section-title" style="font-size:17px">Резервна копія і новий телефон</div>
-      <div class="small muted">Записи й фото зберігаються тільки на цьому телефоні. Копія — це <b>один файл</b> з усім щоденником: текстами, емоціями, фото. Збережи його у «Файли» / iCloud Drive або надішли собі. На новому телефоні: встанови щоденник → «Відновити з копії».</div>
+      <div class="small muted">Усе зберігається тільки на цьому телефоні. Копія — це <b>один файл</b> з усім щоденником: записи з датами, фото, голосові, малюнки, теги, настрій, справи, теми, оформлення й твій куточок. Збережи його у «Файли» → iCloud Drive. На новому телефоні: встанови own journal → «Відновити з копії» — і все буде як раніше.</div>
       <div class="small">Остання копія: <b>${last}</b></div>
-      <button class="btn solid full" id="bk-make">${icon('download')} Створити резервну копію</button>
+      <button class="btn solid full" id="bk-make">${icon('download')} Створити повну копію</button>
       <button class="btn full hidden" id="bk-share">${icon('upload')} Зберегти / надіслати файл</button>
       <label class="btn full">${icon('upload')} Відновити з копії<input type="file" id="bk-restore" hidden></label>
+      <button class="btn full" id="zip-make">${icon('archive')} Експорт в архів (.zip): записи, фото, голос</button>
+      <div class="small muted">Архів відкривається на будь-якому компʼютері: сторінка з усіма записами + папки з фото й голосовими.</div>
     </div>
 
     <div class="card stack">
@@ -1622,7 +1737,18 @@ ROUTES.settings = async (v) => {
       <div class="small muted">${st.pinHash ? 'Щоденник відкривається тільки з твоїм паролем.' : 'Можна поставити пароль із 4 цифр — він питатиметься при відкритті.'}</div>
       <button class="btn full" id="pin-set">${icon('lock')} ${st.pinHash ? 'Змінити пароль' : 'Встановити пароль'}</button>
       ${st.pinHash ? '<button class="btn danger full" id="pin-del">Прибрати пароль</button>' : ''}
-      <div class="small muted">Якщо забудеш пароль, відкрити записи не вийде — тому обовʼязково роби резервні копії.</div>
+      ${st.pinHash && faceOK ? `<div class="form-row"><label for="set-faceid">Відкривати через Face ID</label><span class="switch"><input type="checkbox" id="set-faceid" ${st.webauthnId ? 'checked' : ''}><span></span></span></div>` : ''}
+      <div class="form-row"><label for="set-showhidden">Показувати приховані записи</label><span class="switch"><input type="checkbox" id="set-showhidden" ${showHidden ? 'checked' : ''}><span></span></span></div>
+      <div class="small muted">Окремі записи можна приховати зі стрічки або захистити паролем — у меню запису (⋯). Якщо забудеш пароль, відкрити записи не вийде, тому роби резервні копії.</div>
+    </div>
+
+    <div class="card stack">
+      <div class="section-title" style="font-size:17px">Іконка на екрані «Додому»</div>
+      <div class="small muted">Можна поставити власну картинку як іконку own journal. iPhone бере іконку в момент додавання на екран «Додому», тому нова іконка зʼявиться після повторного додавання.</div>
+      <div class="row">${st.customIcon ? `<img src="${blobURL('icon', st.customIcon)}" style="width:60px;height:60px;border-radius:14px">` : '<img src="apple-touch-icon.png" style="width:60px;height:60px;border-radius:14px">'}
+        <label class="btn grow">${icon('image')} Обрати картинку<input type="file" accept="image/*" id="icon-file" hidden></label></div>
+      ${st.customIcon ? '<button class="btn danger full" id="icon-del">Повернути стандартну іконку</button>' : ''}
+      <div class="small muted">Як змінити іконку вже встановленого щоденника: 1) створи повну копію; 2) видали іконку з екрана; 3) відкрий адресу в Safari й обери тут картинку; 4) «Поділитися → На екран „Додому“»; 5) «Відновити з копії».</div>
     </div>
 
     <div class="card stack">
@@ -1698,6 +1824,34 @@ ROUTES.settings = async (v) => {
     }
   });
   $('#pin-set', v).addEventListener('click', () => setupPin());
+  $('#set-faceid', v)?.addEventListener('change', async (e) => {
+    if (e.target.checked) {
+      try { await setupFaceId(); toast('Face ID увімкнено'); } catch (err) { e.target.checked = false; toast('Не вдалося увімкнути Face ID'); }
+    } else { st.webauthnId = ''; await saveSettings(); }
+  });
+  $('#set-showhidden', v).addEventListener('change', (e) => {
+    if (e.target.checked && st.pinHash) { e.target.checked = false; requirePin(() => { showHidden = true; render(); }, 'Пароль, щоб показати приховані'); }
+    else { showHidden = e.target.checked; }
+  });
+  let zipFile = null;
+  $('#zip-make', v).addEventListener('click', async () => {
+    const btn = $('#zip-make');
+    if (zipFile) { shareFile(zipFile); return; }
+    btn.disabled = true; btn.textContent = 'Збираю архів…';
+    try { zipFile = await exportArchive(); btn.innerHTML = `${icon('upload')} Архів готовий (${(zipFile.size / 1048576).toFixed(1)} МБ) — зберегти`; }
+    catch (err) { console.error(err); btn.textContent = 'Не вдалося. Спробуй ще раз'; }
+    btn.disabled = false;
+  });
+  $('#icon-file', v).addEventListener('change', async (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    const im = await loadImage(f);
+    const side = Math.min(im.naturalWidth, im.naturalHeight);
+    const c = document.createElement('canvas'); c.width = c.height = 512;
+    c.getContext('2d').drawImage(im, (im.naturalWidth - side) / 2, (im.naturalHeight - side) / 2, side, side, 0, 0, 512, 512);
+    st.customIcon = await new Promise((r) => c.toBlob(r, 'image/png'));
+    await saveSettings(); applyTheme(); render(); toast('Іконку збережено. Додай щоденник на екран «Додому» знову, щоб побачити її');
+  });
+  $('#icon-del', v)?.addEventListener('click', async () => { st.customIcon = null; await saveSettings(); applyTheme(); render(); });
   $('#msg-freq', v).addEventListener('change', async (e) => { st.msgFreq = e.target.value; await saveSettings(); toast('Збережено'); });
   $('#msg-add', v).addEventListener('click', async () => {
     const t = $('#msg-new').value.trim();
@@ -1910,13 +2064,16 @@ ACT.delEmotion = async (el) => {
 /* ==========================================================================
    ПАРОЛЬ
    ========================================================================== */
-function pinPad(onDone, subtitle) {
+function pinPad(onDone, subtitle, cancellable, extraHTML = '') {
   const el = document.createElement('div');
   el.className = 'lock';
-  el.innerHTML = `<div class="hero" style="height:calc(250px + var(--safe-top))">${headerURL ? `<div class="hero-img" style="background-image:url(${headerURL})"></div>` : '<canvas></canvas>'}<div class="fade"></div>
+  const cover = S.settings.coverImg ? blobURL('cover', S.settings.coverImg) : headerURL;
+  el.innerHTML = `<div class="hero" style="height:calc(250px + var(--safe-top))">${cover ? `<div class="hero-img" style="background-image:url(${cover})"></div>` : '<canvas></canvas>'}<div class="fade"></div>
       <div class="greet" style="text-align:center"><div style="color:var(--accent)">${icon('lock', 22)}</div><div class="today" style="font-style:italic">own journal</div><div class="hello" id="pin-sub">${subtitle}</div></div></div>
     <div class="pin-dots" id="pin-dots"><i></i><i></i><i></i><i></i></div>
     <div class="pinpad">${['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'].map((k) => `<button class="${k === '' || k === '⌫' ? 'ghost' : ''}" data-k="${k}">${k}</button>`).join('')}</div>
+    ${extraHTML}
+    ${cancellable ? '<button class="text-btn" data-k-cancel="1">Скасувати</button>' : ''}
     <div style="height:30px"></div>`;
   document.body.appendChild(el);
   const cv = $('canvas', el);
@@ -1924,7 +2081,9 @@ function pinPad(onDone, subtitle) {
   let pin = '';
   const dots = $('#pin-dots', el);
   const draw = () => $$('i', dots).forEach((d, i) => d.classList.toggle('f', i < pin.length));
+  el._close = () => { stop && stop(); el.remove(); };
   el.addEventListener('click', async (ev) => {
+    if (ev.target.closest('[data-k-cancel]')) { el._close(); return; }
     const b = ev.target.closest('[data-k]');
     if (!b || !b.dataset.k) return;
     if (b.dataset.k === '⌫') pin = pin.slice(0, -1);
@@ -1934,7 +2093,7 @@ function pinPad(onDone, subtitle) {
       const val = pin;
       await sleep(120);
       const res = await onDone(val, el);
-      if (res === true) { stop && stop(); el.remove(); }
+      if (res === true) el._close();
       else { dots.classList.add('shake'); setTimeout(() => dots.classList.remove('shake'), 400); if (typeof res === 'string') $('#pin-sub', el).textContent = res; }
       pin = '';
       draw();
@@ -1943,32 +2102,32 @@ function pinPad(onDone, subtitle) {
   return el;
 }
 
-function setupPin() {
+function setupPin(after) {
   let first = null;
-  const el = pinPad(async (val, root) => {
+  pinPad(async (val, root) => {
     if (!first) { first = val; $('#pin-sub', root).textContent = 'Повтори пароль'; return 'Повтори пароль'; }
     if (first !== val) { first = null; return 'Не збігається. Придумай пароль ще раз'; }
     S.settings.pinHash = await sha256(val);
     await saveSettings();
     toast('Пароль встановлено 🔒');
-    render();
+    if (typeof after === 'function') setTimeout(after, 50); else render();
     return true;
-  }, 'Придумай пароль із 4 цифр');
-  const cancel = document.createElement('button');
-  cancel.className = 'text-btn';
-  cancel.textContent = 'Скасувати';
-  cancel.addEventListener('click', () => el.remove());
-  el.appendChild(cancel);
+  }, 'Придумай пароль із 4 цифр', true);
 }
 
 let locked = false;
 function lockScreen() {
   if (!S.settings.pinHash || locked) return;
   locked = true;
-  pinPad(async (val) => {
+  const fid = S.settings.webauthnId ? `<button class="btn" data-faceid="1" style="margin-top:14px">${icon('lock', 18)} Відкрити через Face ID</button>` : '';
+  const el = pinPad(async (val) => {
     if ((await sha256(val)) === S.settings.pinHash) { locked = false; return true; }
     return 'Неправильний пароль';
-  }, 'тут живуть твої спогади');
+  }, 'тут живуть твої спогади', false, fid);
+  const btn = $('[data-faceid]', el);
+  if (btn) btn.addEventListener('click', async () => {
+    if (await checkFaceId()) { locked = false; el._close(); } else toast('Не вдалося. Введи пароль');
+  });
 }
 
 let hiddenAt = 0;

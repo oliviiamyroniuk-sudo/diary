@@ -426,11 +426,13 @@ function photoIdsIn(html) {
 function refreshEntry(e) {
   e.text = htmlToText(e.html);
   e.photos = photoIdsIn(e.html);
+  e.voices = Array.from(String(e.html || '').matchAll(/data-voice="([^"]+)"/g)).map((m) => m[1]);
   const d = D.parse(e.date);
   const caps = e.photos.map((p) => S.photoMeta[p]?.caption || '').join(' ');
   const names = (e.emotions || []).map((id) => Emo.get(id)?.name || '').join(' ');
   const dates = [D.dmy(d), `${MONTHS[d.getMonth()]} ${d.getFullYear()}`, WEEKDAYS[d.getDay()], `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`, D.key(d)].join(' ');
-  e.search = fold([e.title, e.text, caps, names, dates].join(' '));
+  const tags = (e.tags || []).map((t) => '#' + t + ' ' + t).join(' ');
+  e.search = fold([e.title, e.text, caps, names, dates, tags].join(' '));
   e.updatedAt = Date.now();
 }
 

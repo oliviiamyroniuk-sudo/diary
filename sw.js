@@ -1,7 +1,7 @@
 // Зберігає файли застосунку на телефоні, щоб щоденник працював без інтернету.
 // Твої записи тут НЕ зберігаються — вони лежать у базі даних телефона (IndexedDB).
-const CACHE = 'own-journal-v5';
-const FILES = ['./', 'index.html', 'styles.css', 'core.js', 'scenes.js', 'scenes2.js', 'faces.js', 'messages.js', 'app.js', 'planner.js', 'world.js', 'manifest.webmanifest',
+const CACHE = 'own-journal-v6';
+const FILES = ['./', 'index.html', 'styles.css', 'core.js', 'scenes.js', 'scenes2.js', 'faces.js', 'messages.js', 'app.js', 'planner.js', 'world.js', 'media.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
