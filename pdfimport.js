@@ -380,6 +380,7 @@ ROUTES.pdfimport = async (v) => {
       <div class="small muted">Import your old diary from a PDF (for example, the “My Diary” export): all days with their dates, times, texts and photos become entries here. Entries that are already imported are skipped.</div>
       <label class="btn full solid">${icon('download')} Choose PDF file<input type="file" accept="application/pdf,.pdf" id="pdf-file" hidden></label>
       ${last ? `<div class="small muted">Last import: “${esc(last.name)}”, pages 1–${last.done} of ${last.pages}.</div>` : ''}
+      ${S.entries.some((e) => e.importKey) ? `<button class="btn full" data-act="pdfWipe">${icon('trash', 16)} Delete imported entries and start over</button>` : ''}
       <div class="small muted">Big files are fine — the PDF is read piece by piece. Keep the screen on and the journal open while it works. You can import in parts: choose the pages to import.</div>
     </div>`;
   } else if (st.phase === 'range') {
@@ -492,7 +493,15 @@ ACT.pdfStart = () => {
   // продовження з середини: перший текст без дати дописуємо до останнього імпортованого запису
   if (st.from > 1) {
     const lastImp = S.entries.filter((e) => e.importKey).sort((a, b) => a.createdAt - b.createdAt).pop();
-    if (lastImp && !st.skipHead) { st.cont = { id: lastImp.id, paras: [], existing: lastImp, startPage: st.from }; st.lastEntry = st.cont; }
+    if (lastImp && !st.skipHead) {
+      st.cont = { id: lastImp.id, paras: [], existing: lastImp, startPage: st.from };
+      st.lastEntry = st.cont;
+      st.cur = st.cont;
+      // день попереднього запису — щоб новий запис того ж дня (лише з часом) не злився з ним
+      const d = D.parse(lastImp.date);
+      st.day = { d: d.getDate(), mon: MONTH_PREFIX[d.getMonth()][0], y: d.getFullYear() };
+      st.dayPage = st.from;
+    }
   }
   st.phase = 'scan';
   render();
@@ -521,6 +530,21 @@ ACT.pdfMoodsDone = async () => {
   for (const sel of $$('[data-icon]')) { const ic = st.icons[+sel.dataset.icon]; if (sel.value) map[ic.hash] = sel.value; }
   S.settings.pdfMoodMap = map;
   await pdfFinalize(st);
+  render();
+};
+ACT.pdfWipe = async () => {
+  const list = S.entries.filter((e) => e.importKey);
+  if (!confirm(`Delete all ${list.length} imported entries (with their photos)? Your own entries stay. Then you can import the PDF again from page 1.`)) return;
+  toast('Deleting…', 4000);
+  for (const e of list) {
+    for (const pid of e.photos || []) { try { await deletePhoto(pid); } catch (_) {} }
+    try { await DB.del('entries', e.id); } catch (_) {}
+  }
+  S.entries = S.entries.filter((e) => !e.importKey);
+  for (const m of Object.values(S.photoMeta)) if (m.imp) { try { await deletePhoto(m.id); } catch (_) {} }
+  delete S.settings.pdfImportLast;
+  await saveSettings();
+  toast(`Deleted: ${list.length}`);
   render();
 };
 ACT.pdfRetry = async () => { const st = PDFI.state; if (st) { await pdfFinalize(st); render(); } };

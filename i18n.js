@@ -154,6 +154,7 @@ const RU = {
   'The PDF is already read — tap “Try again” to save the entries without reading it again. Please send a screenshot of this screen to Claude.': 'PDF уже прочитан — нажми «Попробовать ещё раз», чтобы сохранить записи без повторного чтения. Пришли скриншот этого экрана Claude.',
   'No mood marks this month yet.': 'В этом месяце пока нет отметок настроения.',
   'Swipe left or right to turn the page': 'Листай влево или вправо, чтобы перелистнуть', 'This is the newest entry': 'Это самая новая запись', 'This is the oldest entry': 'Это самая старая запись',
+  'Delete imported entries and start over': 'Удалить импортированные записи и начать заново', 'Deleting…': 'Удаляю…',
   '— no emotion —': '— без эмоции —', 'Finish import': 'Завершить импорт', 'Open my journal': 'Открыть дневник', 'Opening…': 'Открываю…', 'Saving entries…': 'Сохраняю записи…',
   // пароль
   'Repeat password': 'Повтори пароль', 'Doesn’t match. Choose a password again': 'Не совпадает. Придумай пароль ещё раз', 'Password set 🔒': 'Пароль установлен 🔒',
@@ -252,6 +253,8 @@ const RU_PATTERNS = [
   [/^Show more entries \((\d+)\)$/, 'Показать ещё записи ($1)'],
   [/^Mood of (.+)$/, (_, m) => 'Настроение: ' + m],
   [/^(\d+) of (\d+) days$/, '$1 из $2 дней'],
+  [/^Deleted: (\d+)$/, 'Удалено: $1'],
+  [/^Delete all (\d+) imported entries \(with their photos\)\? Your own entries stay\. Then you can import the PDF again from page 1\.$/, 'Удалить все импортированные записи ($1) вместе с фото? Твои собственные записи останутся. Потом можно импортировать PDF заново с первой страницы.'],
   [/^Imported (\d+) entries$/, 'Импортировано записей: $1'],
   [/^(\d+) pages$/, 'Страниц: $1'],
   [/^used (\d+)×$/, 'встречается $1×'],
