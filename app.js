@@ -415,6 +415,7 @@ ACT.homeMenu = () => {
     { label: 'Mood stats', icon: 'chart', run: () => go('/stats') },
     { label: 'Planner', icon: 'planner', run: () => go('/planner') },
     { label: 'Themes', icon: 'brush', run: () => go('/themes') },
+    { label: 'Import old diary from PDF', icon: 'download', run: () => go('/pdfimport') },
     { label: 'Settings', icon: 'gear', run: () => go('/settings') },
   ]);
 };
