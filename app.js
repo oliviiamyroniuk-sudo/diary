@@ -575,6 +575,51 @@ function openEmotionEditor(onSaved) {
 /* ==========================================================================
    ПЕРЕГЛЯД ЗАПИСУ
    ========================================================================== */
+/* ---------- гортання записів свайпом ---------- */
+function entryNeighbors(e) {
+  const list = S.entries.filter((x) => !x.hidden || showHidden || x.id === e.id); // від нових до старих
+  const i = list.findIndex((x) => x.id === e.id);
+  return { older: list[i + 1] || null, newer: i > 0 ? list[i - 1] : null };
+}
+function entryNavHTML(e) {
+  const { older, newer } = entryNeighbors(e);
+  if (!older && !newer) return '';
+  const lab = (x) => esc(D.dm(D.parse(x.date)) + ' ' + x.date.slice(0, 4));
+  return `<div class="row entry-nav" style="gap:10px;margin-top:6px">
+    ${older ? `<button class="btn grow" data-act="entryGo" data-id="${older.id}" data-dir="right">${icon('left', 18)} <span class="small">${lab(older)}</span></button>` : '<span class="grow"></span>'}
+    ${newer ? `<button class="btn grow" data-act="entryGo" data-id="${newer.id}" data-dir="left"><span class="small">${lab(newer)}</span> ${icon('right', 18)}</button>` : '<span class="grow"></span>'}
+  </div>
+  <div class="center small muted" style="opacity:.6">Swipe left or right to turn the page</div>`;
+}
+function entryTurn(id, dir) {
+  const page = $('#view .page');
+  if (page) { page.style.transition = 'transform .18s ease, opacity .18s ease'; page.style.transform = `translateX(${dir === 'left' ? -40 : 40}px)`; page.style.opacity = '0'; }
+  setTimeout(() => { go('/entry/' + id, true); scrollTo(0, 0); }, 160);
+}
+ACT.entryGo = (el) => entryTurn(el.dataset.id, el.dataset.dir);
+(function entrySwipe() {
+  let sx = 0, sy = 0, t0 = 0, ok = false;
+  document.addEventListener('touchstart', (ev) => {
+    ok = location.hash.startsWith('#/entry/') && ev.touches.length === 1 && !ev.target.closest('.viewer,.sheet,.voice,audio,input,textarea,.strip,.chips');
+    if (!ok) return;
+    sx = ev.touches[0].clientX; sy = ev.touches[0].clientY; t0 = Date.now();
+  }, { passive: true });
+  document.addEventListener('touchend', (ev) => {
+    if (!ok || !location.hash.startsWith('#/entry/')) return;
+    const t = ev.changedTouches[0];
+    const dx = t.clientX - sx, dy = t.clientY - sy;
+    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 2 || Date.now() - t0 > 800) return;
+    if (sx < 24) return; // край екрана — системний жест «назад»
+    if (window.getSelection && String(getSelection()).length) return;
+    const e = S.entries.find((x) => x.id === location.hash.split('/')[2]);
+    if (!e) return;
+    const { older, newer } = entryNeighbors(e);
+    if (dx < 0 && newer) entryTurn(newer.id, 'left');
+    else if (dx > 0 && older) entryTurn(older.id, 'right');
+    else toast(dx < 0 ? 'This is the newest entry' : 'This is the oldest entry', 1500);
+  }, { passive: true });
+})();
+
 ROUTES.entry = async (v, parts) => {
   const e = S.entries.find((x) => x.id === parts[1]);
   if (!e) { go('/', true); return; }
@@ -600,6 +645,7 @@ ROUTES.entry = async (v, parts) => {
       ${orn()}
       <div class="rich" id="entry-body" style="min-height:0">${e.html || ''}</div>
       <div class="center small muted" style="opacity:.7;margin-top:20px">Created ${D.dmy(new Date(e.createdAt))}, ${D.time(new Date(e.createdAt))}</div>
+      ${entryNavHTML(e)}
     </div>`;
   const body = $('#entry-body', v);
   await hydrateVoices(body, false);

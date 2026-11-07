@@ -153,6 +153,7 @@ const RU = {
   'Something went wrong while saving': 'Что-то пошло не так при сохранении', 'Try again': 'Попробовать ещё раз',
   'The PDF is already read — tap “Try again” to save the entries without reading it again. Please send a screenshot of this screen to Claude.': 'PDF уже прочитан — нажми «Попробовать ещё раз», чтобы сохранить записи без повторного чтения. Пришли скриншот этого экрана Claude.',
   'No mood marks this month yet.': 'В этом месяце пока нет отметок настроения.',
+  'Swipe left or right to turn the page': 'Листай влево или вправо, чтобы перелистнуть', 'This is the newest entry': 'Это самая новая запись', 'This is the oldest entry': 'Это самая старая запись',
   '— no emotion —': '— без эмоции —', 'Finish import': 'Завершить импорт', 'Open my journal': 'Открыть дневник', 'Opening…': 'Открываю…', 'Saving entries…': 'Сохраняю записи…',
   // пароль
   'Repeat password': 'Повтори пароль', 'Doesn’t match. Choose a password again': 'Не совпадает. Придумай пароль ещё раз', 'Password set 🔒': 'Пароль установлен 🔒',
