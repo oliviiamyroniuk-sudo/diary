@@ -311,7 +311,7 @@ async function shareFile(file) {
 }
 
 /* ==========================================================================
-   ПОВНА РЕЗЕРВНА КОПІЯ v2 — усе: записи, фото, голос, малюнки, справи, теми, куточок
+   ПОВНА РЕЗЕРВНА КОПІЯ v2 — усе: записи, фото, голос, малюнки, справи, теми, картинки
    ========================================================================== */
 const BACKUP_STORES = ['entries', 'photoMeta', 'photoData', 'dayMoods', 'highlights', 'tasks', 'voices'];
 
@@ -327,7 +327,8 @@ makeBackup = async function makeBackupV2() {
   const stores = {};
   for (const name of BACKUP_STORES) stores[name] = enc(await DB.all(name));
   const settings = enc({ ...S.settings, webauthnId: '' });
-  const manifest = { app: 'MyDiary', version: 2, createdAt: Date.now(), stores, settings };
+  const art = enc(S.art || {});
+  const manifest = { app: 'MyDiary', version: 2, createdAt: Date.now(), stores, settings, art };
   const json = new TextEncoder().encode(JSON.stringify(manifest));
   const header = 'MYDIARY2' + String(json.length).padStart(12, '0');
   return new File([header, json, ...blobs], `own-journal-копія-${D.key(new Date())}.diary`, { type: 'application/octet-stream' });
@@ -364,17 +365,24 @@ restoreBackup = async function restoreBackupV2(file) {
   }
   const st = await dec(manifest.settings || {});
   if (wasEmpty) {
-    // новий телефон — переносимо все оформлення, теми, куточок і налаштування
+    // новий телефон — переносимо все оформлення, теми, картинки і налаштування
     const keep = { lastVisit: S.settings.lastVisit };
     Object.assign(S.settings, st, keep, { webauthnId: '' });
   } else {
     const mergeList = (k, idKey) => { const have = new Set((S.settings[k] || []).map((x) => (idKey ? x[idKey] : JSON.stringify(x)))); for (const x of st[k] || []) if (!have.has(idKey ? x[idKey] : JSON.stringify(x))) (S.settings[k] = S.settings[k] || []).push(x); };
     mergeList('customEmotions', 'id'); mergeList('taskCats', 'id'); mergeList('savedThemes', 'name'); mergeList('customMessages', 'text');
-    S.settings.worldMax = Math.max(S.settings.worldMax || 0, st.worldMax || 0);
+    if (!Object.keys(S.settings.artMood || {}).length && st.artMood) S.settings.artMood = st.artMood;
+    if (!Object.keys(S.settings.artEmo || {}).length && st.artEmo) S.settings.artEmo = st.artEmo;
+  }
+  if (manifest.art) {
+    const art = await dec(manifest.art);
+    for (const f of ['lib', 'names', 'credits', 'moodSets', 'faceMap']) S.art[f] = { ...(art[f] || {}), ...(S.art[f] || {}) };
+    await saveArt();
   }
   await saveSettings();
   await loadAll();
   await loadTasks();
+  await loadArt();
   Object.keys(VoiceCache).forEach((k) => delete VoiceCache[k]);
   return added;
 };
