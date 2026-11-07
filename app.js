@@ -454,7 +454,7 @@ function moodDayCard(key, days, withQuick) {
   return `<div class="card mood-day">
     <div class="row top">
       <div class="grow"><div class="hand">${isToday ? 'Mood of the day' : 'Mood ' + D.dm(D.fromKey(key))}${isToday && res ? ' · so far' : ''}</div>
-        <div class="serif" style="font-size:19px">${m ? moodHeadline(res.mood) : (isToday ? 'How are you feeling?' : 'No mood marks')}</div></div>
+        <div class="serif" style="font-size:19px">${m ? `<span ${(S.settings.moodNames || {})[res.mood] ? 'translate="no"' : ''}>${esc(moodHeadline(res.mood))}</span> <button class="text-btn" data-act="renameMood" data-m="${res.mood}" aria-label="Rename" style="padding:0 4px;vertical-align:middle">${icon('pen', 15)}</button>` : (isToday ? 'How are you feeling?' : 'No mood marks')}</div></div>
       <button class="text-btn small" data-act="dayEmotion" data-day="${key}">${marks.length ? 'Change' : 'Mark'}</button>
     </div>
     ${res ? `<div class="row top" style="gap:14px;margin-top:10px">
@@ -493,7 +493,9 @@ function openDayEmotion(key, onDone) {
     const fake = { marks: cur.concat(S.entries.filter((e) => e.date.startsWith(key)).flatMap((e) => e.emotions || [])) };
     const res = dayMood(fake);
     return `<p class="muted small" style="margin-top:0">${D.long(date)}. Tap an emotion every time you feel it — you can mark the same one several times. The one you mark most sets the picture of the day.</p>
-      ${res ? `<div class="row" style="gap:12px;margin-bottom:12px"><div style="width:96px;flex:none">${moodCardSVG(res.mood, 'sh' + key)}</div><div class="serif">${moodHeadline(res.mood)}</div></div>` : ''}
+      ${res ? `<div class="row" style="gap:12px;margin-bottom:12px"><div style="width:96px;flex:none">${moodCardSVG(res.mood, 'sh' + key)}</div><div class="grow"><div class="serif" ${(S.settings.moodNames || {})[res.mood] ? 'translate="no"' : ''}>${esc(moodHeadline(res.mood))}</div>
+        <button class="btn" style="margin-top:8px" data-act="renameMood" data-m="${res.mood}">${icon('pen', 16)} Rename this mood</button></div></div>` : ''}
+      <button class="btn full" style="margin-bottom:12px" data-go="/emotions">${icon('pen', 16)} Rename emotions</button>
       ${cur.length ? `<div class="small muted">Marks (tap to remove):</div><div class="chips" style="margin:6px 0 12px;flex-wrap:wrap">${cur.map((id, i) => {
         const e = Emo.get(id);
         return e ? `<button class="chip" style="--c:${e.color}" data-rm="${i}">${Emo.badge(e, 22)}${esc(e.name)}${times[i] ? ` <span class="muted">${times[i]}</span>` : ''} ✕</button>` : '';
@@ -1921,6 +1923,7 @@ ROUTES.themes = async (v) => {
   const canUndo = (st.lookHistory || []).length > 0;
   v.innerHTML = `${topbar('Themes', canUndo ? `<button class="icon-btn" data-act="undoLook" title="Undo">↩︎</button>` : '')}
   <div class="page stack">
+    ${myBackgroundsCard()}
     <div class="periods">${THEME_CATS.map(([id, n]) => `<button class="pill ${themeCat === id ? 'on' : ''}" data-act="themeCat" data-c="${id}">${n}${id === 'mine' && mine.length ? ' · ' + mine.length : ''}</button>`).join('')}</div>
     ${canUndo ? `<button class="btn full" data-act="undoLook">↩︎ Restore previous look</button>` : ''}
     ${themeCat === 'mine' && !mine.length ? '<div class="card small muted">Your own themes will appear here. Set colors, fonts and pictures in “My style” and tap “Save as my theme”.</div>' : ''}

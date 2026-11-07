@@ -98,8 +98,68 @@ function moodHeadline(m) {
   return sub.charAt(0).toUpperCase() + sub.slice(1);
 }
 
+ACT.renameMood = async (el) => {
+  const m = el.dataset.m;
+  const name = prompt('New name for this mood (leave empty to restore):', (S.settings.moodNames || {})[m] || moodHeadline(m));
+  if (name == null) return;
+  const map = { ...(S.settings.moodNames || {}) };
+  if (name.trim()) map[m] = name.trim(); else delete map[m];
+  S.settings.moodNames = map;
+  try { await saveSettings(); } catch (e) { toast('Couldn’t save: ' + (e.message || e), 5000); return; }
+  toast('Saved ✓');
+  closeAllSheets(); render();
+};
+
+/* ---------- мої фото як фони й заставки ---------- */
+function myBgKeys() { return Object.keys(S.art.lib).filter((k) => k.startsWith('bg:')).sort().reverse(); }
+function myBackgroundsCard() {
+  const keys = myBgKeys();
+  const st = S.settings;
+  const custom = st.headerImg || st.bgImg || st.coverImg || Object.keys(st.sectionBg || {}).length;
+  return `<div class="card stack">
+    <div class="row"><div class="grow"><div class="serif" style="font-size:18px">My photos as backgrounds</div>
+      <div class="small muted">Add photos from your library and use them as the home picture, background or lock screen.</div></div></div>
+    <div class="mybg-grid">
+      <label class="mybg add">${icon('plus', 22)}<span class="small">Add photos</span><input type="file" accept="image/*" multiple hidden onchange="addMyBackgrounds(this)"></label>
+      ${keys.map((k) => `<button class="mybg" data-act="myBgMenu" data-k="${k}"><img src="${artURL(k)}" alt="" loading="lazy"></button>`).join('')}
+    </div>
+    ${custom ? `<button class="btn full" data-act="myBgReset">${icon('back', 16)} Use the theme’s own pictures again</button>` : ''}
+  </div>`;
+}
+async function addMyBackgrounds(inp) {
+  const files = Array.from(inp.files || []);
+  if (!files.length) return;
+  toast('Adding photo…', 3000);
+  let n = 0;
+  for (const f of files) { const b = await shrinkImage(f, 2000); if (b) { S.art.lib['bg:' + Date.now().toString(36) + uid().slice(0, 4)] = b; n++; } }
+  await saveArt();
+  toast(n ? 'Photo added 📷' : 'Couldn’t add one of the photos');
+  render();
+}
+ACT.myBgMenu = (el) => {
+  const k = el.dataset.k;
+  const use = (fn, msg) => async () => {
+    pushLookHistory(); fn(S.art.lib[k]);
+    try { await saveSettings(); } catch (e) { toast('Couldn’t save: ' + (e.message || e), 5000); return; }
+    applyTheme(); toast(msg || 'Saved ✓'); render();
+  };
+  menuSheet('My photo', [
+    { label: 'Use as home screen picture', icon: 'image', run: use((b) => { S.settings.headerImg = b; }) },
+    { label: 'Use as background everywhere', icon: 'image', run: use((b) => { S.settings.bgImg = b; }) },
+    ...SECTIONS.map(([sec, n]) => ({ label: `Use as background: ${n}`, icon: 'image', run: use((b) => { S.settings.sectionBg = { ...(S.settings.sectionBg || {}), [sec]: b }; }) })),
+    { label: 'Use as lock screen cover', icon: 'lock', run: use((b) => { S.settings.coverImg = b; }) },
+    { label: 'Delete this photo', icon: 'trash', danger: true, run: async () => { if (!confirm('Delete this photo from your backgrounds?')) return; delete S.art.lib[k]; await saveArt(); render(); } },
+  ]);
+};
+ACT.myBgReset = async () => {
+  pushLookHistory();
+  Object.assign(S.settings, { headerImg: null, bgImg: null, coverImg: null, sectionBg: {} });
+  try { await saveSettings(); } catch (e) { toast('Couldn’t save: ' + (e.message || e), 5000); return; }
+  applyTheme(); toast('Saved ✓'); render();
+};
+
 function libKeys(kind) {
-  return Object.keys(S.art.lib).filter((k) => (kind === 'face' ? k.startsWith('f:') || k.startsWith('own:face') : k.startsWith('m') || k.startsWith('own:mood'))).sort();
+  return Object.keys(S.art.lib).filter((k) => (kind === 'face' ? k.startsWith('f:') || k.startsWith('own:face') : /^m\d:/.test(k) || k.startsWith('own:mood'))).sort();
 }
 
 ROUTES.art = async (v) => {
