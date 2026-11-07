@@ -261,7 +261,7 @@ async function pdfScan(st, onProgress) {
         const cv = await imageCanvas(page, b.im.id);
         if (!cv) continue;
         const blob = await new Promise((res) => cv.toBlob(res, 'image/jpeg', 0.9));
-        try { const pid = await savePhoto(e.id, blob); st.photoIds.push(pid); e.paras.push({ img: pid, small: (b.im.x1 - b.im.x0) < 120 }); } catch (err) { console.warn(err); }
+        try { const pid = await savePhoto(e.id, blob); S.photoMeta[pid].imp = 1; await DB.put('photoMeta', S.photoMeta[pid]); st.photoIds.push(pid); e.paras.push({ img: pid, small: (b.im.x1 - b.im.x0) < 120 }); } catch (err) { console.warn(err); }
         prevLine = null;
       }
     }
@@ -285,8 +285,11 @@ function pdfDecode(text, st) {
 async function pdfFinish(st) {
   const moodMap = S.settings.pdfMoodMap || {};
   const have = new Set(S.entries.map((e) => e.importKey).filter(Boolean));
-  let added = 0, skipped = 0;
+  let added = 0, skipped = 0, failed = 0, firstErr = '', i = 0;
   for (const ie of st.entries) {
+    i++;
+    if (i % 10 === 0) { const el = $('#pi-save'); if (el) el.textContent = `Saving entries… ${i} / ${st.entries.length}`; await new Promise((r) => setTimeout(r, 0)); }
+    try {
     const mon = monthIndex(pdfDecode(ie.day.mon, st));
     if (mon < 0 || !ie.day.y) { skipped++; continue; }
     const date = `${ie.day.y}-${pad(mon + 1)}-${pad(ie.day.d)}T${ie.time}`;
@@ -303,6 +306,7 @@ async function pdfFinish(st) {
     S.entries.push(e);
     have.add(key);
     added++;
+    } catch (err) { console.error(err); failed++; if (!firstErr) firstErr = (err && (err.name + ': ' + err.message)) || String(err); }
   }
   // продовження запису з попередньої частини імпорту
   const cont = st.lastEntry && st.lastEntry.existing;
@@ -314,7 +318,7 @@ async function pdfFinish(st) {
     }
   }
   sortEntries();
-  return { added, skipped };
+  return { added, skipped, failed, firstErr };
 }
 
 function drawGlyph(u, size = 64) {
@@ -379,11 +383,22 @@ ROUTES.pdfimport = async (v) => {
         <select class="text-input grow" data-icon="${i}"><option value="">— no emotion —</option>${emoOpts}</select><span class="small muted">${ic.n}×</span></div>`).join('')}
       <button class="btn full solid" data-act="pdfMoodsDone">${icon('check')} Finish import</button>
     </div>`;
+  } else if (st.phase === 'saving') {
+    body = `<div class="card stack center"><div class="serif" style="font-size:18px" id="pi-save">Saving entries…</div><div class="small muted">Keep the screen on and the journal open.</div></div>`;
+  } else if (st.phase === 'error') {
+    body = `<div class="card stack">
+      <div class="serif" style="font-size:18px">Something went wrong while saving</div>
+      <div class="small muted" translate="no" style="word-break:break-word">${esc(st.error || '')}</div>
+      <div class="small muted">The PDF is already read — tap “Try again” to save the entries without reading it again. Please send a screenshot of this screen to Claude.</div>
+      <button class="btn full solid" data-act="pdfRetry">${icon('check')} Try again</button>
+      <button class="btn full" data-act="pdfCancel">Cancel</button>
+    </div>`;
   } else if (st.phase === 'done') {
     body = `<div class="card stack center">
       <div style="font-size:42px">🌿</div>
       <div class="serif" style="font-size:20px">Imported ${st.result.added} entries</div>
       ${st.result.skipped ? `<div class="small muted">Skipped: ${st.result.skipped} (already imported or without a date)</div>` : ''}
+      ${st.result.failed ? `<div class="small muted" translate="no">Not saved: ${st.result.failed} — ${esc(st.result.firstErr || '')}</div>` : ''}
       ${st.to < st.pages ? `<div class="small muted">Pages ${st.from}–${st.to} of ${st.pages} are done. Choose the same file again to continue from page ${st.to + 1}.</div>` : ''}
       <button class="btn full solid" data-act="pdfClose">Open my journal</button>
     </div>`;
@@ -395,6 +410,9 @@ ROUTES.pdfimport = async (v) => {
     if (!file) return;
     toast('Opening…', 2500);
     try {
+      // фото з попередньої незавершеної спроби імпорту, які не потрапили в жоден запис
+      const used = new Set(S.entries.flatMap((e) => e.photos || []));
+      for (const m of Object.values(S.photoMeta)) if (m.imp && !used.has(m.id)) { try { await deletePhoto(m.id); } catch (_) {} }
       const pdf = await PdfImport.open(file);
       const last = S.settings.pdfImportLast;
       const from = last && last.name === file.name && last.size === file.size && last.done < pdf.numPages ? last.done + 1 : 1;
@@ -420,7 +438,11 @@ ROUTES.pdfimport = async (v) => {
 };
 
 async function pdfFinalize(st) {
-  st.result = await pdfFinish(st);
+  st.phase = 'saving'; render();
+  await new Promise((r) => setTimeout(r, 50));
+  try { st.result = await pdfFinish(st); }
+  catch (e) { console.error(e); st.error = (e && (e.name + ': ' + e.message)) || String(e); st.phase = 'error'; render(); return; }
+  if (!st.result.added && st.result.failed) { st.error = st.result.firstErr; st.phase = 'error'; render(); return; }
   S.settings.pdfImportLast = { name: st.name, size: st.size, pages: st.pages, done: st.to };
   await saveSettings();
   st.phase = 'done';
@@ -454,7 +476,7 @@ ACT.pdfLearned = async () => {
   S.settings.pdfGlyphsLearned = learned;
   await saveSettings();
   st.phase = st.icons.length ? 'moods' : 'finish';
-  if (st.phase === 'finish') { toast('Saving entries…', 3000); await pdfFinalize(st); }
+  if (st.phase === 'finish') await pdfFinalize(st);
   render();
 };
 ACT.pdfMoodsDone = async () => {
@@ -462,7 +484,10 @@ ACT.pdfMoodsDone = async () => {
   const map = { ...(S.settings.pdfMoodMap || {}) };
   for (const sel of $$('[data-icon]')) { const ic = st.icons[+sel.dataset.icon]; if (sel.value) map[ic.hash] = sel.value; }
   S.settings.pdfMoodMap = map;
-  toast('Saving entries…', 3000);
   await pdfFinalize(st);
   render();
 };
+ACT.pdfRetry = async () => { const st = PDFI.state; if (st) { await pdfFinalize(st); render(); } };
+
+// будь-яка неочікувана помилка — показуємо, а не мовчимо
+window.addEventListener('unhandledrejection', (e) => { const r = e.reason; try { toast('Error: ' + ((r && (r.message || r.name)) || r), 6000); } catch (_) {} });

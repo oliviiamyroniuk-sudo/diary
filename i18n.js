@@ -150,6 +150,8 @@ const RU = {
   'These letters appear in your PDF, but I haven’t seen them before. Type what each one is (one letter or sign). I’ll remember them for next time. Leave empty if you’re not sure.': 'Эти буквы есть в твоём PDF, но я их раньше не видел. Напиши, что это за буква или знак. Я запомню на будущее. Если не уверена — оставь пустым.',
   'Continue': 'Продолжить', 'Moods from your old diary': 'Настроения из старого дневника', 'Which emotion does each icon mean? It will be added to those entries.': 'Какую эмоцию означает каждая иконка? Она добавится к этим записям.',
   'Big diary: it’s safest to import about 300 pages at a time. When a part is done, choose the same file again — it continues from the next page by itself.': 'Большой дневник: надёжнее импортировать примерно по 300 страниц. Когда часть готова, выбери тот же файл снова — импорт сам продолжится со следующей страницы.',
+  'Something went wrong while saving': 'Что-то пошло не так при сохранении', 'Try again': 'Попробовать ещё раз',
+  'The PDF is already read — tap “Try again” to save the entries without reading it again. Please send a screenshot of this screen to Claude.': 'PDF уже прочитан — нажми «Попробовать ещё раз», чтобы сохранить записи без повторного чтения. Пришли скриншот этого экрана Claude.',
   '— no emotion —': '— без эмоции —', 'Finish import': 'Завершить импорт', 'Open my journal': 'Открыть дневник', 'Opening…': 'Открываю…', 'Saving entries…': 'Сохраняю записи…',
   // пароль
   'Repeat password': 'Повтори пароль', 'Doesn’t match. Choose a password again': 'Не совпадает. Придумай пароль ещё раз', 'Password set 🔒': 'Пароль установлен 🔒',
@@ -244,6 +246,7 @@ const RU_PATTERNS = [
   [/^Pictures added: (\d+)(.*)$/, 'Добавлено картинок: $1$2'],
   [/^Entries restored: (\d+)(.*)$/, 'Восстановлено записей: $1$2'],
   [/^Delete “(.+)”\?$/, 'Удалить «$1»?'],
+  [/^Saving entries… (\d+) \/ (\d+)$/, 'Сохраняю записи… $1 / $2'],
   [/^Imported (\d+) entries$/, 'Импортировано записей: $1'],
   [/^(\d+) pages$/, 'Страниц: $1'],
   [/^used (\d+)×$/, 'встречается $1×'],
