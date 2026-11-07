@@ -423,3 +423,8 @@ button > svg, a > svg, label > svg, .row > svg, .link-row svg, .tile-stat > svg 
 .tag.on { background: color-mix(in srgb, var(--accent) 35%, transparent); border-color: var(--accent); font-weight: 600; }
 .tag-input { background: none; border: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent); border-radius: 999px; padding: 4px 10px; font-size: 12.5px; width: 150px; outline: none; color: var(--text); }
 .rich figure.drawing img { background: #FBF8F2; }
+
+/* вибір сезонного будиночка */
+.house-opt { display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center; padding: 6px; border-radius: 14px; border: 2px solid transparent; background: var(--card2, rgba(255,255,255,.06)); color: var(--text); }
+.house-opt.on { border-color: var(--accent); }
+.house-opt[disabled] { opacity: .8; }

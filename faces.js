@@ -1,46 +1,46 @@
 'use strict';
-/* own journal — намальовані від руки обличчя-емоції, смайлик серії та ілюстрації настрою дня */
+/* own journal — живі намальовані від руки обличчя-емоції, смайлик серії та ілюстрації настрою дня */
 
-const FACE_INK = '#3b2b25';
+const FACE_INK = '#2b1f1b';
 
 /** Опис обличчя для кожної емоції: очі, брови, рот, додатки. */
 const FACE_SPECS = {
   calm: { eyes: 'closed', mouth: 'small', extra: ['blush'] },
-  content: { eyes: 'dot', mouth: 'smile', extra: ['blush'] },
-  joy: { eyes: 'happy', mouth: 'grin', extra: ['blush'] },
-  elation: { eyes: 'happy', mouth: 'open', extra: ['blush', 'sparkles'] },
-  tenderness: { eyes: 'closed', mouth: 'small', extra: ['blushStrong', 'hearts'] },
-  admiration: { eyes: 'star', mouth: 'open', extra: ['sparkles'] },
-  inlove: { eyes: 'heart', mouth: 'small', extra: ['blushStrong', 'hearts'] },
-  relief: { eyes: 'closed', brows: 'worried', mouth: 'smile', extra: ['sweat'] },
-  confidence: { eyes: 'half', brows: 'raised', mouth: 'smirk', extra: ['sparkle1'] },
-  inspiration: { eyes: 'star', mouth: 'grin', extra: ['sparkles'] },
-  celebration: { eyes: 'happy', mouth: 'open', extra: ['confetti', 'blush'] },
-  touched: { eyes: 'teary', mouth: 'wobble', extra: ['blush'] },
-  gratitude: { eyes: 'closed', mouth: 'smile', extra: ['blush', 'sparkle1'] },
+  content: { eyes: 'happyOpen', mouth: 'smile', extra: ['blush'] },
+  joy: { eyes: 'happyOpen', mouth: 'openSmile', extra: ['blush', 'sparkle1'] },
+  elation: { eyes: 'squeeze', mouth: 'laugh', extra: ['blushStrong', 'sparkles'] },
+  tenderness: { eyes: 'closed', brows: 'soft', mouth: 'cat', extra: ['blushStrong', 'hearts'] },
+  admiration: { eyes: 'shine', brows: 'raised', mouth: 'o', extra: ['blush', 'sparkles'] },
+  inlove: { eyes: 'heart', mouth: 'openSmile', extra: ['blushStrong', 'hearts'] },
+  relief: { eyes: 'closed', brows: 'worried', mouth: 'smile', extra: ['sweat', 'blush'] },
+  confidence: { eyes: 'smug', brows: 'one', mouth: 'smirk', extra: ['sparkle1'] },
+  inspiration: { eyes: 'star', brows: 'raised', mouth: 'laugh', extra: ['sparkles', 'blush'] },
+  celebration: { eyes: 'happy', mouth: 'tongue', extra: ['confetti', 'blush'] },
+  touched: { eyes: 'teary', brows: 'worried', mouth: 'wobble', extra: ['blushStrong'] },
+  gratitude: { eyes: 'closed', brows: 'soft', mouth: 'smile', extra: ['blush', 'sparkle1'] },
   cozy: { eyes: 'closed', mouth: 'cat', extra: ['blushStrong', 'steam'] },
-  hope: { eyes: 'up', mouth: 'small', extra: ['sparkles'] },
-  emptiness: { eyes: 'tiny', mouth: 'none', extra: [] },
-  tired: { eyes: 'sleepy', mouth: 'flat', extra: ['zzz', 'bags'] },
-  thoughtful: { eyes: 'side', brows: 'one', mouth: 'smirkFlat', extra: ['dots'] },
-  confused: { eyes: 'wide', brows: 'worried', mouth: 'wobble', extra: ['question'] },
-  tense: { eyes: 'wide', brows: 'worried', mouth: 'teeth', extra: ['sweat'] },
-  awkward: { eyes: 'side', mouth: 'wobble', extra: ['blush', 'sweat'] },
-  indifferent: { eyes: 'half', mouth: 'flat', extra: [] },
-  bored: { eyes: 'sleepy', mouth: 'pout', extra: [] },
-  nostalgia: { eyes: 'closed', mouth: 'small', extra: ['tear1', 'blush'] },
-  anxiety: { eyes: 'wideTiny', brows: 'worried', mouth: 'wobble', extra: ['sweat', 'sweat2'] },
-  sad: { eyes: 'droopy', brows: 'worried', mouth: 'frown', extra: ['tear1'] },
-  disappointed: { eyes: 'half', brows: 'worried', mouth: 'frown', extra: [] },
-  depressed: { eyes: 'droopy', brows: 'worried', mouth: 'flat', extra: ['gloom'] },
-  anger: { eyes: 'dot', brows: 'angry', mouth: 'frown', extra: ['vein'] },
-  irritation: { eyes: 'squint', brows: 'angry', mouth: 'teeth', extra: ['vein'] },
-  grief: { eyes: 'crying', brows: 'worried', mouth: 'cry', extra: ['tears'] },
-  fear: { eyes: 'wideTiny', brows: 'worried', mouth: 'o', extra: ['sweat', 'gloom'] },
-  overwhelmed: { eyes: 'swirl', mouth: 'wobble', extra: ['sweat', 'sweat2'] },
-  despair: { eyes: 'teary', brows: 'worried', mouth: 'cry', extra: ['tears'] },
-  lonely: { eyes: 'down', mouth: 'smallFrown', extra: [] },
-  guilt: { eyes: 'down', brows: 'worried', mouth: 'wobble', extra: ['sweat'] },
+  hope: { eyes: 'up', brows: 'soft', mouth: 'small', extra: ['sparkles'] },
+  emptiness: { eyes: 'blank', mouth: 'none', extra: ['shadow'] },
+  tired: { eyes: 'lidded', mouth: 'yawn', extra: ['zzz', 'bags'] },
+  thoughtful: { eyes: 'up', brows: 'one', mouth: 'smirkFlat', extra: ['dots'] },
+  confused: { eyes: 'mismatch', brows: 'oneUp', mouth: 'wobble', extra: ['question'] },
+  tense: { eyes: 'tiny', brows: 'worried', mouth: 'grinTeeth', extra: ['sweat'] },
+  awkward: { eyes: 'side', brows: 'worried', mouth: 'wobble', extra: ['blushStrong', 'sweat'] },
+  indifferent: { eyes: 'lidded', mouth: 'flat', extra: [] },
+  bored: { eyes: 'lidSide', mouth: 'pout', extra: [] },
+  nostalgia: { eyes: 'closed', brows: 'worried', mouth: 'small', extra: ['tear1', 'blush'] },
+  anxiety: { eyes: 'tiny', brows: 'worried', mouth: 'chatter', extra: ['sweat', 'sweat2', 'shake'] },
+  sad: { eyes: 'worried', brows: 'worried', mouth: 'frown', extra: ['tear1'] },
+  disappointed: { eyes: 'lidded', brows: 'worried', mouth: 'smallFrown', extra: [] },
+  depressed: { eyes: 'dull', brows: 'worried', mouth: 'flat', extra: ['gloom', 'shadow'] },
+  anger: { eyes: 'glare', brows: 'angry', mouth: 'clench', extra: ['vein', 'blushRed'] },
+  irritation: { eyes: 'glareSide', brows: 'angry', mouth: 'smirkFlat', extra: ['vein'] },
+  grief: { eyes: 'crying', brows: 'worried', mouth: 'wail', extra: ['tears', 'blush'] },
+  fear: { eyes: 'tiny', brows: 'worried', mouth: 'chatter', extra: ['sweat', 'shadow', 'shake'] },
+  overwhelmed: { eyes: 'swirl', mouth: 'wobbleOpen', extra: ['sweat', 'sweat2', 'shake'] },
+  despair: { eyes: 'teary', brows: 'worried', mouth: 'wail', extra: ['tears', 'shadow'] },
+  lonely: { eyes: 'down', brows: 'soft', mouth: 'smallFrown', extra: [] },
+  guilt: { eyes: 'down', brows: 'worried', mouth: 'wobble', extra: ['sweat', 'gloom'] },
 };
 
 /** Готові обличчя для власних емоцій. */
@@ -48,11 +48,20 @@ const FACE_PRESETS = Object.keys(FACE_SPECS);
 
 function hashStr(s) { let h = 2166136261; for (const c of String(s)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
 
+function hexRGB(hex) {
+  const h = String(hex || '#cccccc').replace('#', '');
+  const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h.slice(0, 6), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
 function lighten(hex, amt) {
-  const h = hex.replace('#', '');
-  const n = parseInt(h.slice(0, 6), 16);
+  const [r, g, b] = hexRGB(hex);
   const mix = (c) => Math.round(c + (255 - c) * amt);
-  return `rgb(${mix((n >> 16) & 255)},${mix((n >> 8) & 255)},${mix(n & 255)})`;
+  return `rgb(${mix(r)},${mix(g)},${mix(b)})`;
+}
+function darken(hex, amt) {
+  const [r, g, b] = hexRGB(hex);
+  const mix = (c) => Math.round(c * (1 - amt));
+  return `rgb(${mix(r)},${mix(g)},${mix(b)})`;
 }
 
 /** Трішки нерівне коло — щоб виглядало намальованим від руки. */
@@ -74,93 +83,151 @@ function wobblyCircle(cx, cy, r, seed, amp = 1.1) {
   return d + 'Z';
 }
 
-const S_ = (w = 3) => `stroke="${FACE_INK}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none"`;
+const INK_ = (w = 3, c = FACE_INK) => `stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"`;
+const LINE_ = (w = 3, c = FACE_INK) => `${INK_(w, c)} fill="none"`;
+const MOUTH_DARK = '#4a1f22', TONGUE = '#f08a8f', TEAR = '#8fd0f4';
 
-function eyePair(type, ink = FACE_INK) {
-  const L = [36, 46], R = [64, 46];
+/* ---------- Очі (спільні для смайликів і героїні) ----------
+   x, y — центр ока; s = -1 ліве, 1 праве; sk — колір шкіри (для повік);
+   o — розміри: rx, ry, iris (колір райдужки) */
+function eyeOpen(x, y, o = {}) {
+  const rx = o.rx || 9.5, ry = o.ry || 11, pr = o.pr ?? 5, ink = o.ink || FACE_INK;
+  const px = x + (o.px || 0), py = y + (o.py || 0) + 1;
+  let h = `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="#fff" ${INK_(2.2, ink)}/>`;
+  if (pr > 0) {
+    if (o.iris) h += `<circle cx="${px}" cy="${py}" r="${pr * 1.45}" fill="${o.iris}"/><circle cx="${px}" cy="${py + pr * 0.35}" r="${pr * 0.9}" fill="${o.iris2 || o.iris}" opacity=".6"/>`;
+    h += `<circle cx="${px}" cy="${py}" r="${o.iris ? pr * 0.7 : pr}" fill="${ink}"/>`;
+    if (o.hl !== false) h += `<circle cx="${px - pr * 0.42}" cy="${py - pr * 0.5}" r="${Math.max(1.1, pr * 0.38)}" fill="#fff"/><circle cx="${px + pr * 0.45}" cy="${py + pr * 0.45}" r="${Math.max(0.6, pr * 0.18)}" fill="#fff"/>`;
+  }
+  // верхня повіка: товста лінія з віями
+  if (o.lid !== false) {
+    const s = o.s || 1;
+    h += `<path d="M${x - rx - 0.5},${y - 1} Q${x},${y - ry - 3.5} ${x + rx + 0.5},${y - 1}" ${LINE_(o.lw || 3.4, ink)}/>`;
+    h += `<path d="M${x + s * (rx - 0.5)},${y - 3} l${s * 3.2},-3" ${LINE_(2.2, ink)}/>`;
+  }
+  return h;
+}
+/** Повіка, що прикриває око лінією від зовнішнього кута до внутрішнього. */
+function eyeLid(x, y, s, oy, iy, sk, o = {}) {
+  const rx = o.rx || 9.5, ry = o.ry || 11, ink = o.ink || FACE_INK;
+  const outer = x + s * (rx + 1.5), inner = x - s * (rx + 1.5);
+  const top = y - ry - 1.8;
+  return `<path d="M${outer},${top} L${inner},${top} L${inner},${y + iy} L${outer},${y + oy} Z" fill="${sk}"/>
+    <path d="M${outer - s * 1.2},${y + oy + 0.4} L${inner + s * 1.2},${y + iy + 0.4}" ${LINE_(o.lw || 3.4, ink)}/>`;
+}
+
+function eyePair(type, sk, o = {}) {
+  const L = o.L || [35, 47], R = o.R || [65, 47];
+  const k = o.k || 1;
+  const ink = o.ink || FACE_INK;
   const both = (fn) => fn(L[0], L[1], -1) + fn(R[0], R[1], 1);
-  const st = (w = 3) => `stroke="${ink}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none"`;
-  const bigEye = (x, y, px = 0, py = 0, pr = 4, r = 9) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#fff" ${st(2.4)}/><circle cx="${x + px}" cy="${y + py}" r="${pr}" fill="${ink}"/><circle cx="${x + px - 1.4}" cy="${y + py - 1.6}" r="1.3" fill="#fff"/>`;
+  const op = (x, y, s, extra = {}) => eyeOpen(x, y, { s, ink, rx: 9.5 * k, ry: 11 * k, pr: 5 * k, iris: o.iris, iris2: o.iris2, ...extra });
+  const lidded = (oy, iy, extra = {}) => both((x, y, s) => op(x, y, s, { lid: false, ...extra }) + eyeLid(x, y, s, oy * k, iy * k, sk, { ink, rx: 9.5 * k, ry: 11 * k }));
   switch (type) {
-    case 'dot': return both((x, y) => `<ellipse cx="${x}" cy="${y}" rx="3.3" ry="4.3" fill="${ink}"/>`);
-    case 'tiny': return both((x, y) => `<circle cx="${x}" cy="${y}" r="2.2" fill="${ink}"/>`);
-    case 'happy': return both((x, y) => `<path d="M${x - 7},${y + 3} Q${x},${y - 7} ${x + 7},${y + 3}" ${st(3.2)}/>`);
-    case 'closed': return both((x, y) => `<path d="M${x - 7},${y - 1} Q${x},${y + 6} ${x + 7},${y - 1}" ${st(3)}/>`);
-    case 'half': return both((x, y) => `<path d="M${x - 7},${y - 1} L${x + 7},${y - 1}" ${st(3)}/><path d="M${x - 5},${y} Q${x},${y + 5} ${x + 5},${y}" fill="${ink}"/>`);
-    case 'sleepy': return both((x, y) => `<path d="M${x - 7},${y} L${x + 7},${y}" ${st(3)}/><path d="M${x - 5},${y + 1} Q${x},${y + 4} ${x + 5},${y + 1}" ${st(2)}/>`);
-    case 'big': return both((x, y) => bigEye(x, y));
-    case 'wide': return both((x, y) => bigEye(x, y, 0, 0, 2.6, 10));
-    case 'wideTiny': return both((x, y) => bigEye(x, y, 0, 1, 1.8, 10));
-    case 'side': return both((x, y) => bigEye(x, y, 3.5, -1.5, 3.6, 8.5));
-    case 'up': return both((x, y) => bigEye(x, y, 1, -3.5, 3.8, 9));
-    case 'down': return both((x, y) => bigEye(x, y, 1, 3.5, 3.4, 8.5));
-    case 'teary': return both((x, y) => bigEye(x, y, 0, 1, 4.5, 9) + `<path d="M${x - 6},${y + 8} Q${x},${y + 11} ${x + 6},${y + 8}" stroke="#6fb2e6" stroke-width="3" fill="none" stroke-linecap="round"/>`);
-    case 'droopy': return both((x, y, s) => `<ellipse cx="${x}" cy="${y + 1}" rx="3.4" ry="4" fill="${ink}"/><path d="M${x - 7},${y - 5 + (s < 0 ? 2 : -2)} L${x + 7},${y - 5 + (s < 0 ? -2 : 2)}" ${st(2.6)}/>`);
-    case 'crying': return both((x, y) => `<path d="M${x - 7},${y + 2} Q${x},${y - 6} ${x + 7},${y + 2}" ${st(3.2)}/>`);
-    case 'squint': return `<path d="M29,41 L41,46 L29,51" ${st(3.2)}/><path d="M71,41 L59,46 L71,51" ${st(3.2)}/>`;
-    case 'heart': return both((x, y) => `<path d="M${x},${y + 7} C${x - 12},${y - 1} ${x - 6},${y - 9} ${x},${y - 3} C${x + 6},${y - 9} ${x + 12},${y - 1} ${x},${y + 7}Z" fill="#e2546b" stroke="${ink}" stroke-width="2"/>`);
-    case 'star': return both((x, y) => `<path d="M${x},${y - 9} L${x + 2.6},${y - 2.6} L${x + 9},${y - 2} L${x + 4},${y + 2.4} L${x + 5.6},${y + 9} L${x},${y + 5.4} L${x - 5.6},${y + 9} L${x - 4},${y + 2.4} L${x - 9},${y - 2} L${x - 2.6},${y - 2.6}Z" fill="#f6cd4a" stroke="${ink}" stroke-width="2" stroke-linejoin="round"/>`);
-    case 'swirl': return both((x, y) => `<path d="M${x},${y} m-1,0 a1.5,1.5 0 1,1 3,0 a3,3 0 1,1 -6,0 a4.5,4.5 0 1,1 9,0 a6,6 0 1,1 -12,0" ${st(2.2)}/>`);
-    default: return both((x, y) => `<circle cx="${x}" cy="${y}" r="3.5" fill="${ink}"/>`);
+    case 'dot': return both((x, y) => `<ellipse cx="${x}" cy="${y}" rx="${3.6 * k}" ry="${4.6 * k}" fill="${ink}"/><circle cx="${x - 1.2 * k}" cy="${y - 1.6 * k}" r="${1.1 * k}" fill="#fff"/>`);
+    case 'open': return both((x, y, s) => op(x, y, s));
+    case 'happyOpen': return both((x, y, s) => op(x, y, s, { py: -1.5 * k, pr: 5.2 * k }) + `<path d="M${x - 11 * k},${y + 4 * k} Q${x},${y - 2.5 * k} ${x + 11 * k},${y + 4 * k} L${x + 12 * k},${y + 13 * k} L${x - 12 * k},${y + 13 * k} Z" fill="${sk}"/><path d="M${x - 9 * k},${y + 4.2 * k} Q${x},${y - 1.2 * k} ${x + 9 * k},${y + 4.2 * k}" ${LINE_(2.6, ink)}/>`);
+    case 'happy': return both((x, y) => `<path d="M${x - 8 * k},${y + 3 * k} Q${x},${y - 9 * k} ${x + 8 * k},${y + 3 * k}" ${LINE_(3.6, ink)}/>`);
+    case 'closed': return both((x, y, s) => `<path d="M${x - 8 * k},${y - 1 * k} Q${x},${y + 7 * k} ${x + 8 * k},${y - 1 * k}" ${LINE_(3.4, ink)}/><path d="M${x + s * 8 * k},${y - 1 * k} l${s * 2.5},-2.5" ${LINE_(2, ink)}/>`);
+    case 'squeeze': return both((x, y, s) => `<path d="M${x + s * 7 * k},${y - 7 * k} L${x - s * 6 * k},${y} L${x + s * 7 * k},${y + 7 * k}" ${LINE_(3.6, ink)}/>`);
+    case 'crying': return both((x, y, s) => `<path d="M${x + s * 7 * k},${y - 6 * k} L${x - s * 6 * k},${y} L${x + s * 7 * k},${y + 5 * k}" ${LINE_(3.4, ink)}/>`);
+    case 'shine': return both((x, y, s) => op(x, y, s, { pr: 6.6 * k, hl: false }) + `<path d="M${x - 2.4 * k},${y - 5.5 * k} l${1.1 * k},${2.6 * k} l${2.6 * k},${1.1 * k} l${-2.6 * k},${1.1 * k} l${-1.1 * k},${2.6 * k} l${-1.1 * k},${-2.6 * k} l${-2.6 * k},${-1.1 * k} l${2.6 * k},${-1.1 * k}z" fill="#fff"/><circle cx="${x + 3 * k}" cy="${y + 4 * k}" r="${1.6 * k}" fill="#fff"/>`);
+    case 'teary': return both((x, y, s) => op(x, y, s, { pr: 6 * k, py: 0.5 * k }) + `<path d="M${x - 9 * k},${y + 2 * k} Q${x},${y + 13 * k} ${x + 9 * k},${y + 2 * k} Q${x},${y + 7 * k} ${x - 9 * k},${y + 2 * k}Z" fill="${TEAR}" opacity=".9"/><path d="M${x - 5 * k},${y + 5 * k} q${2 * k},${1.5 * k} ${4 * k},0" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round"/>`);
+    case 'tiny': return both((x, y, s) => op(x, y, s, { pr: 1.9 * k, hl: false, py: 0 }));
+    case 'blank': return both((x, y, s) => op(x, y, s, { pr: 1.3 * k, hl: false, lid: false }) + `<path d="M${x - 9 * k},${y - 2 * k} L${x + 9 * k},${y - 2 * k}" ${LINE_(2.6, ink)}/>` + eyeLid(x, y, s, -2 * k, -2 * k, sk, { ink, rx: 9.5 * k, ry: 11 * k }));
+    case 'side': return both((x, y, s) => op(x, y, s, { px: 4.2 * k, py: -0.5 * k }));
+    case 'up': return both((x, y, s) => op(x, y, s, { px: 1.5 * k, py: -4.2 * k }));
+    case 'down': return lidded(-1, -1, { py: 4 * k, px: -1 * k, pr: 4.8 * k });
+    case 'lidded': return lidded(-0.5, -0.5, { py: 3.2 * k, pr: 4.6 * k });
+    case 'lidSide': return lidded(-0.5, -0.5, { py: 3 * k, px: 4.5 * k, pr: 4.4 * k });
+    case 'smug': return lidded(-1.5, -2.5, { py: 2.6 * k, px: -3 * k, pr: 4.6 * k });
+    case 'dull': return lidded(-1, -1, { py: 3.4 * k, pr: 4.6 * k, hl: false }) + both((x, y) => `<path d="M${x - 7 * k},${y + 13 * k} Q${x},${y + 16 * k} ${x + 7 * k},${y + 13 * k}" ${LINE_(1.4, ink)} opacity=".55"/>`);
+    case 'glare': return lidded(-7, 1, { py: 3 * k, pr: 3.8 * k });
+    case 'glareSide': return lidded(-6, 0, { py: 3 * k, px: 4 * k, pr: 3.8 * k });
+    case 'worried': return lidded(1, -7, { py: 2.5 * k, pr: 5 * k });
+    case 'mismatch': return op(L[0], L[1], -1, { rx: 11 * k, ry: 12.5 * k, pr: 3.4 * k }) + eyeOpen(R[0], R[1] + 1, { s: 1, ink, rx: 8 * k, ry: 8.5 * k, pr: 3 * k, iris: o.iris, lid: false }) + `<path d="M${R[0] - 9 * k},${R[1] - 5 * k} L${R[0] + 9 * k},${R[1] - 3 * k}" ${LINE_(3.2, ink)}/>`;
+    case 'heart': return both((x, y) => `<path d="M${x},${y + 9 * k} C${x - 14 * k},${y - 1 * k} ${x - 7 * k},${y - 11 * k} ${x},${y - 4 * k} C${x + 7 * k},${y - 11 * k} ${x + 14 * k},${y - 1 * k} ${x},${y + 9 * k}Z" fill="#ec4f6b" ${INK_(2.2, ink)}/><ellipse cx="${x - 4 * k}" cy="${y - 3 * k}" rx="${2 * k}" ry="${1.3 * k}" fill="#fff" opacity=".8"/>`);
+    case 'star': return both((x, y) => `<path d="M${x},${y - 10 * k} L${x + 3 * k},${y - 3 * k} L${x + 10 * k},${y - 2.4 * k} L${x + 4.6 * k},${y + 2.6 * k} L${x + 6.4 * k},${y + 10 * k} L${x},${y + 6 * k} L${x - 6.4 * k},${y + 10 * k} L${x - 4.6 * k},${y + 2.6 * k} L${x - 10 * k},${y - 2.4 * k} L${x - 3 * k},${y - 3 * k}Z" fill="#ffd34a" ${INK_(2.2, ink)}/><circle cx="${x - 2 * k}" cy="${y - 1 * k}" r="${1.4 * k}" fill="#fff"/>`);
+    case 'swirl': return both((x, y) => `<ellipse cx="${x}" cy="${y}" rx="${9.5 * k}" ry="${11 * k}" fill="#fff" ${INK_(2.2, ink)}/><path d="M${x},${y} m-1,0 a1.5,1.5 0 1,1 3,0 a3,3 0 1,1 -6,0 a4.5,4.5 0 1,1 9,0 a6,6 0 1,1 -12,0" ${LINE_(2, ink)} transform="translate(0 0) scale(1)"/>`);
+    default: return both((x, y, s) => op(x, y, s));
   }
 }
 
-function browPair(type, ink = FACE_INK) {
-  const st = `stroke="${ink}" stroke-width="3" stroke-linecap="round" fill="none"`;
+function browPair(type, o = {}) {
+  const ink = o.ink || FACE_INK;
+  const L = o.L || [35, 47], R = o.R || [65, 47], k = o.k || 1;
+  const st = LINE_(3.2 * Math.min(k, 1.2), ink);
+  const b = (fn) => fn(L[0], L[1] - 17 * k, -1) + fn(R[0], R[1] - 17 * k, 1);
+  // s = -1 ліва брова; внутрішній кінець ближче до центру
   switch (type) {
-    case 'worried': return `<path d="M27,35 Q34,33 42,29" ${st}/><path d="M73,35 Q66,33 58,29" ${st}/>`;
-    case 'angry': return `<path d="M27,29 L43,36" ${st}/><path d="M73,29 L57,36" ${st}/>`;
-    case 'raised': return `<path d="M28,32 Q35,26 43,30" ${st}/><path d="M57,30 Q65,26 72,32" ${st}/>`;
-    case 'one': return `<path d="M28,34 L43,33" ${st}/><path d="M57,30 Q65,25 72,30" ${st}/>`;
+    case 'worried': return b((x, y, s) => `<path d="M${x + s * 9 * k},${y + 3 * k} Q${x},${y + 1 * k} ${x - s * 8 * k},${y - 4 * k}" ${st}/>`);
+    case 'angry': return b((x, y, s) => `<path d="M${x + s * 9 * k},${y - 4 * k} L${x - s * 8 * k},${y + 4 * k}" ${st}/>`);
+    case 'raised': return b((x, y, s) => `<path d="M${x - 8 * k},${y - 1 * k} Q${x},${y - 7 * k} ${x + 8 * k},${y - 1 * k}" ${st}/>`);
+    case 'soft': return b((x, y) => `<path d="M${x - 7 * k},${y + 1 * k} Q${x},${y - 3 * k} ${x + 7 * k},${y + 1 * k}" ${st}/>`);
+    case 'one': return `<path d="M${L[0] - 8 * k},${L[1] - 16 * k} L${L[0] + 8 * k},${L[1] - 15 * k}" ${st}/><path d="M${R[0] - 8 * k},${R[1] - 17 * k} Q${R[0]},${R[1] - 24 * k} ${R[0] + 8 * k},${R[1] - 18 * k}" ${st}/>`;
+    case 'oneUp': return `<path d="M${L[0] - 8 * k},${L[1] - 19 * k} Q${L[0]},${L[1] - 25 * k} ${L[0] + 8 * k},${L[1] - 19 * k}" ${st}/><path d="M${R[0] - 8 * k},${R[1] - 13 * k} L${R[0] + 8 * k},${R[1] - 16 * k}" ${st}/>`;
     default: return '';
   }
 }
 
-function mouthShape(type, ink = FACE_INK) {
-  const st = (w = 3) => `stroke="${ink}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none"`;
-  const dark = '#5a2b25', tongue = '#ef8c8c';
+/** Рот: cx, cy — центр, k — масштаб. */
+function mouthShape(type, o = {}) {
+  const ink = o.ink || FACE_INK, k = o.k || 1, cx = o.cx ?? 50, cy = o.cy ?? 70;
+  const P = (pts) => pts.replace(/(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/g, (_, a, b2) => `${(cx + (+a) * k).toFixed(1)},${(cy + (+b2) * k).toFixed(1)}`);
+  const line = (d, w = 3.2) => `<path d="${P(d)}" ${LINE_(w * Math.min(k, 1.3), ink)}/>`;
+  const fill = (d, f, w = 2.6) => `<path d="${P(d)}" fill="${f}" ${INK_(w * Math.min(k, 1.3), ink)}/>`;
+  const raw = (d, f) => `<path d="${P(d)}" fill="${f}"/>`;
   switch (type) {
-    case 'smile': return `<path d="M38,64 Q50,76 62,64" ${st(3.2)}/>`;
-    case 'small': return `<path d="M44,66 Q50,71 56,66" ${st(3)}/>`;
-    case 'grin': return `<path d="M36,62 Q50,84 64,62 Z" fill="${dark}" ${st(2.6).replace('fill="none"', '')}/><path d="M43,72 Q50,79 57,72 Q50,68 43,72Z" fill="${tongue}"/>`;
-    case 'open': return `<path d="M37,61 Q50,88 63,61 Q50,64 37,61Z" fill="${dark}" ${st(2.6).replace('fill="none"', '')}/><ellipse cx="50" cy="74" rx="7" ry="4.5" fill="${tongue}"/>`;
-    case 'o': return `<ellipse cx="50" cy="69" rx="5" ry="6.5" fill="${dark}" ${st(2.4).replace('fill="none"', '')}/>`;
-    case 'flat': return `<path d="M42,68 L58,68" ${st(3)}/>`;
-    case 'frown': return `<path d="M39,73 Q50,62 61,73" ${st(3.2)}/>`;
-    case 'smallFrown': return `<path d="M44,71 Q50,66 56,71" ${st(3)}/>`;
-    case 'wobble': return `<path d="M38,69 Q41,65 44,69 T50,69 T56,69 T62,69" ${st(2.8)}/>`;
-    case 'teeth': return `<rect x="38" y="62" width="24" height="11" rx="4" fill="#fff" ${st(2.6).replace('fill="none"', '')}/><path d="M38,67.5 L62,67.5 M44,62 L44,73 M50,62 L50,73 M56,62 L56,73" stroke="${ink}" stroke-width="1.6"/>`;
-    case 'smirk': return `<path d="M41,68 Q53,73 60,62" ${st(3.2)}/>`;
-    case 'smirkFlat': return `<path d="M43,69 L57,66" ${st(3)}/>`;
-    case 'cry': return `<path d="M37,76 Q50,56 63,76 Q50,72 37,76Z" fill="${dark}" ${st(2.6).replace('fill="none"', '')}/>`;
-    case 'cat': return `<path d="M41,65 Q45.5,71 50,66 Q54.5,71 59,65" ${st(3)}/>`;
-    case 'pout': return `<path d="M46,69 Q50,65 54,69" ${st(3)}/><path d="M57,67 L61,66" ${st(2)}/>`;
+    case 'smile': return line('M-13,-4 Q0,10 13,-4') + line('M-15,-6 L-12,-3', 2) + line('M15,-6 L12,-3', 2);
+    case 'small': return line('M-6,-2 Q0,3 6,-2', 3);
+    case 'openSmile': return fill('M-13,-5 Q0,-3 13,-5 Q12,12 0,12 Q-12,12 -13,-5Z', MOUTH_DARK) + raw('M-7,8 Q0,2 7,8 Q0,12.5 -7,8Z', TONGUE) + raw('M-11.5,-4 Q0,-2.4 11.5,-4 L10.8,-1 Q0,0.6 -10.8,-1Z', '#fff');
+    case 'laugh': return fill('M-17,-8 Q0,-4 17,-8 Q15,17 0,17 Q-15,17 -17,-8Z', MOUTH_DARK) + raw('M-9,11 Q0,3 9,11 Q0,17.5 -9,11Z', TONGUE) + raw('M-15.5,-7 Q0,-3.6 15.5,-7 L14.6,-3 Q0,0 -14.6,-3Z', '#fff');
+    case 'tongue': return line('M-12,-4 Q0,8 12,-4') + fill('M-1,2.4 Q0,12 6,10 Q9,7 7,1.5Z', TONGUE, 2.2) + line('M3,3.5 L3.6,7.5', 1.4);
+    case 'grinTeeth': return fill('M-15,-6 Q0,-9 15,-6 Q14,8 0,9 Q-14,8 -15,-6Z', '#fff') + line('M-14,1 Q0,-1 14,1', 1.8) + line('M-7,-7 L-7,8 M0,-7.6 L0,9 M7,-7 L7,8', 1.4);
+    case 'clench': return fill('M-14,2 Q0,-8 14,2 L13,7 Q0,0 -13,7Z', '#fff') + line('M-13.5,4.5 Q0,-3 13.5,4.5', 1.5) + line('M-7,-2 L-6,6 M0,-4.5 L0,3.5 M7,-2 L6,6', 1.3);
+    case 'chatter': return fill('M-14,-3 Q-10.5,-6.5 -7,-3 Q-3.5,0.5 0,-3 Q3.5,-6.5 7,-3 Q10.5,0.5 14,-3 L14,5 Q10.5,8.5 7,5 Q3.5,1.5 0,5 Q-3.5,8.5 -7,5 Q-10.5,1.5 -14,5 Z', '#fff') + line('M-14,1 L14,1', 1.4) + line('M-7,-3 L-7,5 M0,-3 L0,5 M7,-3 L7,5', 1.2);
+    case 'wail': return fill('M-15,12 Q-14,-7 0,-7 Q14,-7 15,12 Q0,7 -15,12Z', MOUTH_DARK) + raw('M-8,11 Q0,4 8,11 Q0,10 -8,11Z', TONGUE) + raw('M-10,-5 Q0,-7.5 10,-5 L9,-2.5 Q0,-4.6 -9,-2.5Z', '#fff');
+    case 'yawn': return fill('M0,-8 Q8,-8 8,3 Q8,13 0,13 Q-8,13 -8,3 Q-8,-8 0,-8Z', MOUTH_DARK) + raw('M-5,9 Q0,4 5,9 Q0,12.5 -5,9Z', TONGUE);
+    case 'o': return fill('M0,-6 Q6,-6 6,1 Q6,8 0,8 Q-6,8 -6,1 Q-6,-6 0,-6Z', MOUTH_DARK) + raw('M-3.5,5 Q0,2.5 3.5,5 Q0,7.5 -3.5,5Z', TONGUE);
+    case 'flat': return line('M-8,0 L8,0');
+    case 'frown': return line('M-11,6 Q0,-6 11,6');
+    case 'smallFrown': return line('M-6,3 Q0,-2 6,3', 3);
+    case 'wobble': return line('M-12,1 Q-9,-3 -6,1 T0,1 T6,1 T12,1', 2.8);
+    case 'wobbleOpen': return fill('M-13,-1 Q-9.75,-5 -6.5,-1 Q-3.25,3 0,-1 Q3.25,-5 6.5,-1 Q9.75,3 13,-1 Q13,9 0,9 Q-13,9 -13,-1Z', MOUTH_DARK) + raw('M-6,6.5 Q0,2.5 6,6.5 Q0,9 -6,6.5Z', TONGUE);
+    case 'smirk': return line('M-9,1 Q3,6 11,-6') + line('M10,-7.5 L13,-5', 2);
+    case 'smirkFlat': return line('M-7,2 L8,-1', 3);
+    case 'cat': return line('M-10,-3 Q-5,4 0,-1 Q5,4 10,-3', 3);
+    case 'pout': return line('M-4,1 Q0,-3 4,1', 3) + line('M7,-1 L10,-2', 2);
     case 'none': return '';
-    default: return `<path d="M40,66 Q50,74 60,66" ${st()}/>`;
+    default: return line('M-10,-3 Q0,6 10,-3');
   }
 }
 
 function faceExtras(list, ink = FACE_INK) {
   let h = '';
+  const hatch = (x, y, c) => `<path d="M${x - 5},${y + 2} l3,-4 M${x - 1},${y + 2} l3,-4 M${x + 3},${y + 2} l3,-4" stroke="${c}" stroke-width="1.3" stroke-linecap="round"/>`;
   for (const x of list || []) {
     switch (x) {
-      case 'blush': h += '<ellipse cx="27" cy="58" rx="7" ry="4.5" fill="#f19a9a" opacity=".55"/><ellipse cx="73" cy="58" rx="7" ry="4.5" fill="#f19a9a" opacity=".55"/>'; break;
-      case 'blushStrong': h += '<ellipse cx="27" cy="58" rx="8" ry="5" fill="#ee7f8f" opacity=".8"/><ellipse cx="73" cy="58" rx="8" ry="5" fill="#ee7f8f" opacity=".8"/><path d="M23,57 l3,-3 M27,58 l3,-3 M31,59 l3,-3 M69,57 l3,-3 M73,58 l3,-3" stroke="#c9566a" stroke-width="1.2" stroke-linecap="round"/>'; break;
-      case 'sweat': h += `<path d="M79,26 Q85,36 79,39 Q73,36 79,26Z" fill="#9fd3f2" stroke="${ink}" stroke-width="1.8"/>`; break;
-      case 'sweat2': h += `<path d="M21,30 Q26,38 21,41 Q16,38 21,30Z" fill="#9fd3f2" stroke="${ink}" stroke-width="1.6"/>`; break;
-      case 'tear1': h += `<path d="M64,55 Q68,63 64,66 Q60,63 64,55Z" fill="#8fc8f0" stroke="${ink}" stroke-width="1.6"/>`; break;
-      case 'tears': h += '<path d="M32,52 Q30,66 33,80" stroke="#7fbcea" stroke-width="5" fill="none" stroke-linecap="round" opacity=".9"/><path d="M68,52 Q70,66 67,80" stroke="#7fbcea" stroke-width="5" fill="none" stroke-linecap="round" opacity=".9"/>'; break;
-      case 'zzz': h += `<text x="70" y="24" font-size="13" font-weight="700" fill="${ink}" font-family="Georgia,serif">z</text><text x="79" y="16" font-size="10" font-weight="700" fill="${ink}" font-family="Georgia,serif">z</text>`; break;
-      case 'bags': h += `<path d="M30,54 Q36,57 42,54 M58,54 Q64,57 70,54" stroke="${ink}" stroke-width="1.5" fill="none" opacity=".55"/>`; break;
-      case 'hearts': h += '<path d="M82,22 c-4,-4 -9,1 -4,5 l4,4 l4,-4 c5,-4 0,-9 -4,-5z" fill="#e2546b"/><path d="M15,30 c-3,-3 -7,1 -3,4 l3,3 l3,-3 c4,-3 0,-7 -3,-4z" fill="#ef7f90"/>'; break;
-      case 'sparkles': h += '<path d="M83,18 l2,6 l6,2 l-6,2 l-2,6 l-2,-6 l-6,-2 l6,-2z" fill="#f6cd4a"/><path d="M16,22 l1.5,4 l4,1.5 l-4,1.5 l-1.5,4 l-1.5,-4 l-4,-1.5 l4,-1.5z" fill="#f6cd4a"/>'; break;
-      case 'sparkle1': h += '<path d="M82,20 l2,5 l5,2 l-5,2 l-2,5 l-2,-5 l-5,-2 l5,-2z" fill="#f6cd4a"/>'; break;
-      case 'confetti': h += '<rect x="14" y="16" width="5" height="3" fill="#e2546b" transform="rotate(30 16 17)"/><rect x="80" y="12" width="5" height="3" fill="#6fb2e6" transform="rotate(-20 82 13)"/><circle cx="86" cy="30" r="2" fill="#f6cd4a"/><circle cx="12" cy="34" r="2" fill="#8fcf8a"/>'; break;
-      case 'vein': h += '<path d="M74,18 l4,4 M82,18 l-4,4 M74,26 l4,-4 M82,26 l-4,-4" stroke="#d64545" stroke-width="2.6" stroke-linecap="round"/>'; break;
-      case 'gloom': h += `<path d="M34,10 L34,22 M42,8 L42,20 M50,7 L50,19 M58,8 L58,20 M66,10 L66,22" stroke="${ink}" stroke-width="2" opacity=".45" stroke-linecap="round"/>`; break;
-      case 'question': h += `<text x="76" y="26" font-size="20" font-weight="700" fill="${ink}" font-family="Georgia,serif">?</text>`; break;
-      case 'dots': h += `<circle cx="76" cy="22" r="2" fill="${ink}"/><circle cx="83" cy="18" r="2" fill="${ink}"/><circle cx="90" cy="14" r="2" fill="${ink}"/>`; break;
-      case 'steam': h += `<path d="M80,24 q-4,-5 0,-9 q4,-4 0,-9" stroke="${ink}" stroke-width="1.8" fill="none" opacity=".5" stroke-linecap="round"/>`; break;
+      case 'blush': h += `<ellipse cx="24" cy="60" rx="7.5" ry="4.6" fill="#f2949a" opacity=".6"/><ellipse cx="76" cy="60" rx="7.5" ry="4.6" fill="#f2949a" opacity=".6"/>${hatch(24, 60, '#d9707c')}${hatch(76, 60, '#d9707c')}`; break;
+      case 'blushStrong': h += `<ellipse cx="24" cy="60" rx="9" ry="5.6" fill="#ee7a8a" opacity=".85"/><ellipse cx="76" cy="60" rx="9" ry="5.6" fill="#ee7a8a" opacity=".85"/>${hatch(24, 60, '#c24a62')}${hatch(76, 60, '#c24a62')}`; break;
+      case 'blushRed': h += '<ellipse cx="24" cy="60" rx="8" ry="5" fill="#e35a4a" opacity=".55"/><ellipse cx="76" cy="60" rx="8" ry="5" fill="#e35a4a" opacity=".55"/>'; break;
+      case 'sweat': h += `<path d="M80,24 Q88,36 80,40 Q72,36 80,24Z" fill="#a9dcf7" ${INK_(1.8, ink)}/><path d="M78.5,33 q1,-3 2.5,-4" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round"/>`; break;
+      case 'sweat2': h += `<path d="M19,30 Q25,39 19,42 Q13,39 19,30Z" fill="#a9dcf7" ${INK_(1.6, ink)}/>`; break;
+      case 'tear1': h += `<path d="M66,57 Q71,66 66,70 Q61,66 66,57Z" fill="${TEAR}" ${INK_(1.6, ink)}/><circle cx="64.8" cy="65" r="1.1" fill="#fff"/>`; break;
+      case 'tears': h += `<path d="M30,55 Q27,68 31,82 Q34,92 30,96" stroke="${TEAR}" stroke-width="7" fill="none" stroke-linecap="round" opacity=".92"/><path d="M70,55 Q73,68 69,82 Q66,92 70,96" stroke="${TEAR}" stroke-width="7" fill="none" stroke-linecap="round" opacity=".92"/><path d="M29,60 Q28,68 30,74 M71,60 Q72,68 70,74" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".8"/>`; break;
+      case 'zzz': h += `<text x="70" y="25" font-size="14" font-weight="800" fill="${ink}" font-family="Georgia,serif">z</text><text x="80" y="16" font-size="10" font-weight="800" fill="${ink}" font-family="Georgia,serif">z</text>`; break;
+      case 'bags': h += `<path d="M28,60 Q35,63 42,60 M58,60 Q65,63 72,60" stroke="${ink}" stroke-width="1.5" fill="none" opacity=".5" stroke-linecap="round"/>`; break;
+      case 'hearts': h += '<path d="M84,20 c-4,-4.5 -10,1 -4.5,5.5 l4.5,4.5 l4.5,-4.5 c5.5,-4.5 0,-10 -4.5,-5.5z" fill="#ec4f6b" stroke="#2b1f1b" stroke-width="1.4"/><path d="M14,30 c-3,-3 -7,1 -3,4 l3,3 l3,-3 c4,-3 0,-7 -3,-4z" fill="#f28da0"/>'; break;
+      case 'sparkles': h += '<path d="M84,16 l2.2,6.3 l6.3,2.2 l-6.3,2.2 l-2.2,6.3 l-2.2,-6.3 l-6.3,-2.2 l6.3,-2.2z" fill="#ffd34a" stroke="#2b1f1b" stroke-width="1.2" stroke-linejoin="round"/><path d="M15,20 l1.5,4 l4,1.5 l-4,1.5 l-1.5,4 l-1.5,-4 l-4,-1.5 l4,-1.5z" fill="#ffd34a"/>'; break;
+      case 'sparkle1': h += '<path d="M83,18 l2,5.5 l5.5,2 l-5.5,2 l-2,5.5 l-2,-5.5 l-5.5,-2 l5.5,-2z" fill="#ffd34a" stroke="#2b1f1b" stroke-width="1.1" stroke-linejoin="round"/>'; break;
+      case 'confetti': h += '<rect x="12" y="15" width="6" height="3.4" fill="#ec4f6b" transform="rotate(30 15 17)"/><rect x="80" y="10" width="6" height="3.4" fill="#5fb0ea" transform="rotate(-20 83 12)"/><circle cx="88" cy="30" r="2.2" fill="#ffd34a"/><circle cx="10" cy="36" r="2.2" fill="#7fcf86"/><path d="M20,8 q3,3 0,6 q-3,3 0,6" stroke="#b38ae0" stroke-width="2" fill="none" stroke-linecap="round"/>'; break;
+      case 'vein': h += '<path d="M72,14 q4,6 0,8 M84,14 q-4,6 0,8 M72,30 q4,-6 0,-8 M84,30 q-4,-6 0,-8" stroke="#e0383f" stroke-width="2.8" fill="none" stroke-linecap="round"/>'; break;
+      case 'gloom': h += `<path d="M34,12 L34,26 M42,9 L42,24 M50,8 L50,23 M58,9 L58,24 M66,12 L66,26" stroke="${ink}" stroke-width="2" opacity=".42" stroke-linecap="round"/>`; break;
+      case 'shadow': h += `<path d="M10.5,38 A41,41 0 0 1 89.5,38 Q50,30 10.5,38Z" fill="#241a3a" opacity=".28"/>`; break;
+      case 'shake': h += `<path d="M5,44 l4,3 l-4,3 M95,44 l-4,3 l4,3" ${LINE_(1.8, ink)} opacity=".7"/>`; break;
+      case 'question': h += `<text x="76" y="27" font-size="22" font-weight="800" fill="${ink}" font-family="Georgia,serif">?</text>`; break;
+      case 'dots': h += `<circle cx="76" cy="22" r="2.2" fill="${ink}"/><circle cx="83" cy="17" r="2.2" fill="${ink}"/><circle cx="90" cy="12" r="2.2" fill="${ink}"/>`; break;
+      case 'steam': h += `<path d="M81,26 q-4,-5 0,-9 q4,-4 0,-9 M88,28 q-3,-4 0,-7 q3,-3 0,-7" stroke="${ink}" stroke-width="1.8" fill="none" opacity=".5" stroke-linecap="round"/>`; break;
     }
   }
   return h;
@@ -174,12 +241,21 @@ const Faces = {
   /** SVG-обличчя для емоції (рядок). */
   svg(e) {
     const spec = Faces.spec(e);
-    const fill = lighten(e.color || '#cccccc', 0.32);
-    const body = wobblyCircle(50, 50, 43, hashStr(e.id));
+    const base = e.color || '#cccccc';
+    const fill = lighten(base, 0.42);
+    const body = wobblyCircle(50, 50, 43, hashStr(e.id), 1.2);
+    // тінь знизу справа та відблиск — для обʼєму, як у намальованих від руки
+    const shade = `<path d="M85.6,33 A39,39 0 0 1 23,79.5 A44,44 0 0 0 85.6,33Z" fill="${darken(base, 0.12)}" opacity=".35"/>`;
+    const shine = '<ellipse cx="31" cy="24" rx="9" ry="4.6" transform="rotate(-32 31 24)" fill="#fff" opacity=".45"/><circle cx="22" cy="34" r="1.8" fill="#fff" opacity=".5"/>';
     let inner;
-    if (spec) inner = browPair(spec.brows) + eyePair(spec.eyes) + mouthShape(spec.mouth) + faceExtras(spec.extra);
-    else inner = `<text x="50" y="63" text-anchor="middle" font-size="40">${esc(e.emoji || '🙂')}</text>`;
-    return `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="${body}" fill="${fill}" stroke="${FACE_INK}" stroke-width="3.4"/>${inner}</svg>`;
+    if (spec) {
+      const x = spec.extra || [];
+      const under = x.filter((n) => n.startsWith('blush') || n === 'bags');
+      const over = x.filter((n) => !under.includes(n));
+      inner = faceExtras(under) + eyePair(spec.eyes, fill) + browPair(spec.brows) + mouthShape(spec.mouth) + faceExtras(over);
+    } else inner = `<text x="50" y="63" text-anchor="middle" font-size="40">${esc(e.emoji || '🙂')}</text>`;
+    const sketch = `<path d="${wobblyCircle(50.6, 49.4, 42.2, hashStr(e.id) + 7, 1.6)}" fill="none" stroke="${FACE_INK}" stroke-width="1" opacity=".45"/>`;
+    return `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="${body}" fill="${fill}"/>${shade}${shine}${inner}<path d="${body}" fill="none" stroke="${FACE_INK}" stroke-width="3.4"/>${sketch}</svg>`;
   },
   /** Обличчя всередині іншого SVG (для графіків). */
   nested(e, x, y, size) {
@@ -201,20 +277,140 @@ const Faces = {
   },
 };
 
-/* ---------- Ілюстрація настрою дня (власна героїня — лісова дівчинка в капелюшку-грибочку) ---------- */
+
+/* ---------- Ілюстрація настрою дня: картка-портрет власної героїні ----------
+   Дівчинка з каштановим бобом і заколкою-грибочком; рамка з підписом,
+   градієнт із точковим растром і різні вирази обличчя. */
 const MOODS = {
-  neutral: { title: 'СПОКІЙНО', sub: 'рівний, тихий день', bg: ['#e9e6df', '#b9b4aa'], label: '#f1ede6', ink: '#3b2b25' },
-  happy: { title: 'РАДІСНО', sub: 'день із теплим світлом', bg: ['#ffe27a', '#f29ac9'], label: '#fff1a8', ink: '#3b2b25' },
-  ecstatic: { title: 'У ЗАХВАТІ', sub: 'день, що сяє', bg: ['#fff35c', '#ff6fb5'], label: '#fff35c', ink: '#3b2b25' },
-  love: { title: 'НІЖНО', sub: 'серце сповнене любові', bg: ['#ffd3df', '#f58fae'], label: '#ffd3df', ink: '#3b2b25' },
-  cozy: { title: 'ЗАТИШНО', sub: 'спокій і тепло', bg: ['#cfe7c4', '#8fbf9a'], label: '#dff3d6', ink: '#3b2b25' },
-  tired: { title: 'ВТОМЛЕНО', sub: 'час відпочити', bg: ['#c8c0e8', '#6e6a9c'], label: '#ddd6ff', ink: '#2c2840' },
-  sad: { title: 'СУМНО', sub: 'бережи себе сьогодні', bg: ['#7fb8f0', '#5be0e0'], label: '#a9dcff', ink: '#243448' },
-  depressed: { title: 'ВАЖКО', sub: 'ти не сама, усе мине', bg: ['#2e4f8a', '#5a7fa8'], label: '#9fb7e8', ink: '#1f2a44' },
-  angry: { title: 'ЗЛІСТЬ', sub: 'видихни, ти маєш право', bg: ['#ffb13b', '#f0442e'], label: '#ffc47a', ink: '#3a1a14' },
-  afraid: { title: 'ТРИВОЖНО', sub: 'крок за кроком', bg: ['#9a9a9a', '#3a3a3a'], label: '#d6d6d6', ink: '#1c1c1c' },
-  stressed: { title: 'ПЕРЕВАНТАЖЕНО', sub: 'забагато всього — пауза', bg: ['#555', '#151515'], label: '#e8e8e8', ink: '#111' },
+  neutral: { title: 'СПОКІЙНО', sub: 'рівний, тихий день', bg: ['#ffffff', '#1d1d1f'], label: '#ffffff' },
+  happy: { title: 'РАДІСНО', sub: 'день із теплим світлом', bg: ['#fff04a', '#ff5fc8'], label: '#fff7a8' },
+  ecstatic: { title: 'У ЗАХВАТІ', sub: 'день, що сяє', bg: ['#fff23a', '#ff2fa8'], label: '#fff25a' },
+  love: { title: 'НІЖНО', sub: 'серце сповнене любові', bg: ['#ffe0ec', '#ff6f9f'], label: '#ffc2d6' },
+  cozy: { title: 'ЗАТИШНО', sub: 'спокій і тепло', bg: ['#fff1c9', '#7fc08e'], label: '#d8f3c9' },
+  tired: { title: 'ВТОМЛЕНО', sub: 'час відпочити', bg: ['#d8d0ff', '#4a4486'], label: '#d6ceff' },
+  sad: { title: 'СУМНО', sub: 'бережи себе сьогодні', bg: ['#2f5fe0', '#52f0e6'], label: '#8fd6ff' },
+  depressed: { title: 'ВАЖКО', sub: 'ти не сама, усе мине', bg: ['#1b2a6e', '#3fb3c4'], label: '#7fa6ff' },
+  angry: { title: 'ЗЛІСТЬ', sub: 'видихни, ти маєш право', bg: ['#ffd23a', '#f0231e'], label: '#ff8a7a' },
+  afraid: { title: 'ТРИВОЖНО', sub: 'крок за кроком', bg: ['#4a4a4a', '#0e0e0e'], label: '#e6e6e6' },
+  stressed: { title: 'ПЕРЕВАНТАЖЕНО', sub: 'забагато всього — пауза', bg: ['#262626', '#050505'], label: '#f0f0f0' },
 };
+
+/** Градієнт, що переходить точковим растром (дизерингом) — як у картках емоцій. */
+function halftoneBG(id, c1, c2, seed) {
+  const step = 5;
+  let d = '';
+  for (let y = 0; y <= 220; y += step) {
+    const t = (y - 40) / 150; // 0 → 1 зверху вниз
+    if (t <= 0 || t >= 1.05) continue;
+    const r = Math.min(step * 0.72, Math.pow(t, 1.15) * step * 0.74);
+    if (r < 0.35) continue;
+    const off = (y / step) % 2 ? step / 2 : 0;
+    for (let x = -off; x <= 205; x += step) d += `M${(x - r).toFixed(1)},${y}a${r.toFixed(2)},${r.toFixed(2)} 0 1,0 ${(2 * r).toFixed(2)},0a${r.toFixed(2)},${r.toFixed(2)} 0 1,0 ${(-2 * r).toFixed(2)},0`;
+  }
+  // дрібний шум згори
+  const rnd = rng(seed);
+  let n = '';
+  for (let i = 0; i < 90; i++) n += `M${(rnd() * 200).toFixed(0)},${(rnd() * 70).toFixed(0)}h1.6v1.6h-1.6z`;
+  return `<rect width="200" height="220" fill="${c1}"/><rect y="186" width="200" height="34" fill="${c2}"/>
+    <path d="${d}" fill="${c2}"/><path d="${n}" fill="${c2}" opacity=".35"/>`;
+}
+
+const HERO = { skin: '#fde4d2', skinSh: '#f3c3ab', hair: '#5b3326', hairSh: '#3c2019', hairHl: '#8d5a3f', iris: '#2f9c8e', iris2: '#1f6f66', shirt: '#9fbf93', ink: '#2a1d18' };
+
+function heroExpression(m, sk) {
+  const ink = HERO.ink;
+  const eo = { L: [83, 123], R: [117, 123], k: 1.02, ink, iris: HERO.iris, iris2: HERO.iris2 };
+  const mo = (t) => mouthShape(t, { cx: 100, cy: 151, k: 0.82, ink });
+  const brows = (t) => browPair(t, { L: [83, 123], R: [117, 123], k: 0.92, ink });
+  const blush = (o = 0.55, c = '#f28c94') => `<ellipse cx="75" cy="141" rx="8" ry="4.6" fill="${c}" opacity="${o}"/><ellipse cx="125" cy="141" rx="8" ry="4.6" fill="${c}" opacity="${o}"/>
+    <path d="M70,143 l3,-4 M74,143 l3,-4 M78,143 l3,-4 M120,143 l3,-4 M124,143 l3,-4 M128,143 l3,-4" stroke="#d66a78" stroke-width="1.2" stroke-linecap="round" opacity="${Math.min(1, o + 0.2)}"/>`;
+  const tearStreams = `<path d="M80,134 Q77,150 81,164" stroke="${TEAR}" stroke-width="5" fill="none" stroke-linecap="round" opacity=".9"/><path d="M120,134 Q123,150 119,164" stroke="${TEAR}" stroke-width="5" fill="none" stroke-linecap="round" opacity=".9"/>`;
+  switch (m) {
+    case 'happy': return blush(0.6) + eyePair('happyOpen', sk, eo) + brows('soft') + mo('openSmile');
+    case 'ecstatic': return blush(0.85, '#f07a8c') + eyePair('star', sk, eo) + brows('raised') + mo('laugh');
+    case 'love': return blush(0.9, '#ef7a90') + eyePair('heart', sk, eo) + mo('cat');
+    case 'cozy': return blush(0.6) + eyePair('closed', sk, eo) + brows('soft') + mo('small');
+    case 'tired': return eyePair('lidded', sk, eo) + `<path d="M74,138 Q83,141 92,138 M108,138 Q117,141 126,138" stroke="${ink}" stroke-width="1.4" fill="none" opacity=".45" stroke-linecap="round"/>` + mo('yawn');
+    case 'sad': return blush(0.35) + eyePair('teary', sk, eo) + brows('worried') + mo('smallFrown') + `<path d="M121,134 Q125,142 121,145 Q117,142 121,134Z" fill="${TEAR}" stroke="${ink}" stroke-width="1.3"/>`;
+    case 'depressed': return eyePair('dull', sk, eo) + brows('worried') + tearStreams + mo('flat');
+    case 'angry': return blush(0.55, '#e85a4a') + eyePair('glare', sk, eo) + brows('angry') + mo('clench') + '<path d="M140,86 q4,6 0,8 M152,86 q-4,6 0,8 M140,102 q4,-6 0,-8 M152,102 q-4,-6 0,-8" stroke="#e0383f" stroke-width="2.8" fill="none" stroke-linecap="round"/>';
+    case 'afraid': return eyePair('tiny', sk, eo) + brows('worried') + mo('chatter') + `<path d="M140,106 Q147,117 140,121 Q133,117 140,106Z" fill="#a9dcf7" stroke="${ink}" stroke-width="1.5"/><path d="M62,112 Q67,120 62,123 Q57,120 62,112Z" fill="#a9dcf7" stroke="${ink}" stroke-width="1.3"/>`;
+    case 'stressed': return eyePair('swirl', sk, eo) + mo('wobbleOpen') + `<path d="M140,106 Q147,117 140,121 Q133,117 140,106Z" fill="#a9dcf7" stroke="${ink}" stroke-width="1.5"/><path d="M52,96 l7,5 M148,96 l-7,5 M46,118 l8,0 M154,118 l-8,0" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>`;
+    default: return blush(0.35) + eyePair('open', sk, eo) + mo('small');
+  }
+}
+
+function moodCardSVG(moodKey, uidStr) {
+  const m = MOODS[moodKey] || MOODS.neutral;
+  const id = String(uidStr || moodKey).replace(/[^a-zA-Z0-9_-]/g, '');
+  const H = HERO, ink = H.ink;
+  const sk = moodKey === 'afraid' || moodKey === 'stressed' ? '#e9dfd9' : moodKey === 'depressed' ? '#e6d7d6' : H.skin;
+  const face = 'M64,116 C64,86 80,72 100,72 C120,72 136,86 136,116 C136,142 121,163 100,168 C79,163 64,142 64,116Z';
+  // атмосферні дрібниці на тлі
+  const bgExtra = {
+    happy: '<circle cx="30" cy="54" r="3" fill="#fff" opacity=".8"/><circle cx="172" cy="66" r="2.4" fill="#fff" opacity=".8"/><circle cx="160" cy="44" r="1.6" fill="#fff" opacity=".8"/>',
+    ecstatic: '<path d="M28,52 l3,8 l8,3 l-8,3 l-3,8 l-3,-8 l-8,-3 l8,-3z" fill="#fff"/><path d="M172,62 l2,6 l6,2 l-6,2 l-2,6 l-2,-6 l-6,-2 l6,-2z" fill="#fff"/><path d="M160,40 l1.4,4 l4,1.4 l-4,1.4 l-1.4,4 l-1.4,-4 l-4,-1.4 l4,-1.4z" fill="#fff"/>',
+    love: '<path d="M30,60 c-5,-5 -12,1 -6,6 l6,6 l6,-6 c6,-5 -1,-11 -6,-6z" fill="#fff" opacity=".85"/><path d="M168,52 c-4,-4 -9,1 -4.5,4.5 l4.5,4.5 l4.5,-4.5 c4.5,-3.5 -1,-8.5 -4.5,-4.5z" fill="#ec4f6b"/>',
+    cozy: '<path d="M30,62 q-4,-6 0,-11 q4,-5 0,-11 M38,64 q-3,-5 0,-9 q3,-4 0,-9" stroke="#fff" stroke-width="2.2" fill="none" opacity=".8" stroke-linecap="round"/>',
+    tired: '<circle cx="164" cy="56" r="13" fill="#fff8d8"/><circle cx="171" cy="51" r="12" fill="#bfb5f0"/><text x="30" y="70" font-size="18" font-weight="800" fill="#fff" font-family="Georgia,serif">z</text><text x="42" y="56" font-size="13" font-weight="800" fill="#fff" font-family="Georgia,serif">z</text>',
+    sad: '<path d="M26,44 l0,14 M38,38 l0,14 M162,44 l0,14 M174,38 l0,14" stroke="#fff" stroke-width="2" opacity=".6" stroke-linecap="round"/>',
+    depressed: '<path d="M24,44 l0,16 M38,36 l0,16 M162,40 l0,16 M176,34 l0,16 M150,58 l0,12" stroke="#bcd0ff" stroke-width="2" opacity=".55" stroke-linecap="round"/>',
+    stressed: Array.from({ length: 140 }, (_, i) => { const r = rng(i * 7 + 3); return `<rect x="${(r() * 200).toFixed(0)}" y="${(30 + r() * 190).toFixed(0)}" width="${r() > 0.8 ? 3 : 1.6}" height="1.6" fill="#fff" opacity="${(0.25 + r() * 0.6).toFixed(2)}"/>`; }).join(''),
+    afraid: Array.from({ length: 50 }, (_, i) => { const r = rng(i * 5 + 1); return `<rect x="${(r() * 200).toFixed(0)}" y="${(30 + r() * 190).toFixed(0)}" width="1.6" height="1.6" fill="#fff" opacity="${(0.2 + r() * 0.4).toFixed(2)}"/>`; }).join(''),
+  };
+  // тінь на обличчі для важких настроїв
+  const faceShade = {
+    depressed: `<path d="${face}" fill="url(#fs-${id})" opacity=".55"/>`,
+    stressed: `<path d="${face}" fill="url(#fs-${id})" opacity=".75"/>`,
+    afraid: `<path d="${face}" fill="#6a6f86" opacity=".18"/>`,
+  }[moodKey] || '';
+  const cozyMug = moodKey === 'cozy' ? `<g><path d="M84,186 L84,206 Q84,214 92,214 L108,214 Q116,214 116,206 L116,186Z" fill="#f4f0e6" stroke="${ink}" stroke-width="2.4"/><path d="M116,192 q9,0 9,7 q0,7 -9,7" fill="none" stroke="${ink}" stroke-width="2.4"/><path d="M90,196 c-3,-3 -7,1 -3,4 l3,3 l3,-3 c4,-3 0,-7 -3,-4z" fill="#ec7a8a"/>
+    <path d="M76,214 Q78,196 86,190 L90,200 Z M124,214 Q122,196 114,190 L110,200Z" fill="${sk}" stroke="${ink}" stroke-width="2.2" stroke-linejoin="round"/></g>` : '';
+  const t = m.title;
+  const fs = t.length > 11 ? 10 : t.length > 8 ? 12 : 14;
+  const label = (dx, dy, c, o) => `<text x="${100 + dx}" y="${24 + dy}" text-anchor="middle" font-size="${fs}" font-weight="700" letter-spacing="1.5" fill="${c}" opacity="${o}" font-family="'Courier New',ui-monospace,monospace">${t}</text>`;
+  return `<svg viewBox="0 0 200 220" class="mood-art" aria-label="${t}">
+    <defs>
+      <linearGradient id="fs-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#14122a"/><stop offset=".55" stop-color="#14122a" stop-opacity=".6"/><stop offset="1" stop-color="#14122a" stop-opacity="0"/></linearGradient>
+    </defs>
+    ${halftoneBG(id, m.bg[0], m.bg[1], hashStr(moodKey))}
+    ${bgExtra[moodKey] || ''}
+    <!-- волосся ззаду: боб, що закручується назовні біля плечей -->
+    <path d="M54,112 C50,72 72,56 100,56 C128,56 150,72 146,112 C146,136 152,152 160,166 C152,176 140,176 134,170 C138,158 136,148 132,140 L68,140 C64,148 62,158 66,170 C60,176 48,176 40,166 C48,152 54,136 54,112Z" fill="${H.hair}" stroke="${ink}" stroke-width="2.6" stroke-linejoin="round"/>
+    <path d="M68,140 C66,150 66,160 70,168 L84,170 L84,150Z M132,140 C134,150 134,160 130,168 L116,170 L116,150Z" fill="${H.hairSh}"/>
+    <!-- плечі, сорочка з комірцем -->
+    <path d="M26,222 Q30,190 66,182 L134,182 Q170,190 174,222Z" fill="${H.shirt}" stroke="${ink}" stroke-width="2.6"/>
+    <path d="M70,186 Q72,200 70,222 M130,186 Q128,200 130,222" stroke="${ink}" stroke-width="1.4" opacity=".35" fill="none"/>
+    <!-- шия -->
+    <path d="M89,150 L89,184 Q100,192 111,184 L111,150Z" fill="${sk}" stroke="${ink}" stroke-width="2.4"/>
+    <path d="M89,158 Q100,170 111,158 L111,168 Q100,176 89,168Z" fill="${H.skinSh}" opacity=".8"/>
+    <path d="M82,180 L100,194 L92,204 L74,188Z M118,180 L100,194 L108,204 L126,188Z" fill="#fffaf0" stroke="${ink}" stroke-width="2.2" stroke-linejoin="round"/>
+    <!-- вушка -->
+    <ellipse cx="64" cy="126" rx="6" ry="8.5" fill="${sk}" stroke="${ink}" stroke-width="2.4"/><ellipse cx="136" cy="126" rx="6" ry="8.5" fill="${sk}" stroke="${ink}" stroke-width="2.4"/>
+    <!-- обличчя -->
+    <path d="${face}" fill="${sk}" stroke="${ink}" stroke-width="2.6"/>
+    <path d="M99,135 q-1.6,3 0.6,3.6" stroke="${ink}" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".7"/>
+    <!-- чубчик і пасма -->
+    <path d="M54,124 C50,80 72,60 100,60 C128,60 150,80 146,124 L140,126 C139,112 134,102 128,96 C127,104 124,110 120,113 C118,104 113,98 106,95 C105,102 102,108 97,111 C96,103 91,97 84,95 C83,102 79,108 74,110 C73,104 70,100 67,99 C63,106 61,116 61,126Z" fill="${H.hair}" stroke="${ink}" stroke-width="2.6" stroke-linejoin="round"/>
+    <path d="M61,122 C58,138 61,150 70,158 C67,146 66,134 68,124Z M139,122 C142,138 139,150 130,158 C133,146 134,134 132,124Z" fill="${H.hair}" stroke="${ink}" stroke-width="2.2" stroke-linejoin="round"/>
+    <path d="M74,72 Q88,63 104,64 M80,80 Q90,74 100,74" stroke="${H.hairHl}" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+    <path d="M118,74 Q126,78 131,86" stroke="${H.hairHl}" stroke-width="2" fill="none" stroke-linecap="round"/>
+    ${heroExpression(moodKey, sk)}
+    ${faceShade}
+    <!-- заколка-грибочок -->
+    <g transform="translate(130 84) rotate(18)">
+      <path d="M-3,0 L-3,8 Q0,10 3,8 L3,0Z" fill="#fff6e4" stroke="${ink}" stroke-width="1.8"/>
+      <path d="M-11,1 Q-10,-11 0,-11 Q10,-11 11,1 Q0,4 -11,1Z" fill="#e04a3c" stroke="${ink}" stroke-width="2"/>
+      <circle cx="-5" cy="-5" r="1.9" fill="#fff"/><circle cx="3" cy="-7" r="1.6" fill="#fff"/><circle cx="6" cy="-2" r="1.3" fill="#fff"/>
+    </g>
+    ${moodKey === 'depressed' || moodKey === 'stressed' ? `<path d="M64,100 Q100,92 136,100 L136,116 Q100,112 64,116Z" fill="#14122a" opacity="${moodKey === 'stressed' ? 0.25 : 0.15}"/>` : ''}
+    ${cozyMug}
+    <!-- підпис у чорній рамці -->
+    <rect x="3" y="3" width="194" height="214" fill="none" stroke="#fff" stroke-width="2.4"/>
+    <rect x="${100 - Math.max(46, t.length * fs * 0.42)}" y="8" width="${2 * Math.max(46, t.length * fs * 0.42)}" height="24" fill="#0d0b0b" stroke="#fff" stroke-width="2"/>
+    ${label(-1.2, 0.6, '#ff3b5c', 0.7)}${label(1.2, -0.4, '#3be8ff', 0.6)}${label(0, 0, m.label, 1)}
+  </svg>`;
+}
 
 const MOOD_OF = {
   calm: 'cozy', content: 'happy', joy: 'happy', elation: 'ecstatic', tenderness: 'love', admiration: 'ecstatic', inlove: 'love',
@@ -252,73 +448,3 @@ function dayMood(day) {
   return { mood, emotion: null, tie: true };
 }
 
-function dither(id, c1, c2) {
-  // точковий растр (halftone) поверх градієнта — художня текстура картки
-  return `<defs>
-    <linearGradient id="g-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient>
-    <pattern id="p-${id}" width="6" height="6" patternUnits="userSpaceOnUse"><circle cx="3" cy="3" r="1.1" fill="#000" opacity=".12"/></pattern>
-    <pattern id="q-${id}" width="9" height="9" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.5" fill="#fff" opacity=".22"/></pattern>
-  </defs>
-  <rect width="200" height="220" fill="url(#g-${id})"/><rect width="200" height="220" fill="url(#p-${id})"/><rect y="0" width="200" height="110" fill="url(#q-${id})"/>`;
-}
-
-/** Обличчя героїні для настрою. */
-function heroFace(m) {
-  const ink = '#2e211c';
-  const st = (w = 2.6) => `stroke="${ink}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none"`;
-  const eyesOpen = (py = 0, r = 4.2, white = true) => [86, 114].map((x) => white
-    ? `<ellipse cx="${x}" cy="${126 + py}" rx="6.5" ry="7.5" fill="#fff" ${st(2)}/><circle cx="${x}" cy="${127 + py}" r="${r}" fill="#3d5a7a"/><circle cx="${x}" cy="${127 + py}" r="${r * 0.5}" fill="${ink}"/><circle cx="${x - 1.6}" cy="${125 + py}" r="1.3" fill="#fff"/>`
-    : `<ellipse cx="${x}" cy="${127 + py}" rx="3.2" ry="4" fill="${ink}"/>`).join('');
-  const arcs = (up) => [86, 114].map((x) => `<path d="M${x - 7},${127} Q${x},${up ? 119 : 134} ${x + 7},${127}" ${st(2.8)}/>`).join('');
-  const blush = (o = 0.5) => `<ellipse cx="76" cy="140" rx="7" ry="4" fill="#f08c8c" opacity="${o}"/><ellipse cx="124" cy="140" rx="7" ry="4" fill="#f08c8c" opacity="${o}"/>`;
-  const tears = '<path d="M84,134 Q82,150 85,162" stroke="#7fbcea" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M116,134 Q118,150 115,162" stroke="#7fbcea" stroke-width="4" fill="none" stroke-linecap="round"/>';
-  switch (m) {
-    case 'happy': return arcs(true) + blush(0.6) + `<path d="M90,146 Q100,158 110,146 Z" fill="#7a3530" ${st(2.2).replace('fill="none"', '')}/>`;
-    case 'ecstatic': return [86, 114].map((x) => `<path d="M${x},${117} l2.6,6 l6.4,.6 l-4.9,4.3 l1.5,6.3 l-5.6,-3.4 l-5.6,3.4 l1.5,-6.3 l-4.9,-4.3 l6.4,-.6z" fill="#ffd84a" stroke="${ink}" stroke-width="1.6"/>`).join('') + blush(0.7) + `<path d="M86,144 Q100,166 114,144 Q100,147 86,144Z" fill="#7a3530" ${st(2.2).replace('fill="none"', '')}/><ellipse cx="100" cy="155" rx="7" ry="4" fill="#ef8c8c"/>`;
-    case 'love': return arcs(false) + blush(0.85) + `<path d="M93,148 Q100,153 107,148" ${st()}/>` + '<path d="M146,96 c-4,-4 -10,1 -5,5 l5,5 l5,-5 c5,-4 -1,-9 -5,-5z" fill="#e2546b"/><path d="M52,106 c-3,-3 -8,1 -4,4 l4,4 l4,-4 c4,-3 -1,-7 -4,-4z" fill="#ef7f90"/>';
-    case 'cozy': return arcs(false) + blush(0.5) + `<path d="M92,147 Q96,152 100,148 Q104,152 108,147" ${st()}/>`;
-    case 'tired': return [86, 114].map((x) => `<path d="M${x - 7},127 L${x + 7},127" ${st(2.8)}/><path d="M${x - 5},130 Q${x},133 ${x + 5},130" ${st(1.6)}/>`).join('') + `<path d="M94,150 L106,150" ${st()}/><text x="140" y="104" font-size="16" font-weight="700" fill="${ink}" font-family="Georgia,serif">z</text><text x="151" y="92" font-size="12" font-weight="700" fill="${ink}" font-family="Georgia,serif">z</text>`;
-    case 'sad': return `<path d="M78,116 L92,112 M122,116 L108,112" ${st(2.4)}/>` + eyesOpen(2, 4.4) + `<path d="M92,152 Q100,145 108,152" ${st()}/><path d="M116,134 Q119,141 116,144 Q113,141 116,134Z" fill="#8fc8f0" stroke="${ink}" stroke-width="1.4"/>`;
-    case 'depressed': return `<path d="M78,118 L92,113 M122,118 L108,113" ${st(2.4)}/>` + [86, 114].map((x) => `<ellipse cx="${x}" cy="128" rx="3" ry="3.5" fill="${ink}"/><path d="M${x - 7},123 L${x + 7},123" ${st(2)}/>`).join('') + tears + `<path d="M93,152 L107,152" ${st()}/>` + `<path d="M70,84 L70,96 M84,80 L84,92 M100,79 L100,91 M116,80 L116,92 M130,84 L130,96" stroke="${ink}" stroke-width="2" opacity=".35"/>`;
-    case 'angry': return `<path d="M77,113 L93,120 M123,113 L107,120" ${st(3)}/>` + eyesOpen(1, 3.4) + `<rect x="88" y="145" width="24" height="9" rx="3" fill="#fff" ${st(2).replace('fill="none"', '')}/><path d="M88,149.5 L112,149.5 M96,145 L96,154 M104,145 L104,154" stroke="${ink}" stroke-width="1.2"/>` + '<path d="M138,90 l5,5 M148,90 l-5,5 M138,100 l5,-5 M148,100 l-5,-5" stroke="#c62f2f" stroke-width="3" stroke-linecap="round"/>' + blush(0.55);
-    case 'afraid': return `<path d="M78,114 Q85,110 92,111 M122,114 Q115,110 108,111" ${st(2.4)}/>` + [86, 114].map((x) => `<ellipse cx="${x}" cy="127" rx="7" ry="8" fill="#fff" ${st(2)}/><circle cx="${x}" cy="128" r="2" fill="${ink}"/>`).join('') + `<path d="M90,151 Q93,147 96,151 T102,151 T108,151" ${st(2.2)}/><path d="M138,104 Q144,114 138,117 Q132,114 138,104Z" fill="#9fd3f2" stroke="${ink}" stroke-width="1.5"/>`;
-    case 'stressed': return [86, 114].map((x) => `<path d="M${x},127 m-1,0 a1.5,1.5 0 1,1 3,0 a3,3 0 1,1 -6,0 a4.5,4.5 0 1,1 9,0" ${st(1.8)}/>`).join('') + `<path d="M88,150 Q91,146 94,150 T100,150 T106,150 T112,150" ${st(2.2)}/><path d="M64,96 l6,6 M136,96 l-6,6 M58,120 l8,0 M142,120 l-8,0" ${st(2)}/>`;
-    default: return eyesOpen(0, 4) + `<path d="M94,149 Q100,152 106,149" ${st()}/>` + blush(0.35);
-  }
-}
-
-function moodCardSVG(moodKey, uidStr) {
-  const m = MOODS[moodKey] || MOODS.neutral;
-  const id = uidStr || moodKey;
-  const ink = '#2e211c';
-  const hair = '#6b3f2a';
-  const extras = {
-    ecstatic: '<path d="M28,40 l3,8 l8,3 l-8,3 l-3,8 l-3,-8 l-8,-3 l8,-3z" fill="#fff" opacity=".85"/><path d="M170,52 l2,6 l6,2 l-6,2 l-2,6 l-2,-6 l-6,-2 l6,-2z" fill="#fff" opacity=".85"/>',
-    happy: '<circle cx="34" cy="44" r="3" fill="#fff" opacity=".7"/><circle cx="168" cy="58" r="2.5" fill="#fff" opacity=".7"/>',
-    love: '<path d="M30,52 c-4,-4 -10,1 -5,5 l5,5 l5,-5 c5,-4 -1,-9 -5,-5z" fill="#fff" opacity=".7"/>',
-    sad: '<path d="M30,30 l0,12 M42,24 l0,12 M160,34 l0,12 M172,26 l0,12" stroke="#fff" stroke-width="2" opacity=".55" stroke-linecap="round"/>',
-    depressed: '<path d="M30,30 l0,14 M44,22 l0,14 M158,30 l0,14 M172,22 l0,14 M100,14 l0,10" stroke="#cfe0ff" stroke-width="2" opacity=".45" stroke-linecap="round"/>',
-    stressed: Array.from({ length: 40 }, (_, i) => { const r = rng(i + 3); return `<rect x="${(r() * 200).toFixed(0)}" y="${(r() * 220).toFixed(0)}" width="2" height="2" fill="#fff" opacity="${(0.2 + r() * 0.5).toFixed(2)}"/>`; }).join(''),
-    tired: '<circle cx="160" cy="40" r="12" fill="#fff6d6" opacity=".8"/><circle cx="166" cy="36" r="11" fill="#6e6a9c" opacity=".9"/>',
-    cozy: '<path d="M26,190 q6,-14 12,0 M160,186 q6,-14 12,0" stroke="#5f8a5a" stroke-width="3" fill="none"/>',
-  };
-  return `<svg viewBox="0 0 200 220" class="mood-art" aria-label="${m.title}">${dither(id, m.bg[0], m.bg[1])}${extras[moodKey] || ''}
-    <!-- плечі та сукня -->
-    <path d="M44,220 Q48,176 100,172 Q152,176 156,220Z" fill="#7c8f5a" stroke="${ink}" stroke-width="3"/>
-    <path d="M86,174 Q100,186 114,174" stroke="${ink}" stroke-width="2.4" fill="#f3e9d2"/>
-    <!-- волосся ззаду -->
-    <path d="M56,128 Q52,176 72,182 L128,182 Q148,176 144,128 Z" fill="${hair}" stroke="${ink}" stroke-width="3"/>
-    <!-- обличчя -->
-    <path d="M62,124 Q62,82 100,82 Q138,82 138,124 Q138,166 100,166 Q62,166 62,124Z" fill="#fbe2cc" stroke="${ink}" stroke-width="3"/>
-    <!-- чубчик -->
-    <path d="M62,118 Q64,90 100,88 Q136,90 138,118 Q124,104 112,110 Q104,98 94,108 Q80,100 62,118Z" fill="${hair}" stroke="${ink}" stroke-width="3" stroke-linejoin="round"/>
-    <!-- капелюшок-грибочок -->
-    <path d="M42,94 Q48,46 100,42 Q152,46 158,94 Q100,104 42,94Z" fill="#c8473b" stroke="${ink}" stroke-width="3"/>
-    <ellipse cx="74" cy="72" rx="7" ry="5" fill="#fff4e8"/><ellipse cx="104" cy="58" rx="8" ry="5.5" fill="#fff4e8"/><ellipse cx="132" cy="76" rx="6" ry="4.5" fill="#fff4e8"/><ellipse cx="92" cy="82" rx="4" ry="3" fill="#fff4e8"/>
-    <path d="M150,88 q8,-6 12,2 q-8,6 -12,-2z" fill="#7c8f5a" stroke="${ink}" stroke-width="1.8"/>
-    ${heroFace(moodKey)}
-    <!-- підпис -->
-    <rect x="34" y="6" width="132" height="24" rx="3" fill="#1f1714" stroke="#fff" stroke-width="2"/>
-    <text x="100" y="23" text-anchor="middle" font-size="${m.title.length > 10 ? 10.5 : 13}" font-weight="700" letter-spacing="2" fill="${m.label}" font-family="Georgia,serif">${m.title}</text>
-  </svg>`;
-}

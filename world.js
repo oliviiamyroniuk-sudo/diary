@@ -22,10 +22,6 @@ const WORLD_ITEMS = [
   { id: 'well', name: 'Криниця', at: 66, pos: [0.06, 0.88] },
   { id: 'glowshrooms', name: 'Світні гриби', at: 75, pos: [0.55, 0.84] },
   { id: 'owl', name: 'Сова на пеньку', at: 85, pos: [0.95, 0.86] },
-  { id: 'snowman', name: 'Сніговик', at: 5, season: 'winter', pos: [0.62, 0.86] },
-  { id: 'pumpkins', name: 'Гарбузи', at: 5, season: 'autumn', pos: [0.62, 0.86] },
-  { id: 'blossom', name: 'Квітуча вишня', at: 5, season: 'spring', pos: [0.92, 0.62] },
-  { id: 'sunflowers', name: 'Соняшники', at: 5, season: 'summer', pos: [0.62, 0.86] },
 ];
 const HOUSES = [['cottage', 'Хатинка', 0], ['mushroom', 'Грибний дім', 15], ['treehouse', 'Будиночок на дереві', 30], ['stone', 'Кам’яна вежа', 45]];
 const ROOFS = ['#B5483E', '#7A5236', '#5E7A4A', '#5A6A9A', '#8E5A8E', '#C9893A', '#3E3A44'];
@@ -55,36 +51,64 @@ function registerVisit() {
   if (S.settings.lastVisit !== today) {
     S.settings.lastVisit = today;
     S.settings.visitCount = (S.settings.visitCount || 0) + 1;
+    const sv = S.settings.seasonVisits || (S.settings.seasonVisits = {});
+    const se = currentSeason();
+    sv[se] = (sv[se] || 0) + 1;
     saveSettings();
   }
 }
 
-function unlocked(item, pts, season) {
-  if (pts < item.at) return false;
-  if (item.season) return (worldState().seen || []).includes(item.id) || item.season === season;
-  return true;
+function seasonOfKey(k) { return currentSeason(new Date(+k.slice(0, 4), +k.slice(5, 7) - 1, 15)); }
+
+/** Бали конкретної пори року: дні з записами чи настроєм у цю пору (будь-якого року) + відвідини. Не зменшуються. */
+function seasonPoints(season) {
+  const days = new Set([...S.entries.map((e) => e.date.slice(0, 10)), ...Object.keys(S.dayMoods)]);
+  let n = 0;
+  days.forEach((k) => { if (seasonOfKey(k) === season) n++; });
+  const pts = n * 2 + ((S.settings.seasonVisits || {})[season] || 0);
+  const mx = S.settings.seasonMax || (S.settings.seasonMax = {});
+  if (pts > (mx[season] || 0)) mx[season] = pts;
+  return mx[season] || 0;
 }
 
-/** Видимі предмети: відкриті й не сховані (сезонні — у свій сезон або якщо закріплені). */
+function itemPoints(it) { return it.season ? seasonPoints(it.season) : worldPoints(); }
+
+function unlocked(item) { return itemPoints(item) >= item.at; }
+
+/** Видимі предмети: відкриті й не сховані (сезонні — у свій сезон або якщо закріплені «завжди»). */
 function visibleItems(pts, season) {
   const w = worldState();
-  return WORLD_ITEMS.filter((it) => unlocked(it, pts, season) && !w.hidden.includes(it.id) && (!it.season || it.season === season || (w.pinned || []).includes(it.id)));
+  return WORLD_ITEMS.filter((it) => unlocked(it) && !w.hidden.includes(it.id) && (!it.season || it.season === season || (w.pinned || []).includes(it.id)));
 }
 
-function nextUnlock(pts) {
-  return WORLD_ITEMS.filter((it) => !it.season && it.at > pts).sort((a, b) => a.at - b.at)[0];
+/** Найближча нагорода: звичайна або цієї пори року. */
+function nextUnlock() {
+  const season = currentSeason();
+  const c = WORLD_ITEMS.filter((it) => (!it.season || it.season === season) && !unlocked(it))
+    .map((it) => ({ item: it, steps: it.at - itemPoints(it) }))
+    .sort((a, b) => a.steps - b.steps);
+  return c[0] || null;
+}
+
+/** Будиночок для пори року: свій вибір або перший сезонний. */
+function houseFor(season) {
+  const st = worldState();
+  const pick = (st.houseBy || {})[season];
+  if (pick) return pick;
+  if (!st.houseBy && st.house && st.house !== 'cottage') return st.house;
+  return SEASON_HOUSES[season][0][0];
 }
 
 /** Повідомити про нові предмети. */
 function checkNewItems() {
-  const pts = worldPoints();
   const season = currentSeason();
   const w = worldState();
-  const fresh = WORLD_ITEMS.filter((it) => unlocked(it, pts, season) && !w.seen.includes(it.id));
+  const fresh = WORLD_ITEMS.filter((it) => (!it.season || it.season === season) && unlocked(it) && !w.seen.includes(it.id));
   if (!fresh.length) return;
+  const first = !w.seen.length;
   w.seen.push(...fresh.map((f) => f.id));
   saveSettings();
-  if (w.seen.length > fresh.length) setTimeout(() => toast(`У твоєму куточку зʼявилося: ${fresh.map((f) => f.name.toLowerCase()).join(', ')} ✨`, 3600), 800);
+  if (!first) setTimeout(() => toast(`У твоєму куточку зʼявилося: ${fresh.map((f) => f.name.toLowerCase()).join(', ')} ✨`, 3600), 800);
 }
 
 /* ---------- Малювання ---------- */
@@ -207,7 +231,7 @@ function drawWorld(canvas, t, opts = {}) {
   const time = opts.time || 0;
   for (const th of things) {
     const sc = (0.6 + ((th.y / h - 0.55) / 0.42) * 0.55) * scale;
-    if (th.id === '__house') WD_.house(c, th.x, th.y, 1.05 * scale, st.house || 'cottage', st.roof || ROOFS[0], night, season);
+    if (th.id === '__house') WD_.house(c, th.x, th.y, 1.05 * scale, opts.house || houseFor(season), st.roof || ROOFS[0], night, season, time);
     else {
       WD_.item(c, th.id, th.x, th.y, sc, season, night, time);
       boxes.push({ id: th.id, x: th.x - 26 * sc, y: th.y - 42 * sc, w: 52 * sc, h: 46 * sc });
@@ -247,14 +271,27 @@ async function snapshotWorld(canvas) {
 }
 
 function homeWorldHTML() {
-  const pts = worldPoints();
-  const nx = nextUnlock(pts);
+  const nx = nextUnlock();
+  const season = currentSeason();
   return `<div class="card world-card" style="padding:0;overflow:hidden">
     <canvas id="world-home" style="display:block;width:100%;height:220px"></canvas>
     <a class="row" data-go="/world" style="padding:10px 14px">
-      <div class="grow"><div class="serif" style="font-size:17px">Мій куточок</div>
-      <div class="small muted">${nx ? `Ще ${nx.at - pts} ${plural(nx.at - pts, 'крок', 'кроки', 'кроків')} — і зʼявиться: ${nx.name.toLowerCase()}` : 'Твій світ розквітнув повністю 🌿'}</div></div>${icon('right')}
+      <div class="grow"><div class="serif" style="font-size:17px">Мій куточок · ${SEASON_NAMES[season]}</div>
+      <div class="small muted">${nx ? `Ще ${nx.steps} ${plural(nx.steps, 'крок', 'кроки', 'кроків')} — і зʼявиться: ${nx.item.name.toLowerCase()}${nx.item.season ? ' 🍂'.replace('🍂', { winter: '❄️', spring: '🌷', summer: '☀️', autumn: '🍂' }[nx.item.season]) : ''}` : 'Твій світ розквітнув повністю 🌿'}</div></div>${icon('right')}
     </a></div>`;
+}
+
+/** Мініатюра будиночка для вибору. */
+function drawHouseThumb(cv, style, season) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = cv.clientWidth || 140, h = cv.clientHeight || 110;
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const sky = { spring: ['#F7D9E4', '#EEF4E0'], summer: ['#9FD2F0', '#F2F6E2'], autumn: ['#F0B77A', '#F4E6CF'], winter: ['#C6D8EC', '#F4F7FA'] }[season];
+  const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, sky[0]); g.addColorStop(1, sky[1]); c.fillStyle = g; c.fillRect(0, 0, w, h);
+  c.fillStyle = { spring: '#A8CF86', summer: '#8CC06A', autumn: '#B8A060', winter: '#F2F6FA' }[season];
+  c.beginPath(); c.moveTo(0, h); c.lineTo(0, h * 0.8); c.quadraticCurveTo(w / 2, h * 0.72, w, h * 0.8); c.lineTo(w, h); c.fill();
+  WD_.house(c, w / 2, h * 0.86, h / 150, style, worldState().roof || ROOFS[0], false, season, 0);
 }
 
 function plural(n, one, few, many) {
@@ -267,27 +304,47 @@ function plural(n, one, few, many) {
 
 let worldTab = 'items';
 let worldEdit = false;
+let worldHouseSeason = null;
 ROUTES.world = async (v) => {
   const pts = worldPoints();
   const season = currentSeason();
   const st = worldState();
   let tab = '';
+  const SEASON_ICON = { winter: '❄️', spring: '🌷', summer: '☀️', autumn: '🍂' };
+  const itemRow = (it) => {
+    const open = unlocked(it);
+    const shown = open && !st.hidden.includes(it.id);
+    const left = it.at - itemPoints(it);
+    return `<div class="row" style="padding:6px 0;opacity:${open ? 1 : 0.55}">
+      <span class="grow">${open ? '' : '🔒 '}${esc(it.name)}
+      ${open ? '' : `<div class="small muted">ще ${left} ${plural(left, 'крок', 'кроки', 'кроків')}${it.season && it.season !== season ? ` — коли настане ${SEASON_NAMES[it.season]}` : ''}</div>`}</span>
+      ${open ? `<span class="switch"><input type="checkbox" data-wtoggle="${it.id}" ${shown ? 'checked' : ''}><span></span></span>` : ''}
+      ${open && it.season && it.season !== season ? `<button class="pill ${(st.pinned || []).includes(it.id) ? 'on' : ''}" data-wpin="${it.id}">завжди</button>` : ''}
+    </div>`;
+  };
   if (worldTab === 'items') {
-    tab = `<div class="small muted">Предмети відкриваються, коли ти заходиш у щоденник і робиш записи. Пропущені дні нічого не забирають.</div>
-      ${WORLD_ITEMS.map((it) => {
-        const open = unlocked(it, pts, season) || (it.season && pts >= it.at && (st.seen || []).includes(it.id));
-        const shown = open && !st.hidden.includes(it.id);
-        const seasonal = it.season ? ` · ${SEASON_NAMES[it.season]}` : '';
-        return `<div class="row" style="padding:6px 0;opacity:${open ? 1 : 0.55}">
-          <span class="grow">${open ? '' : '🔒 '}${esc(it.name)}<span class="small muted">${seasonal}</span>
-          ${open ? '' : `<div class="small muted">відкриється через ${it.at - pts} ${plural(it.at - pts, 'крок', 'кроки', 'кроків')}${it.season ? ' (у свій сезон)' : ''}</div>`}</span>
-          ${open ? `<span class="switch"><input type="checkbox" data-wtoggle="${it.id}" ${shown ? 'checked' : ''}><span></span></span>` : ''}
-          ${open && it.season && it.season !== season ? `<button class="pill ${(st.pinned || []).includes(it.id) ? 'on' : ''}" data-wpin="${it.id}">завжди</button>` : ''}
-        </div>`;
-      }).join('')}`;
+    const order = ['winter', 'spring', 'summer', 'autumn'];
+    const others = order.slice(order.indexOf(season) + 1).concat(order.slice(0, order.indexOf(season)));
+    tab = `<div class="small muted">Предмети відкриваються, коли ти заходиш у щоденник і робиш записи. Сезонні нагороди ростуть від днів, коли ти ведеш щоденник саме в цю пору року, і повертаються щороку. Нічого не зникає.</div>
+      <div class="serif" style="font-size:17px;margin-top:6px">${SEASON_ICON[season]} ${cap(SEASON_NAMES[season])} · ${seasonPoints(season)} ${plural(seasonPoints(season), 'крок', 'кроки', 'кроків')}</div>
+      ${WORLD_ITEMS.filter((it) => it.season === season).map(itemRow).join('')}
+      <div class="serif" style="font-size:17px;margin-top:10px">🌿 Завжди в куточку</div>
+      ${WORLD_ITEMS.filter((it) => !it.season).map(itemRow).join('')}
+      ${others.map((se) => `<div class="serif" style="font-size:17px;margin-top:10px">${SEASON_ICON[se]} ${cap(SEASON_NAMES[se])} · ${seasonPoints(se)} ${plural(seasonPoints(se), 'крок', 'кроки', 'кроків')}</div>
+        ${WORLD_ITEMS.filter((it) => it.season === se).map(itemRow).join('')}`).join('')}`;
   } else if (worldTab === 'house') {
-    tab = `<div class="small muted">Вигляд будиночка</div>
-      <div class="grid2">${HOUSES.map(([id, n, at]) => `<button class="pill ${st.house === id ? 'on' : ''}" data-whouse="${id}" ${pts < at ? 'disabled style="opacity:.5"' : ''}>${pts < at ? '🔒 ' : ''}${n}${pts < at ? ` (${at})` : ''}</button>`).join('')}</div>
+    const hs = worldHouseSeason || season;
+    const cur = houseFor(hs);
+    const sp = seasonPoints(hs);
+    const opt = (id, n, at, pts2) => { const lock = pts2 < at; return `<button class="house-opt ${cur === id ? 'on' : ''}" data-whouse="${id}" ${lock ? 'disabled' : ''}>
+        <canvas data-hthumb="${id}" style="width:100%;height:100px;display:block;border-radius:10px;${lock ? 'filter:grayscale(.8) opacity(.5)' : ''}"></canvas>
+        <span class="small">${lock ? '🔒 ' : ''}${n}${lock ? `<br><span class="muted">ще ${at - pts2} ${plural(at - pts2, 'крок', 'кроки', 'кроків')}</span>` : ''}</span></button>`; };
+    tab = `<div class="small muted">Для кожної пори року можна вибрати свій будиночок — він сам зміниться, коли настане сезон.</div>
+      <div class="seg">${['winter', 'spring', 'summer', 'autumn'].map((se) => `<button class="${hs === se ? 'on' : ''}" data-whs="${se}">${SEASON_ICON[se]} ${SEASON_NAMES[se]}</button>`).join('')}</div>
+      <div class="small muted">${cap(SEASON_NAMES[hs])}: ${sp} ${plural(sp, 'крок', 'кроки', 'кроків')}</div>
+      <div class="grid2">${SEASON_HOUSES[hs].map(([id, n, at]) => opt(id, n, at, sp)).join('')}</div>
+      <div class="small muted" style="margin-top:8px">Будь-якої пори</div>
+      <div class="grid2">${HOUSES.map(([id, n, at]) => opt(id, n, at, pts)).join('')}</div>
       <div class="small muted" style="margin-top:10px">Колір даху</div>
       <div class="row" style="flex-wrap:wrap">${ROOFS.map((c) => `<button data-wroof="${c}" style="width:34px;height:34px;border-radius:50%;background:${c};border:3px solid ${st.roof === c ? 'var(--text)' : 'transparent'}"></button>`).join('')}</div>`;
   } else {
@@ -306,6 +363,7 @@ ROUTES.world = async (v) => {
   </div>`;
   const cv = $('#world-big', v);
   cv._opts = { edit: worldEdit };
+  if (worldTab === 'house') $$('[data-hthumb]', v).forEach((t) => drawHouseThumb(t, t.dataset.hthumb, worldHouseSeason || season));
   View.stop = animateWorld(cv);
   // перетягування предметів
   let drag = null;
@@ -327,7 +385,8 @@ ROUTES.world = async (v) => {
   v.addEventListener('click', async (e) => {
     const tb = e.target.closest('[data-wtab]'), hs = e.target.closest('[data-whouse]'), rf = e.target.closest('[data-wroof]'), pn = e.target.closest('[data-wpin]');
     if (tb) { worldTab = tb.dataset.wtab; render(); }
-    else if (hs) { st.house = hs.dataset.whouse; await saveSettings(); render(); }
+    else if (hs) { st.houseBy = { ...(st.houseBy || {}), [worldHouseSeason || season]: hs.dataset.whouse }; await saveSettings(); render(); }
+    else if (e.target.closest('[data-whs]')) { worldHouseSeason = e.target.closest('[data-whs]').dataset.whs; render(); }
     else if (rf) { st.roof = rf.dataset.wroof; await saveSettings(); render(); }
     else if (pn) { const s2 = new Set(st.pinned || []); s2.has(pn.dataset.wpin) ? s2.delete(pn.dataset.wpin) : s2.add(pn.dataset.wpin); st.pinned = [...s2]; await saveSettings(); render(); }
   });
