@@ -70,9 +70,10 @@ function applyTheme() {
   st.setProperty('--on-accent', isLight(t.accent) ? '#141414' : '#ffffff');
   st.setProperty('--radius', (set.radius ?? 22) + 'px');
   st.setProperty('--card-border', set.cardBorder === false ? '0' : '1px');
-  st.setProperty('--serif', fontStack(set.fontHead || 'newyork', 'newyork'));
-  st.setProperty('--hand', fontStack(set.fontHead || 'newyork', 'newyork'));
-  st.setProperty('--body-font', fontStack(set.fontBody || (set.serif ? 'newyork' : 'system'), 'system'));
+  st.setProperty('--serif', fontStack(set.fontHead || 'mosca', 'mosca'));
+  st.setProperty('--hand', fontStack(set.fontHead || 'mosca', 'mosca'));
+  st.setProperty('--body-font', fontStack(set.fontBody || (set.serif ? 'newyork' : 'prata'), 'prata'));
+  st.setProperty('--sans', fontStack(set.fontUI || 'prata', 'prata'));
   st.setProperty('--body-size', (set.size || 17) + 'px');
   document.documentElement.style.colorScheme = t.dark ? 'dark' : 'light';
   const meta = $('meta[name="theme-color"]');
@@ -110,7 +111,7 @@ function paintBackground() {
 }
 
 /** Збереження попереднього оформлення, щоб до нього можна було повернутися. */
-const LOOK_KEYS = ['themeId', 'accent', 'card', 'bg', 'btnColor', 'textColor', 'fontHead', 'fontBody', 'size', 'cardOpacity', 'radius', 'cardBorder', 'headerImg', 'bgImg', 'sectionBg', 'sceneBg'];
+const LOOK_KEYS = ['themeId', 'accent', 'card', 'bg', 'btnColor', 'textColor', 'fontHead', 'fontBody', 'fontUI', 'size', 'cardOpacity', 'radius', 'cardBorder', 'headerImg', 'bgImg', 'sectionBg', 'sceneBg'];
 function snapshotLook() { const o = {}; LOOK_KEYS.forEach((k) => (o[k] = S.settings[k])); return o; }
 function pushLookHistory() {
   const h = S.settings.lookHistory || [];
@@ -243,10 +244,10 @@ function entryCard(e, compact = false) {
       <div class="grow"></div>
       <div style="text-align:right">${Emo.stack(e.emotions, compact ? 26 : 32, 4)}${e.favorite ? '<div style="color:var(--accent);font-size:13px;margin-top:4px">★</div>' : ''}</div>
     </div>
-    ${e.title ? `<div class="title">${esc(e.title)}</div>` : ''}
-    ${e.text ? `<div class="preview">${esc(e.text.slice(0, 400))}</div>` : ''}
+    ${e.title ? `<div class="title" translate="no">${esc(e.title)}</div>` : ''}
+    ${e.text ? `<div class="preview" translate="no">${esc(e.text.slice(0, 400))}</div>` : ''}
     ${thumbs}
-    ${(e.voices || []).length || (e.tags || []).length ? `<div class="row small muted" style="margin-top:8px;flex-wrap:wrap;gap:6px">${(e.voices || []).length ? `<span>🎙 ${e.voices.length}</span>` : ''}${(e.tags || []).map((t) => `<span class="tag">#${esc(t)}</span>`).join('')}</div>` : ''}
+    ${(e.voices || []).length || (e.tags || []).length ? `<div class="row small muted" style="margin-top:8px;flex-wrap:wrap;gap:6px">${(e.voices || []).length ? `<span>🎙 ${e.voices.length}</span>` : ''}${(e.tags || []).map((t) => `<span class="tag" translate="no">#${esc(t)}</span>`).join('')}</div>` : ''}
     ${t.corner && S.settings.decor ? `<span class="corner">${t.corner}</span>` : ''}
   </a>`;
 }
@@ -590,8 +591,8 @@ ROUTES.entry = async (v, parts) => {
         <div class="row" style="align-items:baseline"><h1 style="font-size:30px">${D.dm(d)}</h1><span class="muted small">${d.getFullYear()} · ${D.time(d)}</span></div></div>
       ${(e.emotions || []).length ? `<div class="chips">${e.emotions.map(Emo.get).filter(Boolean).map((x) => Emo.chip(x)).join('')}</div>` : ''}
       ${dayEmo ? `<a class="row small muted" data-go="/day/${e.date.slice(0, 10)}">${Emo.stack([...new Set(dayList.map((x) => x.id))], 22, 5)} Mood of the day ›</a>` : ''}
-      ${e.title ? `<h2 style="font-size:26px">${esc(e.title)}</h2>` : ''}
-      ${(e.tags || []).length ? `<div class="chips">${e.tags.map((t) => `<a class="tag" data-act="tagSearch" data-tag="${esc(t)}">#${esc(t)}</a>`).join('')}</div>` : ''}
+      ${e.title ? `<h2 style="font-size:26px" translate="no">${esc(e.title)}</h2>` : ''}
+      ${(e.tags || []).length ? `<div class="chips">${e.tags.map((t) => `<a class="tag" translate="no" data-act="tagSearch" data-tag="${esc(t)}">#${esc(t)}</a>`).join('')}</div>` : ''}
       ${e.hidden || e.locked ? `<div class="small muted">${e.hidden ? '👁 hidden from the feed  ' : ''}${e.locked ? '🔒 password-protected' : ''}</div>` : ''}
       ${orn()}
       <div class="rich" id="entry-body" style="min-height:0">${e.html || ''}</div>
@@ -737,6 +738,7 @@ ROUTES.edit = async (v, parts, q) => {
     <button class="tool" data-cmd="italic" aria-label="Italic"><i>I</i></button>
     <button class="tool" data-cmd="underline" aria-label="Underline"><u>U</u></button>
     <button class="tool" data-cmd="color" aria-label="Color">${icon('palette')}</button>
+    <button class="tool" data-cmd="font" aria-label="Font"><span style="font-family:Kalnia,Prata,serif;font-size:17px">Aa</span></button>
     <button class="tool" data-cmd="ul" aria-label="List">${icon('list')}</button>
     <button class="tool" data-cmd="ol" aria-label="Numbered list">${icon('listNum')}</button>
     <span class="tool sep"></span>
@@ -995,6 +997,14 @@ ROUTES.edit = async (v, parts, q) => {
     }
     schedule();
   };
+  const applyFont = (stack) => {
+    restoreSelection();
+    document.execCommand('styleWithCSS', false, true);
+    document.execCommand('fontName', false, stack || 'inherit');
+    if (!stack) $$('[style]', ed).forEach((n) => { if (/font-family:\s*inherit/i.test(n.getAttribute('style'))) n.style.fontFamily = ''; });
+    $$('font[face]', ed).forEach((n) => { const sp = document.createElement('span'); if (stack) sp.style.fontFamily = n.getAttribute('face'); while (n.firstChild) sp.appendChild(n.firstChild); n.replaceWith(sp); });
+    schedule();
+  };
   const insideQuote = () => { const s = getSelection(); return s.rangeCount && s.anchorNode && (s.anchorNode.nodeType === 1 ? s.anchorNode : s.anchorNode.parentElement)?.closest('blockquote'); };
 
   const runCmd = (cmd) => {
@@ -1009,6 +1019,8 @@ ROUTES.edit = async (v, parts, q) => {
         { label: 'Larger', run: () => applySize('sz-l') },
         { label: 'Title', run: () => applySize('sz-xl') },
       ]); break;
+      case 'font': menuSheet('Text font', [{ label: 'Default font', run: () => applyFont('') }, ...FONTS.map(([id, n, stack]) => ({ label: n, run: () => applyFont(stack) }))]);
+        setTimeout(() => { $$('.sheet .menu-list button span').forEach((sp, i) => { if (i > 0 && FONTS[i - 1]) sp.style.fontFamily = FONTS[i - 1][2]; sp.style.fontSize = '18px'; }); }, 0); break;
       case 'color': menuSheet('Text color', TEXT_COLORS.map(([n, hex]) => ({
         label: (hex ? '● ' : '○ ') + n, run: () => applyColor(hex),
       }))); setTimeout(() => {
@@ -1699,6 +1711,10 @@ ROUTES.settings = async (v) => {
       <div class="section-title" style="font-size:17px;margin-bottom:8px">About me</div>
       <input class="text-input" id="set-name" placeholder="What should I call you?" value="${esc(st.name)}">
     </div>
+    <div class="card stack">
+      <div class="section-title" style="font-size:17px;margin-bottom:4px">Language</div>
+      <div class="periods">${LANGS.map(([c, n]) => `<button class="pill ${LANG === c ? 'on' : ''}" data-act="setLang" data-lang="${c}" translate="no">${n}</button>`).join('')}</div>
+    </div>
 
     <div class="card">
       <div class="section-title" style="font-size:17px">Appearance</div>
@@ -1974,8 +1990,9 @@ ROUTES.style = async (v) => {
 
     <div class="card">
       <div class="section-title" style="font-size:17px">Fonts</div>
-      <div class="small muted" style="margin:6px 0">Headings</div>${fontSel('f-head', st.fontHead || 'newyork')}
-      <div class="small muted" style="margin:10px 0 6px">Entry text</div>${fontSel('f-body', st.fontBody || (st.serif ? 'newyork' : 'system'))}
+      <div class="small muted" style="margin:6px 0">Headings</div>${fontSel('f-head', st.fontHead || 'mosca')}
+      <div class="small muted" style="margin:10px 0 6px">Entry text</div>${fontSel('f-body', st.fontBody || (st.serif ? 'newyork' : 'prata'))}
+      <div class="small muted" style="margin:10px 0 6px">Buttons & menus</div>${fontSel('f-ui', st.fontUI || 'prata')}
       <div class="form-row"><label>Text size: <b id="sz2">${st.size || 17}</b></label><input type="range" id="f-size" min="14" max="24" step="1" value="${st.size || 17}" style="width:45%"></div>
       <div class="card tight" style="margin-top:8px"><div style="font-family:var(--serif);font-size:20px;font-weight:600">Entry title</div><div style="font-family:var(--body-font);font-size:var(--body-size)">This is how regular text will look in your journal.</div></div>
     </div>
@@ -2012,6 +2029,7 @@ ROUTES.style = async (v) => {
   color('c-accent', 'accent'); color('c-btn', 'btnColor'); color('c-card', 'card'); color('c-bg', 'bg'); color('c-text', 'textColor');
   $('#f-head', v).addEventListener('change', (e) => save(() => { st.fontHead = e.target.value; }));
   $('#f-body', v).addEventListener('change', (e) => save(() => { st.fontBody = e.target.value; }));
+  $('#f-ui', v).addEventListener('change', (e) => save(() => { st.fontUI = e.target.value; }));
   $('#f-size', v).addEventListener('input', (e) => { st.size = +e.target.value; $('#sz2').textContent = st.size; applyTheme(); saveSettings(); });
   $('#b-op', v).addEventListener('input', (e) => { st.cardOpacity = +e.target.value; applyTheme(); saveSettings(); });
   $('#b-rad', v).addEventListener('input', (e) => { st.radius = +e.target.value; applyTheme(); saveSettings(); });
@@ -2048,6 +2066,7 @@ ROUTES.emotions = async (v) => {
     <button class="btn full" data-act="addEmotion">${icon('plus')} Add your own emotion</button>
   </div>`;
 };
+ACT.setLang = (el) => { if (el.dataset.lang !== LANG) setLanguage(el.dataset.lang); };
 ACT.addEmotion = () => openEmotionEditor(() => render());
 ACT.emoMenu = (el) => {
   const e = Emo.get(el.dataset.id);
@@ -2154,6 +2173,13 @@ async function start() {
     await loadAll();
     await loadTasks();
     await loadArt();
+    for (const k of ['world', 'worldMax', 'seasonMax', 'seasonVisits', 'visitCount', 'lastVisit', 'showWorld']) delete S.settings[k];
+    try {
+      if (S.settings.lang && S.settings.lang !== LANG) {
+        localStorage.setItem('oj-lang', S.settings.lang);
+        if (localStorage.getItem('oj-lang') === S.settings.lang && !sessionStorage.getItem('oj-lang-sync')) { sessionStorage.setItem('oj-lang-sync', '1'); location.reload(); return; }
+      }
+    } catch (_) {}
   } catch (err) {
     console.error(err);
     $('#view').innerHTML = `<div class="page"><div class="card">Couldn’t open the journal storage. Check that Safari is not in Private Browsing mode, and restart.<br><small class="muted">${esc(err.message)}</small></div></div>`;

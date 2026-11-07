@@ -1,0 +1,23 @@
+/* Шрифти з відкритою ліцензією SIL OFL (fonts/OFL-license.txt) — латиниця й кирилиця */
+@font-face { font-family: 'Kalnia'; src: url('fonts/kalnia.woff') format('woff'); font-weight: 100 700; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Prata'; src: url('fonts/prata.woff') format('woff'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Playfair Display'; src: url('fonts/playfair.woff') format('woff'); font-weight: 400 900; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Playfair Display'; src: url('fonts/playfair-i.woff') format('woff'); font-weight: 400 900; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Cormorant Garamond'; src: url('fonts/cormorant.woff') format('woff'); font-weight: 300 700; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Cormorant Garamond'; src: url('fonts/cormorant-i.woff') format('woff'); font-weight: 300 700; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Cormorant Unicase'; src: url('fonts/unicase.woff') format('woff'); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Yeseva One'; src: url('fonts/yeseva.woff') format('woff'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Lora'; src: url('fonts/lora.woff') format('woff'); font-weight: 400 700; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Lora'; src: url('fonts/lora-i.woff') format('woff'); font-weight: 400 700; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Philosopher'; src: url('fonts/philosopher.woff') format('woff'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Philosopher'; src: url('fonts/philosopher-b.woff') format('woff'); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Comfortaa'; src: url('fonts/comfortaa.woff') format('woff'); font-weight: 300 700; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Kurale'; src: url('fonts/kurale.woff') format('woff'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Caveat'; src: url('fonts/caveat.woff') format('woff'); font-weight: 400 700; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Marck Script'; src: url('fonts/marck.woff') format('woff'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Neucha'; src: url('fonts/neucha.woff') format('woff'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Amatic SC'; src: url('fonts/amatic.woff') format('woff'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Amatic SC'; src: url('fonts/amatic-b.woff') format('woff'); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Lobster'; src: url('fonts/lobster.woff') format('woff'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Pacifico'; src: url('fonts/pacifico.woff') format('woff'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Great Vibes'; src: url('fonts/greatvibes.woff') format('woff'); font-weight: 400; font-style: normal; font-display: swap; }

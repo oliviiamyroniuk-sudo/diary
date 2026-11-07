@@ -107,6 +107,7 @@ ROUTES.art = async (v) => {
   const am = S.settings.artMood || {}, ae = S.settings.artEmo || {};
   const sets = Object.keys(S.art.moodSets || {});
   const credits = Object.values(S.art.credits || {}).filter(Boolean);
+  const curSet = S.settings.artSetName ?? (Object.keys(am).length ? (sets.find((k) => JSON.stringify(S.art.moodSets[k]) === JSON.stringify(am)) || null) : '');
   v.innerHTML = `${topbar('My pictures')}
   <div class="page stack">
     <div class="card stack">
@@ -116,24 +117,32 @@ ROUTES.art = async (v) => {
     </div>
     <div class="card stack">
       <div class="serif" style="font-size:18px">Mood of the day</div>
-      ${sets.length ? `<div class="row" style="flex-wrap:wrap;gap:6px">${sets.map((k, i) => `<button class="pill" data-artset="${k}">Set ${i + 1}</button>`).join('')}<button class="pill" data-artset="">Drawn</button></div>` : ''}
-      <div class="art-mood-grid">${MOOD_ORDER.map((m) => `<button class="art-mood" data-artmood="${m}">${moodCardSVG(m, 'am' + m)}<span class="small">${esc(moodName(m))}</span></button>`).join('')}</div>
+      ${sets.length ? `<div class="row" style="flex-wrap:wrap;gap:6px">${sets.map((k, i) => `<button class="pill ${curSet === k ? 'on' : ''}" data-act="artSet" data-set="${k}">Set ${i + 1}</button>`).join('')}<button class="pill ${curSet === '' ? 'on' : ''}" data-act="artSet" data-set="">Drawn</button></div>` : ''}
+      <div class="art-mood-grid">${MOOD_ORDER.map((m) => `<button class="art-mood" data-act="artMood" data-m="${m}">${moodCardSVG(m, 'am' + m)}<span class="small">${esc(moodName(m))}</span></button>`).join('')}</div>
     </div>
     <div class="card stack">
       <div class="serif" style="font-size:18px">Emotion smileys</div>
-      ${Object.keys(S.art.faceMap || {}).length ? `<div class="row" style="flex-wrap:wrap;gap:6px"><button class="pill" data-artfaces="pack">From pack</button><button class="pill" data-artfaces="">Drawn</button></div>` : ''}
-      <div class="art-face-grid">${Emo.all().map((e) => `<button class="art-face" data-artemo="${e.id}"><span class="emo face" style="--s:52px">${Faces.svg(e)}</span><span class="small">${esc(e.name)}</span></button>`).join('')}</div>
+      ${Object.keys(S.art.faceMap || {}).length ? `<div class="row" style="flex-wrap:wrap;gap:6px"><button class="pill" data-act="artFaces" data-v="pack">From pack</button><button class="pill" data-act="artFaces" data-v="">Drawn</button></div>` : ''}
+      <div class="art-face-grid">${Emo.all().map((e) => `<button class="art-face" data-act="artEmo" data-id="${e.id}"><span class="emo face" style="--s:52px">${Faces.svg(e)}</span><span class="small">${esc(e.name)}</span></button>`).join('')}</div>
     </div>
   </div>`;
-  v.addEventListener('click', async (ev) => {
-    const set = ev.target.closest('[data-artset]'), fm = ev.target.closest('[data-artfaces]');
-    const mb = ev.target.closest('[data-artmood]'), eb = ev.target.closest('[data-artemo]');
-    if (set) { S.settings.artMood = set.dataset.artset ? { ...S.art.moodSets[set.dataset.artset] } : {}; await saveSettings(); render(); }
-    else if (fm) { S.settings.artEmo = fm.dataset.artfaces ? { ...S.art.faceMap } : {}; await saveSettings(); render(); }
-    else if (mb) chooseArt('mood', mb.dataset.artmood);
-    else if (eb) chooseArt('face', eb.dataset.artemo);
-  });
 };
+
+async function saveSafe() {
+  try { await saveSettings(); return true; } catch (e) { console.error(e); toast('Couldn’t save: ' + (e.message || e.name || e), 5000); return false; }
+}
+ACT.artSet = async (el) => {
+  const k = el.dataset.set;
+  S.settings.artMood = k ? { ...S.art.moodSets[k] } : {};
+  S.settings.artSetName = k;
+  if (await saveSafe()) { toast(k ? `${el.textContent.trim()} ✓` : 'Drawn ✓'); render(); }
+};
+ACT.artFaces = async (el) => {
+  S.settings.artEmo = el.dataset.v ? { ...S.art.faceMap } : {};
+  if (await saveSafe()) render();
+};
+ACT.artMood = (el) => chooseArt('mood', el.dataset.m);
+ACT.artEmo = (el) => chooseArt('face', el.dataset.id);
 
 function chooseArt(kind, slot) {
   const keys = libKeys(kind);

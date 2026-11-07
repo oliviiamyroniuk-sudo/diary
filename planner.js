@@ -60,7 +60,7 @@ function upcoming(days = 14, limit = 8) {
 function taskPill(t, key, compact) {
   const c = taskCat(t.cat);
   const done = isDone(t, key);
-  return `<span class="tpill ${done ? 'done' : ''}" style="--tc:${c.color}">${compact ? '' : (t.time ? `<b>${t.time}</b> ` : '')}${esc(t.title)}</span>`;
+  return `<span class="tpill ${done ? 'done' : ''}" translate="no" style="--tc:${c.color}">${compact ? '' : (t.time ? `<b>${t.time}</b> ` : '')}${esc(t.title)}</span>`;
 }
 
 function taskRow(t, key) {
@@ -70,9 +70,9 @@ function taskRow(t, key) {
   return `<div class="trow ${done ? 'done' : ''}">
     <button class="tcheck" data-act="toggleTask" data-id="${t.id}" data-key="${key}" style="--tc:${c.color}" aria-label="Done">${done ? icon('check', 16) : ''}</button>
     <button class="grow tbody" data-act="editTask" data-id="${t.id}" data-key="${key}">
-      <div class="ttitle">${type[2]} ${esc(t.title)}</div>
+      <div class="ttitle" translate="no">${type[2]} ${esc(t.title)}</div>
       <div class="small muted">${t.time ? `${icon('clock', 12)} ${t.time}${t.endTime ? '–' + t.endTime : ''} · ` : ''}${c.name ? `<span style="color:${c.color}">● ${esc(c.name)}</span>` : ''}${t.repeat && t.repeat !== 'none' ? ` · ${icon('repeat', 12)} ${REPEATS.find((r) => r[0] === t.repeat)[1].toLowerCase()}` : ''}</div>
-      ${t.notes ? `<div class="small muted" style="white-space:pre-wrap;margin-top:2px">${esc(t.notes)}</div>` : ''}
+      ${t.notes ? `<div class="small muted" translate="no" style="white-space:pre-wrap;margin-top:2px">${esc(t.notes)}</div>` : ''}
     </button>
     <button class="tdel" data-act="delTask" data-id="${t.id}" data-key="${key}" aria-label="Delete">${icon('trash', 17)}</button>
   </div>${(t.media || []).length ? `<div class="tmedia row-thumbs">${t.media.map((m) => `<button data-act="taskMedia" data-id="${t.id}" data-m="${m.id}"><img src="${taskMediaURL(m)}" alt=""></button>`).join('')}</div>` : ''}`;
@@ -162,8 +162,20 @@ ROUTES.planner = async (v, parts, q) => {
 
 const PAPER_COLORS = ['#FBF8F2', '#F3E7D3', '#E9DCC6', '#E4EAD9', '#DCE7E3', '#E3E6F0', '#EEDFE6', '#E8E0F0', '#C9B79C', '#8FA38A', '#3E4A3F', '#2B3340', '#3A2F3A', '#1F2220'];
 
-function paperVars() {
-  const bg = S.settings.plannerColor || '#FBF8F2';
+async function setPlannerLook(style, color) {
+  if (style) S.settings.plannerStyle = style;
+  if (color) S.settings.plannerColor = color;
+  // одразу показуємо, навіть до збереження
+  const pl = $('.planner');
+  if (pl) { pl.className = pl.className.replace(/planner-\w+/, 'planner-' + (S.settings.plannerStyle || 'paper')); pl.setAttribute('style', paperVars()); }
+  try { await saveSettings(); } catch (e) { console.error(e); toast('Couldn’t save: ' + (e.message || e.name || e), 5000); return; }
+  closeAllSheets(); render();
+}
+ACT.pStyle = (el) => setPlannerLook(el.dataset.v);
+ACT.pColor = (el) => setPlannerLook('paper', el.dataset.v);
+
+function paperVars(over) {
+  const bg = over || S.settings.plannerColor || '#FBF8F2';
   const [r, g, b] = hexRGB(bg);
   const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   const dark = lum < 0.55;
@@ -174,17 +186,13 @@ ACT.plannerStyle = () => {
   const cur = S.settings.plannerStyle || 'paper';
   const col = S.settings.plannerColor || '#FBF8F2';
   openSheet('Calendar style', `<div class="stack">
-    <div class="periods">${PLANNER_STYLES.map(([id, n]) => `<button class="pill ${cur === id ? 'on' : ''}" data-pst="${id}">${n}</button>`).join('')}</div>
+    <div class="periods">${PLANNER_STYLES.map(([id, n]) => `<button class="pill ${cur === id ? 'on' : ''}" data-act="pStyle" data-v="${id}">${n}</button>`).join('')}</div>
     <div class="small muted">Calendar color (for the “Paper” style)</div>
-    <div class="pcolors">${PAPER_COLORS.map((c) => `<button class="${c.toLowerCase() === col.toLowerCase() ? 'on' : ''}" data-pcol="${c}" style="background:${c}"></button>`).join('')}
+    <div class="pcolors">${PAPER_COLORS.map((c) => `<button class="${c.toLowerCase() === col.toLowerCase() ? 'on' : ''}" data-act="pColor" data-v="${c}" style="background:${c}" aria-label="${c}"></button>`).join('')}
       <label style="background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red)"><input type="color" id="pcol-own" value="${col}" hidden></label></div>
   </div>`, (body, close) => {
-    body.addEventListener('click', async (e) => {
-      const st = e.target.closest('[data-pst]'), pc = e.target.closest('[data-pcol]');
-      if (st) { S.settings.plannerStyle = st.dataset.pst; await saveSettings(); close(); render(); }
-      if (pc) { S.settings.plannerColor = pc.dataset.pcol; S.settings.plannerStyle = 'paper'; await saveSettings(); close(); render(); }
-    });
-    $('#pcol-own', body).addEventListener('change', async (e) => { S.settings.plannerColor = e.target.value; S.settings.plannerStyle = 'paper'; await saveSettings(); close(); render(); });
+    $('#pcol-own', body).addEventListener('change', (e) => setPlannerLook('paper', e.target.value));
+    $('#pcol-own', body).addEventListener('input', (e) => { $('.planner')?.setAttribute('style', paperVars(e.target.value)); });
   }, { doneText: 'Close' });
 };
 

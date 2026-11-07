@@ -437,6 +437,23 @@ THEMES.sort((a, b) => ['season', 'fairy', 'cozy'].indexOf(a.cat) - ['season', 'f
 
 /* Шрифти, доступні на iPhone (з кирилицею) */
 const FONTS = [
+  ['mosca', 'Mosca style (Kalnia + Prata)', '"Kalnia", "Prata", Georgia, serif'],
+  ['prata', 'Prata', '"Prata", Georgia, serif'],
+  ['playfair', 'Playfair Display', '"Playfair Display", Georgia, serif'],
+  ['cormorant', 'Cormorant Garamond', '"Cormorant Garamond", Georgia, serif'],
+  ['unicase', 'Cormorant Unicase', '"Cormorant Unicase", Georgia, serif'],
+  ['yeseva', 'Yeseva One', '"Yeseva One", Georgia, serif'],
+  ['lora', 'Lora', '"Lora", Georgia, serif'],
+  ['philosopher', 'Philosopher', '"Philosopher", sans-serif'],
+  ['comfortaa', 'Comfortaa', '"Comfortaa", ui-rounded, sans-serif'],
+  ['kurale', 'Kurale', '"Kurale", Georgia, serif'],
+  ['caveat', 'Caveat (handwritten)', '"Caveat", cursive'],
+  ['marck', 'Marck Script (handwritten)', '"Marck Script", cursive'],
+  ['neucha', 'Neucha (handwritten)', '"Neucha", cursive'],
+  ['amatic', 'Amatic SC', '"Amatic SC", cursive'],
+  ['lobster', 'Lobster', '"Lobster", cursive'],
+  ['pacifico', 'Pacifico', '"Pacifico", cursive'],
+  ['greatvibes', 'Great Vibes', '"Great Vibes", cursive'],
   ['system', 'System', '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif'],
   ['newyork', 'New York (serif)', '"New York", ui-serif, "Iowan Old Style", Georgia, serif'],
   ['georgia', 'Georgia', 'Georgia, "Times New Roman", serif'],
