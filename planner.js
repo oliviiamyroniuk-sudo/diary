@@ -4,7 +4,7 @@
 const TASK_TYPES = [
   ['task', 'Завдання', '☑︎'], ['plan', 'План', '✎'], ['meet', 'Зустріч', '☕︎'], ['event', 'Подія', '✦'], ['remind', 'Нагадування', '🔔'],
 ];
-const REPEATS = [['none', 'Не повторювати'], ['daily', 'Щодня'], ['weekly', 'Щотижня'], ['monthly', 'Щомісяця']];
+const REPEATS = [['none', 'Не повторювати'], ['daily', 'Щодня'], ['weekly', 'Щотижня'], ['monthly', 'Щомісяця'], ['yearly', 'Щороку']];
 const DEFAULT_TASK_CATS = [
   { id: 'art', name: 'творчість', color: '#F2A7A0' },
   { id: 'study', name: 'навчання', color: '#9DBEE3' },
@@ -33,6 +33,7 @@ function occursOn(t, key) {
   if (t.repeat === 'daily') return true;
   if (t.repeat === 'weekly') return a.getDay() === b.getDay();
   if (t.repeat === 'monthly') return Math.min(a.getDate(), D.daysIn(b)) === b.getDate();
+  if (t.repeat === 'yearly') return a.getMonth() === b.getMonth() && Math.min(a.getDate(), D.daysIn(b)) === b.getDate();
   return false;
 }
 const isDone = (t, key) => (t.repeat && t.repeat !== 'none' ? (t.doneDates || []).includes(key) : !!t.done);
@@ -73,7 +74,7 @@ function taskRow(t, key) {
       <div class="small muted">${t.time ? `${icon('clock', 12)} ${t.time}${t.endTime ? '–' + t.endTime : ''} · ` : ''}${c.name ? `<span style="color:${c.color}">● ${esc(c.name)}</span>` : ''}${t.repeat && t.repeat !== 'none' ? ` · ${icon('repeat', 12)} ${REPEATS.find((r) => r[0] === t.repeat)[1].toLowerCase()}` : ''}</div>
       ${t.notes ? `<div class="small muted" style="white-space:pre-wrap;margin-top:2px">${esc(t.notes)}</div>` : ''}
     </button>
-  </div>`;
+  </div>${(t.media || []).length ? `<div class="tmedia row-thumbs">${t.media.map((m) => `<button data-act="taskMedia" data-id="${t.id}" data-m="${m.id}"><img src="${taskMediaURL(m)}" alt=""></button>`).join('')}</div>` : ''}`;
 }
 
 const SEASON_DOODLE = ['☃️', '❄️', '🌷', '🌸', '🌼', '☀️', '🍓', '🌻', '🍎', '🍂', '🍄', '🎄'];
@@ -183,6 +184,10 @@ function openTaskEditor(task, key) {
     <label class="small muted">Повторювати<select class="text-input" id="t-rep">${REPEATS.map(([id, n]) => `<option value="${id}" ${t.repeat === id ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
     ${t.repeat !== 'none' ? `<label class="small muted">Повторювати до (необовʼязково)<input type="date" class="date-input" style="width:100%" id="t-until" value="${t.until || ''}"></label>` : ''}
     <textarea class="text-input" id="t-notes" rows="3" placeholder="Нотатки…">${esc(t.notes || '')}</textarea>
+    <div class="small muted">Картинки й малюнки</div>
+    ${(t.media || []).length ? `<div class="tmedia">${t.media.map((m) => `<span class="tm"><img src="${taskMediaURL(m)}" alt="" data-tview="${m.id}"><button class="tm-x" data-tdel="${m.id}" aria-label="Прибрати">×</button></span>`).join('')}</div>` : ''}
+    <div class="row" style="gap:8px"><label class="btn grow">${icon('image', 18)} Додати фото<input type="file" accept="image/*" multiple id="t-photo" hidden></label>
+      <button class="btn grow" id="t-draw">${icon('pen', 18)} Намалювати</button></div>
     <button class="btn solid full" id="t-save">${icon('check', 18)} Зберегти</button>
     ${isNew ? '' : `<button class="btn danger full" id="t-del">${icon('trash', 18)} Видалити</button>`}
   </div>`;
@@ -192,11 +197,22 @@ function openTaskEditor(task, key) {
       t.endTime = $('#t-end', body).value; t.repeat = $('#t-rep', body).value; t.notes = $('#t-notes', body).value;
       if ($('#t-until', body)) t.until = $('#t-until', body).value;
     };
-    body.addEventListener('change', (e) => { if (e.target.id === 't-rep') { sync(); body.innerHTML = build(); } });
+    body.addEventListener('change', async (e) => {
+      if (e.target.id === 't-rep') { sync(); body.innerHTML = build(); }
+      if (e.target.id === 't-photo') {
+        sync();
+        for (const f of e.target.files) { const b = await shrinkImage(f, 1600); if (b) t.media = [...(t.media || []), { id: uid(), kind: 'photo', blob: b }]; }
+        body.innerHTML = build();
+      }
+    });
     body.addEventListener('click', async (e) => {
       const ty = e.target.closest('[data-type]'), ca = e.target.closest('[data-cat]');
       if (ty) { sync(); t.type = ty.dataset.type; body.innerHTML = build(); return; }
       if (ca) { sync(); t.cat = t.cat === ca.dataset.cat ? '' : ca.dataset.cat; body.innerHTML = build(); return; }
+      const td = e.target.closest('[data-tdel]'), tv = e.target.closest('[data-tview]');
+      if (td) { sync(); t.media = (t.media || []).filter((m) => m.id !== td.dataset.tdel); body.innerHTML = build(); return; }
+      if (tv) { const m = (t.media || []).find((x) => x.id === tv.dataset.tview); if (m) showTaskMedia(m); return; }
+      if (e.target.closest('#t-draw')) { sync(); openDrawing((b) => { if (b) { t.media = [...(t.media || []), { id: uid(), kind: 'drawing', blob: b }]; body.innerHTML = build(); } }); return; }
       if (e.target.closest('[data-newcat]')) {
         sync();
         const name = prompt('Назва категорії:');
@@ -239,3 +255,33 @@ function homeUpcomingHTML() {
       : '<div class="small muted">Поки нічого не заплановано.</div>'}
   </button>`;
 }
+
+/* ---------- картинки й малюнки в справах ---------- */
+function taskMediaURL(m) { return blobURL('tm-' + m.id, m.blob); }
+
+async function shrinkImage(file, max) {
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = URL.createObjectURL(file); });
+    const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+    const cv = document.createElement('canvas');
+    cv.width = Math.round(img.naturalWidth * k); cv.height = Math.round(img.naturalHeight * k);
+    cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+    URL.revokeObjectURL(img.src);
+    return await new Promise((res) => cv.toBlob(res, 'image/jpeg', 0.88));
+  } catch (e) { console.warn(e); return null; }
+}
+
+function showTaskMedia(m) {
+  const el = document.createElement('div');
+  el.className = 'viewer';
+  el.innerHTML = `<div class="slide" style="width:100vw;height:100%;display:grid;place-items:center;${m.kind === 'drawing' ? 'background:#fbf7ef' : ''}"><img src="${taskMediaURL(m)}" alt="" style="max-width:100vw;max-height:100%;object-fit:contain"></div>
+    <div class="vtop"><button class="icon-btn" aria-label="Закрити">${icon('x')}</button><span></span></div>`;
+  el.addEventListener('click', () => el.remove());
+  document.body.appendChild(el);
+}
+
+ACT.taskMedia = (el) => {
+  const t = TS.tasks.find((x) => x.id === el.dataset.id);
+  const m = t && (t.media || []).find((x) => x.id === el.dataset.m);
+  if (m) showTaskMedia(m);
+};

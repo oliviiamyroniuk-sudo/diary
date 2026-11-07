@@ -282,17 +282,17 @@ const Faces = {
    Дівчинка з каштановим бобом і заколкою-грибочком; рамка з підписом,
    градієнт із точковим растром і різні вирази обличчя. */
 const MOODS = {
-  neutral: { title: 'СПОКІЙНО', sub: 'рівний, тихий день', bg: ['#ffffff', '#1d1d1f'], label: '#ffffff' },
-  happy: { title: 'РАДІСНО', sub: 'день із теплим світлом', bg: ['#fff04a', '#ff5fc8'], label: '#fff7a8' },
-  ecstatic: { title: 'У ЗАХВАТІ', sub: 'день, що сяє', bg: ['#fff23a', '#ff2fa8'], label: '#fff25a' },
-  love: { title: 'НІЖНО', sub: 'серце сповнене любові', bg: ['#ffe0ec', '#ff6f9f'], label: '#ffc2d6' },
-  cozy: { title: 'ЗАТИШНО', sub: 'спокій і тепло', bg: ['#fff1c9', '#7fc08e'], label: '#d8f3c9' },
-  tired: { title: 'ВТОМЛЕНО', sub: 'час відпочити', bg: ['#d8d0ff', '#4a4486'], label: '#d6ceff' },
-  sad: { title: 'СУМНО', sub: 'бережи себе сьогодні', bg: ['#2f5fe0', '#52f0e6'], label: '#8fd6ff' },
-  depressed: { title: 'ВАЖКО', sub: 'ти не сама, усе мине', bg: ['#1b2a6e', '#3fb3c4'], label: '#7fa6ff' },
-  angry: { title: 'ЗЛІСТЬ', sub: 'видихни, ти маєш право', bg: ['#ffd23a', '#f0231e'], label: '#ff8a7a' },
-  afraid: { title: 'ТРИВОЖНО', sub: 'крок за кроком', bg: ['#4a4a4a', '#0e0e0e'], label: '#e6e6e6' },
-  stressed: { title: 'ПЕРЕВАНТАЖЕНО', sub: 'забагато всього — пауза', bg: ['#262626', '#050505'], label: '#f0f0f0' },
+  neutral: { title: 'NEUTRAL', sub: 'рівний, тихий день', bg: ['#ffffff', '#1d1d1f'], label: '#ffffff' },
+  happy: { title: 'HAPPY', sub: 'день із теплим світлом', bg: ['#fff04a', '#ff5fc8'], label: '#fff7a8' },
+  ecstatic: { title: 'ECSTATIC', sub: 'день, що сяє', bg: ['#fff23a', '#ff2fa8'], label: '#fff25a' },
+  love: { title: 'IN LOVE', sub: 'серце сповнене любові', bg: ['#ffe0ec', '#ff6f9f'], label: '#ffc2d6' },
+  cozy: { title: 'COZY', sub: 'спокій і тепло', bg: ['#fff1c9', '#7fc08e'], label: '#d8f3c9' },
+  tired: { title: 'TIRED', sub: 'час відпочити', bg: ['#d8d0ff', '#4a4486'], label: '#d6ceff' },
+  sad: { title: 'SAD', sub: 'бережи себе сьогодні', bg: ['#2f5fe0', '#52f0e6'], label: '#8fd6ff' },
+  depressed: { title: 'DEPRESSED', sub: 'ти не сама, усе мине', bg: ['#1b2a6e', '#3fb3c4'], label: '#7fa6ff' },
+  angry: { title: 'ANGRY', sub: 'видихни, ти маєш право', bg: ['#ffd23a', '#f0231e'], label: '#ff8a7a' },
+  afraid: { title: 'AFRAID', sub: 'крок за кроком', bg: ['#4a4a4a', '#0e0e0e'], label: '#e6e6e6' },
+  stressed: { title: 'STRESSED OUT', sub: 'забагато всього — пауза', bg: ['#262626', '#050505'], label: '#f0f0f0' },
 };
 
 /** Градієнт, що переходить точковим растром (дизерингом) — як у картках емоцій. */

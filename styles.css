@@ -440,3 +440,10 @@ img.mood-art { display: block; width: 100%; height: auto; }
 .art-pick.on { border-color: var(--accent); }
 .art-pick img { width: 100%; display: block; border-radius: 10px; }
 .art-pick-faces .art-pick img { border-radius: 50%; }
+
+/* картинки в справах */
+.tmedia { display: flex; gap: 8px; flex-wrap: wrap; }
+.tmedia.row-thumbs { padding: 0 0 8px 44px; }
+.tmedia img { width: 64px; height: 64px; object-fit: cover; border-radius: 10px; display: block; background: #fbf7ef; }
+.tmedia .tm { position: relative; }
+.tmedia .tm-x { position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,.7); color: #fff; font-size: 15px; line-height: 20px; }

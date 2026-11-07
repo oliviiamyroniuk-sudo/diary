@@ -160,31 +160,31 @@ const DB = {
 
 /* ---------- Емоції ---------- */
 const BUILTIN_EMOTIONS = [
-  ['calm', '😐', 'Спокій', 'pos', 0.8, '#9DB5A0'], ['content', '🙂', 'Задоволення', 'pos', 1.2, '#C9B76C'],
-  ['joy', '😊', 'Радість', 'pos', 1.6, '#E3B95B'], ['elation', '😁', 'Сильна радість', 'pos', 2.0, '#E9A44C'],
-  ['tenderness', '🥰', 'Ніжність', 'pos', 1.6, '#E0A3B2'], ['admiration', '😍', 'Захоплення', 'pos', 1.8, '#DC8B9B'],
-  ['inlove', '💗', 'Закоханість', 'pos', 1.9, '#D47A92'], ['relief', '😌', 'Полегшення', 'pos', 1.2, '#A7C4A0'],
-  ['confidence', '😎', 'Впевненість', 'pos', 1.5, '#C79A5B'], ['inspiration', '🤩', 'Натхнення', 'pos', 1.9, '#DDBE5E'],
-  ['celebration', '🥳', 'Захоплення подією', 'pos', 1.9, '#D98E5F'], ['touched', '🥹', 'Розчулення', 'pos', 1.3, '#D2A7C6'],
-  ['gratitude', '🙏', 'Вдячність', 'pos', 1.6, '#B8A36A'], ['cozy', '☕️', 'Затишок', 'pos', 1.4, '#B98B65'],
-  ['hope', '🌱', 'Надія', 'pos', 1.1, '#8FAE7A'],
-  ['emptiness', '😶', 'Порожнеча', 'mix', -0.5, '#8E9199'], ['tired', '😴', 'Втома', 'mix', -0.4, '#8A8FB0'],
-  ['thoughtful', '🤔', 'Замисленість', 'mix', 0.2, '#A69A7E'], ['confused', '😕', 'Розгубленість', 'mix', -0.5, '#A99BB8'],
-  ['tense', '😬', 'Напруження', 'mix', -0.8, '#B59C6E'], ['awkward', '🫣', 'Ніяковість', 'mix', -0.4, '#C49A9A'],
-  ['indifferent', '😑', 'Байдужість', 'mix', -0.3, '#8F8A85'], ['bored', '🥱', 'Нудьга', 'mix', -0.3, '#9A9F8C'],
-  ['nostalgia', '🥲', 'Ностальгія', 'mix', 0.3, '#B79C8F'],
-  ['anxiety', '😟', 'Тривога', 'neg', -1.2, '#7C8FB0'], ['sad', '😢', 'Сум', 'neg', -1.3, '#6F8FB8'],
-  ['disappointed', '😞', 'Розчарування', 'neg', -1.2, '#8A7FA6'], ['depressed', '😔', 'Пригніченість', 'neg', -1.6, '#5F6F8F'],
-  ['anger', '😠', 'Злість', 'neg', -1.5, '#B5544F'], ['irritation', '😣', 'Роздратування', 'neg', -1.1, '#C2704E'],
-  ['grief', '😭', 'Сильний смуток', 'neg', -1.9, '#4E6E9E'], ['fear', '😨', 'Страх', 'neg', -1.6, '#6B6390'],
-  ['overwhelmed', '😖', 'Перевантаження', 'neg', -1.5, '#9C5F78'], ['despair', '😫', 'Відчай', 'neg', -2.0, '#7A3F55'],
-  ['lonely', '🫥', 'Самотність', 'neg', -1.3, '#6E7A8C'], ['guilt', '😓', 'Провина', 'neg', -1.2, '#8C7A6B'],
+  ['calm', '😐', 'Calm', 'pos', 0.8, '#9DB5A0'], ['content', '🙂', 'Content', 'pos', 1.2, '#C9B76C'],
+  ['joy', '😊', 'Joy', 'pos', 1.6, '#E3B95B'], ['elation', '😁', 'Elation', 'pos', 2.0, '#E9A44C'],
+  ['tenderness', '🥰', 'Tenderness', 'pos', 1.6, '#E0A3B2'], ['admiration', '😍', 'Admiration', 'pos', 1.8, '#DC8B9B'],
+  ['inlove', '💗', 'In love', 'pos', 1.9, '#D47A92'], ['relief', '😌', 'Relief', 'pos', 1.2, '#A7C4A0'],
+  ['confidence', '😎', 'Confidence', 'pos', 1.5, '#C79A5B'], ['inspiration', '🤩', 'Inspired', 'pos', 1.9, '#DDBE5E'],
+  ['celebration', '🥳', 'Excited', 'pos', 1.9, '#D98E5F'], ['touched', '🥹', 'Touched', 'pos', 1.3, '#D2A7C6'],
+  ['gratitude', '🙏', 'Gratitude', 'pos', 1.6, '#B8A36A'], ['cozy', '☕️', 'Cozy', 'pos', 1.4, '#B98B65'],
+  ['hope', '🌱', 'Hope', 'pos', 1.1, '#8FAE7A'],
+  ['emptiness', '😶', 'Empty', 'mix', -0.5, '#8E9199'], ['tired', '😴', 'Tired', 'mix', -0.4, '#8A8FB0'],
+  ['thoughtful', '🤔', 'Thoughtful', 'mix', 0.2, '#A69A7E'], ['confused', '😕', 'Confused', 'mix', -0.5, '#A99BB8'],
+  ['tense', '😬', 'Tense', 'mix', -0.8, '#B59C6E'], ['awkward', '🫣', 'Awkward', 'mix', -0.4, '#C49A9A'],
+  ['indifferent', '😑', 'Indifferent', 'mix', -0.3, '#8F8A85'], ['bored', '🥱', 'Bored', 'mix', -0.3, '#9A9F8C'],
+  ['nostalgia', '🥲', 'Nostalgic', 'mix', 0.3, '#B79C8F'],
+  ['anxiety', '😟', 'Anxious', 'neg', -1.2, '#7C8FB0'], ['sad', '😢', 'Sad', 'neg', -1.3, '#6F8FB8'],
+  ['disappointed', '😞', 'Disappointed', 'neg', -1.2, '#8A7FA6'], ['depressed', '😔', 'Depressed', 'neg', -1.6, '#5F6F8F'],
+  ['anger', '😠', 'Angry', 'neg', -1.5, '#B5544F'], ['irritation', '😣', 'Irritated', 'neg', -1.1, '#C2704E'],
+  ['grief', '😭', 'Grief', 'neg', -1.9, '#4E6E9E'], ['fear', '😨', 'Afraid', 'neg', -1.6, '#6B6390'],
+  ['overwhelmed', '😖', 'Overwhelmed', 'neg', -1.5, '#9C5F78'], ['despair', '😫', 'Despair', 'neg', -2.0, '#7A3F55'],
+  ['lonely', '🫥', 'Lonely', 'neg', -1.3, '#6E7A8C'], ['guilt', '😓', 'Guilty', 'neg', -1.2, '#8C7A6B'],
 ].map(([id, emoji, name, cat, score, color]) => ({ id, emoji, name, cat, score, color }));
 
 const CATS = [
-  { id: 'pos', title: 'Позитивні', color: '#C9A95B' },
-  { id: 'mix', title: 'Нейтральні та змішані', color: '#9A97A8' },
-  { id: 'neg', title: 'Складні', color: '#6F86AE' },
+  { id: 'pos', title: 'Positive', color: '#C9A95B' },
+  { id: 'mix', title: 'Neutral & mixed', color: '#9A97A8' },
+  { id: 'neg', title: 'Difficult', color: '#6F86AE' },
 ];
 
 const Emo = {

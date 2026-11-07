@@ -88,7 +88,7 @@ async function pickOwnImage(kind) {
 
 /* ---------- сторінка «Мої картинки» ---------- */
 const MOOD_ORDER = ['neutral', 'happy', 'ecstatic', 'love', 'cozy', 'tired', 'sad', 'depressed', 'angry', 'afraid', 'stressed'];
-const MOOD_UA = { neutral: 'Спокійно', happy: 'Радісно', ecstatic: 'У захваті', love: 'Ніжно', cozy: 'Затишно', tired: 'Втомлено', sad: 'Сумно', depressed: 'Важко', angry: 'Злість', afraid: 'Тривожно', stressed: 'Перевантажено' };
+const MOOD_UA = { neutral: 'Neutral', happy: 'Happy', ecstatic: 'Ecstatic', love: 'In love', cozy: 'Cozy', tired: 'Tired', sad: 'Sad', depressed: 'Depressed', angry: 'Angry', afraid: 'Afraid', stressed: 'Stressed out' };
 
 function libKeys(kind) {
   return Object.keys(S.art.lib).filter((k) => (kind === 'face' ? k.startsWith('f:') || k.startsWith('own:face') : k.startsWith('m') || k.startsWith('own:mood'))).sort();
