@@ -325,7 +325,7 @@ ROUTES[''] = async (v) => {
   const msgHTML = pickMessageHTML();
   // групи за місяцями
   const groups = [];
-  for (const e of S.entries) {
+  for (const e of S.entries.slice(0, homeLimit)) {
     const k = e.date.slice(0, 7);
     if (!groups.length || groups[groups.length - 1].k !== k) groups.push({ k, items: [] });
     groups[groups.length - 1].items.push(e);
@@ -387,7 +387,7 @@ ROUTES[''] = async (v) => {
     ${S.entries.length ? orn() : ''}
     ${S.entries.length ? groups.map((g) => `
       <div class="month-head"><span class="name">${D.monthTitle(D.fromKey(g.k + '-01'))}</span><span class="badge">${g.items.length}</span></div>
-      ${g.items.map((e) => entryCard(e)).join('')}`).join('') : `
+      ${g.items.map((e) => entryCard(e)).join('')}`).join('') + (S.entries.length > homeLimit ? `<button class="btn full" data-act="homeMore">Show more entries (${S.entries.length - homeLimit})</button>` : '') : `
       <div class="card empty-state"><div class="big">📖</div><div class="section-title">Your story starts here</div>
       <div class="muted small">Tap “+” to write your first entry — add thoughts, photos and emotions.</div></div>`}
   </div>
@@ -2071,6 +2071,8 @@ ROUTES.emotions = async (v) => {
     <button class="btn full" data-act="addEmotion">${icon('plus')} Add your own emotion</button>
   </div>`;
 };
+let homeLimit = 30;
+ACT.homeMore = async () => { const y = scrollY; homeLimit += 30; await render(); scrollTo(0, y); };
 ACT.setLang = (el) => { if (el.dataset.lang !== LANG) setLanguage(el.dataset.lang); };
 ACT.addEmotion = () => openEmotionEditor(() => render());
 ACT.emoMenu = (el) => {

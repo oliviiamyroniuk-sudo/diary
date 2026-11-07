@@ -237,7 +237,8 @@ async function pdfScan(st, onProgress) {
         const l = b.l, t = l.text.trim();
         const dm = l.size >= 12 && t.match(/^(\d{1,2})\s*(\S+?)\.?\s+(\d{4})$/);
         const tm = t.match(/^\((\d{1,2}):(\d{2})\)$/);
-        if (dm) { st.day = { d: +dm[1], mon: dm[2], y: +dm[3] }; st.cur = null; prevLine = null; st.dayMood = st.pendingMoodNext ?? null; st.pendingMoodNext = null; continue; }
+        if (dm) { st.day = { d: +dm[1], mon: dm[2], y: +dm[3] }; st.cur = null; prevLine = null; st.dayMood = st.pendingMoodNext ?? null; st.pendingMoodNext = null; st.skipHead = false; st.dayPage = p; continue; }
+        if (st.skipHead) continue;
         if (tm && st.day) { st.cur = newImported(st, `${pad(+tm[1])}:${tm[2]}`); prevLine = null; continue; }
         if (!st.cur) { if (!st.day && st.lastEntry) st.cur = st.lastEntry; else if (st.day) st.cur = newImported(st, '12:00'); else continue; }
         const e = st.cur;
@@ -256,23 +257,27 @@ async function pdfScan(st, onProgress) {
           st.pendingMoodNext = k;
         }
       } else if (b.kind === 'img') {
+        if (st.skipHead) continue;
         const e = st.cur || st.lastEntry;
         if (!e) continue;
         const cv = await imageCanvas(page, b.im.id);
         if (!cv) continue;
         const blob = await new Promise((res) => cv.toBlob(res, 'image/jpeg', 0.9));
+        cv.width = cv.height = 0;
         try { const pid = await savePhoto(e.id, blob); S.photoMeta[pid].imp = 1; await DB.put('photoMeta', S.photoMeta[pid]); st.photoIds.push(pid); e.paras.push({ img: pid, small: (b.im.x1 - b.im.x0) < 120 }); } catch (err) { console.warn(err); }
         prevLine = null;
       }
     }
     page.cleanup();
     st.next = p + 1;
+    await commitReady(st, false, p);
+    if ((p - st.from) % 20 === 19) { try { await pdf.cleanup(); } catch (_) {} }
     onProgress && onProgress(p);
   }
 }
 
 function newImported(st, time) {
-  const e = { id: uid(), day: { ...st.day }, time, paras: [], mood: st.dayMood ?? null };
+  const e = { id: uid(), day: { ...st.day }, time, paras: [], mood: st.dayMood ?? null, startPage: st.dayPage || st.next };
   st.entries.push(e);
   st.lastEntry = e;
   return e;
@@ -282,43 +287,74 @@ function pdfDecode(text, st) {
   return text.replace(/[-]/g, (c) => { const u = st.unknown[c.charCodeAt(0) - 0xE000]; return u && u.ch != null ? u.ch : '□'; });
 }
 
-async function pdfFinish(st) {
-  const moodMap = S.settings.pdfMoodMap || {};
-  const have = new Set(S.entries.map((e) => e.importKey).filter(Boolean));
-  let added = 0, skipped = 0, failed = 0, firstErr = '', i = 0;
-  for (const ie of st.entries) {
-    i++;
-    if (i % 10 === 0) { const el = $('#pi-save'); if (el) el.textContent = `Saving entries… ${i} / ${st.entries.length}`; await new Promise((r) => setTimeout(r, 0)); }
-    try {
+const figHTML = (p) => `<figure class="${p.small ? 'sz-s' : 'sz-l'} al-center" data-photo="${p.img}"><img data-pid="${p.img}" data-kind="full" alt=""><figcaption></figcaption></figure>`;
+const parasHTML = (paras, st) => paras.map((p) => (p.img ? figHTML(p) : `<p>${esc(pdfDecode(p.text, st))}</p>`)).join('');
+
+function moodFor(hash) {
+  if (!hash) return null;
+  const hit = Object.entries(S.settings.pdfMoodMap || {}).find(([h]) => sameIcon(h, hash));
+  return hit ? hit[1] : null;
+}
+
+/** Зберігає один прочитаний запис у щоденник одразу (щоб нічого не загубилося, навіть якщо iPhone закриє сторінку). */
+async function commitEntry(st, ie) {
+  const R = st.result;
+  try {
+    if (ie.existing) { // продовження запису з попередньої частини
+      if (!ie.paras.length) return;
+      const ex = S.entries.find((x) => x.id === ie.existing.id);
+      if (ex) { ex.html += parasHTML(ie.paras, st); refreshEntry(ex); await DB.put('entries', ex); }
+      return;
+    }
     const mon = monthIndex(pdfDecode(ie.day.mon, st));
-    if (mon < 0 || !ie.day.y) { skipped++; continue; }
+    if (mon < 0 || !ie.day.y || !ie.paras.length) { R.skipped++; return; }
     const date = `${ie.day.y}-${pad(mon + 1)}-${pad(ie.day.d)}T${ie.time}`;
-    const html = ie.paras.map((p) => p.img
-      ? `<figure class="${p.small ? 'sz-s' : 'sz-l'} al-center" data-photo="${p.img}"><img data-pid="${p.img}" data-kind="full" alt=""><figcaption></figcaption></figure>`
-      : `<p>${esc(pdfDecode(p.text, st))}</p>`).join('');
+    const html = parasHTML(ie.paras, st);
     const key = date + '|' + fold(htmlToText(html)).slice(0, 80);
-    if (have.has(key)) { skipped++; continue; }
-    const iconId = ie.mood != null ? st.icons[ie.mood]?.hash : null;
-    const emo = iconId ? Object.entries(moodMap).find(([h]) => sameIcon(h, iconId))?.[1] : null;
-    const e = { id: ie.id, date, createdAt: Date.now(), updatedAt: Date.now(), title: '', html, text: '', emotions: emo ? [emo] : [], favorite: false, photos: [], tags: ['imported'], importKey: key, search: '' };
+    if (st.have.has(key)) { R.skipped++; return; }
+    const hash = ie.mood != null ? st.icons[ie.mood]?.hash : null;
+    const emo = moodFor(hash);
+    const e = { id: ie.id, date, createdAt: Date.now(), updatedAt: Date.now(), title: '', html, text: '', emotions: emo ? [emo] : [], favorite: false, photos: [], tags: ['imported'], importKey: key, importIcon: hash || undefined, search: '' };
+    if (/[-]/.test(html)) e.importPUA = 1;
     refreshEntry(e);
     await DB.put('entries', e);
     S.entries.push(e);
-    have.add(key);
-    added++;
-    } catch (err) { console.error(err); failed++; if (!firstErr) firstErr = (err && (err.name + ': ' + err.message)) || String(err); }
+    st.have.add(key);
+    R.added++;
+  } catch (err) { console.error(err); R.failed++; if (!R.firstErr) R.firstErr = (err && (err.name + ': ' + err.message)) || String(err); }
+}
+
+/** Зберігає всі завершені записи; останній (який ще може тривати на наступній сторінці) лишає, якщо не force. */
+async function commitReady(st, force, page) {
+  const keep = force ? null : st.lastEntry;
+  const ready = st.entries.filter((x) => x !== keep);
+  if (st.cont && (force || st.lastEntry !== st.cont)) { await commitEntry(st, st.cont); st.cont = null; }
+  for (const ie of ready) await commitEntry(st, ie);
+  st.entries = keep && st.entries.includes(keep) ? [keep] : [];
+  if (ready.length) sortEntries();
+  // звідки продовжити після збою: з початку незавершеного запису
+  const open = !force && keep ? keep.startPage : null;
+  const done = force ? st.to : open ? open - 1 : page;
+  S.settings.pdfImportLast = { name: st.name, size: st.size, pages: st.pages, done: Math.max(st.from - 1, done), skipHead: !!open && !keep.existing };
+  try { await saveSettings(); } catch (_) {}
+}
+
+async function pdfFinish(st) {
+  await commitReady(st, true);
+  // настрої для записів, у яких смайлик ще не мав емоції
+  for (const e of S.entries) {
+    if (!e.importIcon || (e.emotions || []).length) continue;
+    const emo = moodFor(e.importIcon);
+    if (emo) { e.emotions = [emo]; refreshEntry(e); try { await DB.put('entries', e); } catch (_) {} }
   }
-  // продовження запису з попередньої частини імпорту
-  const cont = st.lastEntry && st.lastEntry.existing;
-  if (cont && st.lastEntry.paras.length) {
-    const ex = S.entries.find((x) => x.id === cont.id);
-    if (ex) {
-      ex.html += st.lastEntry.paras.map((p) => p.img ? `<figure class="${p.small ? 'sz-s' : 'sz-l'} al-center" data-photo="${p.img}"><img data-pid="${p.img}" data-kind="full" alt=""><figcaption></figcaption></figure>` : `<p>${esc(pdfDecode(p.text, st))}</p>`).join('');
-      refreshEntry(ex); await DB.put('entries', ex);
-    }
+  // літери, яких навчили в кінці
+  for (const e of S.entries) {
+    if (!e.importPUA) continue;
+    e.html = e.html.replace(/[-]/g, (c) => { const u = st.unknown[c.charCodeAt(0) - 0xE000]; return u && u.ch ? esc(u.ch) : '□'; });
+    delete e.importPUA; refreshEntry(e); try { await DB.put('entries', e); } catch (_) {}
   }
   sortEntries();
-  return { added, skipped, failed, firstErr };
+  return st.result;
 }
 
 function drawGlyph(u, size = 64) {
@@ -352,7 +388,7 @@ ROUTES.pdfimport = async (v) => {
       <div class="small muted">${st.pages} pages</div>
       <div class="row" style="gap:8px"><label class="grow small muted">From page<input type="number" class="text-input" id="pi-from" min="1" max="${st.pages}" value="${st.from}"></label>
         <label class="grow small muted">To page<input type="number" class="text-input" id="pi-to" min="1" max="${st.pages}" value="${st.to}"></label></div>
-      ${st.pages > 300 ? `<div class="small muted">Big diary: it’s safest to import about 300 pages at a time. When a part is done, choose the same file again — it continues from the next page by itself.</div>` : ''}
+      ${st.pages > 100 ? `<div class="small muted">Big diary: it’s safest to import about 100 pages at a time. Entries are saved as they are read, so nothing is lost if the page closes. When a part is done (or if it stopped), choose the same file again — it continues by itself.</div>` : ''}
       <button class="btn full solid" data-act="pdfStart">${icon('check')} Start import</button>
       <button class="btn full" data-act="pdfCancel">Cancel</button>
     </div>`;
@@ -361,7 +397,7 @@ ROUTES.pdfimport = async (v) => {
     body = `<div class="card stack">
       <div class="serif" style="font-size:18px">Reading the PDF…</div>
       <div class="pbar"><i style="width:${pct}%"></i></div>
-      <div class="small muted" id="pi-prog">Page ${Math.min(st.next, st.to)} of ${st.to} · ${st.entries.length} entries · ${st.photoIds.length} photos</div>
+      <div class="small muted" id="pi-prog">Page ${Math.min(st.next, st.to)} of ${st.to} · ${st.result.added + st.entries.length} entries · ${st.photoIds.length} photos</div>
       <div class="small muted">Keep the screen on and the journal open.</div>
       <button class="btn full" data-act="pdfStop">Stop here (the read part will be imported)</button>
     </div>`;
@@ -416,7 +452,7 @@ ROUTES.pdfimport = async (v) => {
       const pdf = await PdfImport.open(file);
       const last = S.settings.pdfImportLast;
       const from = last && last.name === file.name && last.size === file.size && last.done < pdf.numPages ? last.done + 1 : 1;
-      PDFI.state = { phase: 'range', pdf, name: file.name, size: file.size, pages: pdf.numPages, from, to: Math.min(pdf.numPages, from + 299), next: from, entries: [], unknown: [], icons: [], photoIds: [], lastEntry: null, day: null, cur: null };
+      PDFI.state = { phase: 'range', pdf, name: file.name, size: file.size, pages: pdf.numPages, from, to: Math.min(pdf.numPages, from + 99), next: from, entries: [], unknown: [], icons: [], photoIds: [], lastEntry: null, day: null, cur: null, result: { added: 0, skipped: 0, failed: 0, firstErr: '' }, have: new Set(S.entries.map((e) => e.importKey).filter(Boolean)), skipHead: !!(last && last.name === file.name && last.size === file.size && last.skipHead && from === last.done + 1) };
       render();
     } catch (e) { console.error(e); toast('Couldn’t open this PDF: ' + (e.message || e), 5000); }
   });
@@ -425,13 +461,13 @@ ROUTES.pdfimport = async (v) => {
     try {
       await pdfScan(st, (p) => {
         const el = $('#pi-prog');
-        if (el) el.textContent = `Page ${p} of ${st.to} · ${st.entries.length} entries · ${st.photoIds.length} photos`;
+        if (el) el.textContent = `Page ${p} of ${st.to} · ${st.result.added + st.entries.length} entries · ${st.photoIds.length} photos`;
         const bar = $('.pbar i'); if (bar) bar.style.width = Math.round(((p - st.from + 1) / (st.to - st.from + 1)) * 100) + '%';
       });
     } catch (e) { console.error(e); toast('Stopped: ' + (e.message || e), 6000); }
     st.running = false;
     st.to = Math.min(st.to, st.next - 1);
-    st.phase = st.unknown.some((u) => u.ch == null) ? 'learn' : st.icons.length ? 'moods' : 'finish';
+    st.phase = st.unknown.some((u) => u.ch == null) ? 'learn' : st.icons.some((ic) => !moodFor(ic.hash)) ? 'moods' : 'finish';
     if (st.phase === 'finish') await pdfFinalize(st);
     render();
   }
@@ -443,8 +479,8 @@ async function pdfFinalize(st) {
   try { st.result = await pdfFinish(st); }
   catch (e) { console.error(e); st.error = (e && (e.name + ': ' + e.message)) || String(e); st.phase = 'error'; render(); return; }
   if (!st.result.added && st.result.failed) { st.error = st.result.firstErr; st.phase = 'error'; render(); return; }
-  S.settings.pdfImportLast = { name: st.name, size: st.size, pages: st.pages, done: st.to };
-  await saveSettings();
+  try { await saveSettings(); } catch (_) {}
+  try { st.pdf.destroy(); } catch (_) {}
   st.phase = 'done';
 }
 
@@ -456,13 +492,13 @@ ACT.pdfStart = () => {
   // продовження з середини: перший текст без дати дописуємо до останнього імпортованого запису
   if (st.from > 1) {
     const lastImp = S.entries.filter((e) => e.importKey).sort((a, b) => a.createdAt - b.createdAt).pop();
-    if (lastImp) st.lastEntry = { id: lastImp.id, paras: [], existing: lastImp };
+    if (lastImp && !st.skipHead) { st.cont = { id: lastImp.id, paras: [], existing: lastImp, startPage: st.from }; st.lastEntry = st.cont; }
   }
   st.phase = 'scan';
   render();
 };
 ACT.pdfStop = () => { if (PDFI.state) PDFI.state.cancel = true; };
-ACT.pdfCancel = () => { PDFI.state = null; render(); };
+ACT.pdfCancel = () => { try { PDFI.state?.pdf?.destroy(); } catch (_) {} PDFI.state = null; render(); };
 ACT.pdfClose = () => { PDFI.state = null; go('/'); };
 ACT.pdfLearned = async () => {
   const st = PDFI.state;
@@ -475,7 +511,7 @@ ACT.pdfLearned = async () => {
   }
   S.settings.pdfGlyphsLearned = learned;
   await saveSettings();
-  st.phase = st.icons.length ? 'moods' : 'finish';
+  st.phase = st.icons.some((ic) => !moodFor(ic.hash)) ? 'moods' : 'finish';
   if (st.phase === 'finish') await pdfFinalize(st);
   render();
 };

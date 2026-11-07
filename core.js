@@ -343,11 +343,16 @@ const PhotoURL = {
 };
 
 /** Заповнює <img data-pid> справжніми фото після рендеру. */
+const loadPid = (img) => PhotoURL.get(img.dataset.pid, img.dataset.kind || 'thumb').then((u) => { if (u) img.src = u; });
+// фото підвантажуються лише коли до них догортаєш — щоб iPhone не закривав сторінку через нестачу памʼяті
+const HydIO = 'IntersectionObserver' in window ? new IntersectionObserver((list) => {
+  for (const en of list) if (en.isIntersecting) { HydIO.unobserve(en.target); loadPid(en.target); }
+}, { rootMargin: '800px 0px' }) : null;
 function hydrate(root = document) {
   for (const img of $$('img[data-pid]', root)) {
     if (img.dataset.done) continue;
     img.dataset.done = '1';
-    PhotoURL.get(img.dataset.pid, img.dataset.kind || 'thumb').then((u) => { if (u) img.src = u; });
+    if (HydIO) HydIO.observe(img); else loadPid(img);
   }
 }
 
