@@ -1741,6 +1741,7 @@ ROUTES.settings = async (v) => {
       <button class="btn solid full" id="bk-make">${icon('download')} Create full backup</button>
       <button class="btn full hidden" id="bk-share">${icon('upload')} Save / share file</button>
       <label class="btn full">${icon('upload')} Restore from backup<input type="file" id="bk-restore" hidden></label>
+      <button class="btn full" data-go="/pdfimport">${icon('download')} Import old diary from PDF</button>
       <button class="btn full" id="zip-make">${icon('archive')} Export to archive (.zip): entries, photos, voice</button>
       <div class="small muted">The archive opens on any computer: a page with all entries + folders with photos and voice notes.</div>
     </div>
