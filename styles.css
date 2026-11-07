@@ -334,3 +334,20 @@ input[type=color] { width: 44px; height: 32px; border: 0; background: none; padd
 .lock > .text-btn { margin-top: 6px; }
 button > svg, a > svg, label > svg, .row > svg, .link-row svg, .tile-stat > svg { width: 20px; height: 20px; flex: none; }
 .tile-stat > svg { color: var(--accent); }
+
+/* ---------- own journal: обличчя, настрій дня, послання ---------- */
+.emo.face { background: none; box-shadow: none; }
+.emo.face::after { display: none; }
+.emo.face svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.25)); }
+.emo-stack .emo.face + .emo.face { margin-left: -5px; }
+.emo-cell.on .emo.face { box-shadow: 0 0 0 3px var(--bg-top), 0 0 0 5px var(--accent); border-radius: 50%; }
+.mood-day .mood-art-wrap { width: 46%; max-width: 190px; flex: none; border-radius: 14px; overflow: hidden; box-shadow: 0 6px 18px rgba(0,0,0,.35); border: 3px solid #1f1714; background: #1f1714; display: block; }
+.mood-art { display: block; width: 100%; height: auto; }
+.quick-row { display: flex; gap: 6px; overflow-x: auto; margin: 14px -4px 0; padding: 2px 4px 4px; scrollbar-width: none; }
+.quick-row::-webkit-scrollbar { display: none; }
+.quick { flex: none; border-radius: 50%; transition: transform .15s; }
+.quick:active { transform: scale(.85); }
+.quick.more { width: 40px; height: 40px; border: 1.5px dashed var(--accent); color: var(--accent); display: grid; place-items: center; }
+.message-card { display: flex; gap: 12px; align-items: flex-start; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 22%, var(--card)), var(--card-a)); }
+.message-card .m-text { font-family: var(--hand); font-style: italic; font-size: 17px; line-height: 1.45; }
+.message-card .m-kind { font-size: 11px; color: var(--sub); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }

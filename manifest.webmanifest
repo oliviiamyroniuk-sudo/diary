@@ -1,6 +1,6 @@
 {
-  "name": "Мій щоденник",
-  "short_name": "Щоденник",
+  "name": "own journal",
+  "short_name": "own journal",
   "lang": "uk",
   "start_url": "./",
   "scope": "./",

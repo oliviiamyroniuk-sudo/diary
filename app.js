@@ -1,6 +1,6 @@
 'use strict';
 /* ==========================================================================
-   Мій щоденник — екрани та взаємодія
+   own journal — екрани та взаємодія
    ========================================================================== */
 
 const View = { leave: null, stop: null };
@@ -105,6 +105,7 @@ document.addEventListener('click', (ev) => {
 });
 
 ACT.back = () => back();
+ACT.closeMsg = () => { messageClosed = true; $('#msg-card')?.remove(); };
 
 /* ---------- Аркуші (нижні вікна) ---------- */
 function openSheet(title, html, onMount, opts = {}) {
@@ -242,6 +243,7 @@ ROUTES[''] = async (v) => {
   const needBackup = S.entries.length > 0 && Date.now() - (S.settings.lastBackup || 0) > 7 * 86400000;
   const name = (S.settings.name || '').trim();
 
+  const msgHTML = pickMessageHTML();
   // групи за місяцями
   const groups = [];
   for (const e of S.entries) {
@@ -272,24 +274,14 @@ ROUTES[''] = async (v) => {
       Записи, зроблені тут у браузері, і записи в застосунку з іконки зберігаються окремо.</div>` : ''}
     ${needBackup ? `<button class="card banner row small" data-go="/settings" style="text-align:left">${icon('download')}
       <span class="grow">Давно не було резервної копії. Збережи її, щоб записи точно не загубилися.</span>${icon('right')}</button>` : ''}
+    ${msgHTML}
+    ${moodDayCard(todayKey, days, true)}
     <div class="grid2">
-      <button class="card tile" data-act="dayEmotion" data-day="${todayKey}">
-        <span class="hand">Сьогодні</span>
-        ${todayEmo ? `<span class="row" style="gap:6px">${Emo.badge(todayEmo, 54)}${dayEmotions(todayKey).length > 1 ? Emo.stack(dayEmotions(todayKey).slice(1), 26, 3) : ''}</span><span class="serif" style="font-size:15px">${esc(todayEmo.name)}${dayEmotions(todayKey).length > 1 ? ` <span class="muted small">+${dayEmotions(todayKey).length - 1}</span>` : ''}</span>`
-          : `<span class="emo" style="--c:transparent;--s:54px;border:1.5px dashed var(--accent);box-shadow:none;color:var(--accent)">＋</span><span class="serif" style="font-size:15px">Емоція дня</span>`}
-      </button>
       <button class="card tile" data-go="/stats">
         <span class="hand">${cap(MONTHS[now.getMonth()])}</span>
         <span><span class="big-num">${monthEntries.length}</span> <span class="muted small">записів</span></span>
         <span class="muted small">${monthDays} дн. · ${monthPhotos} фото</span>
-        <span class="small" style="color:var(--accent);font-weight:600">🔥 Серія: ${streak(days)}</span>
-      </button>
-    </div>
-    <div class="grid2">
-      <button class="photo-card" data-go="/month/${mk}">
-        ${hl ? `<img src="${hl.url}" alt="">` : autoPhoto ? `<img data-pid="${autoPhoto}" alt="">` : '<div class="empty">🖼️<br>Фото місяця</div>'}
-        <div class="shade"></div>
-        <div class="label"><div class="t1">фото місяця</div><div class="t2">${cap(MONTHS[now.getMonth()])}</div></div>
+        <span class="small" style="color:var(--accent);font-weight:600">${Faces.streak(20)} Серія: ${streak(days)}</span>
       </button>
       <div class="stack" style="gap:12px">
         <div class="card tight">
@@ -299,9 +291,14 @@ ROUTES[''] = async (v) => {
             return `<a data-go="/day/${D.key(d)}">${e ? Emo.badge(e, 18) : '<span class="dot-empty"></span>'}<div class="wd ${D.isToday(d) ? 'today' : ''}">${WD[i]}</div></a>`;
           }).join('')}</div>
         </div>
-        <button class="card tight row" data-go="/calendar">${icon('calendar')}<span class="serif grow" style="text-align:left">Календар</span>${icon('right')}</button>
+        <button class="card tight row" data-go="/calendar">${icon('calendar')}<span class="serif grow" style="text-align:left">Календар настрою</span>${icon('right')}</button>
       </div>
     </div>
+    <button class="photo-card" style="height:170px" data-go="/month/${mk}">
+      ${hl ? `<img src="${hl.url}" alt="">` : autoPhoto ? `<img data-pid="${autoPhoto}" alt="">` : '<div class="empty">🖼️<br>Фото місяця</div>'}
+      <div class="shade"></div>
+      <div class="label"><div class="t1">фото місяця</div><div class="t2">${cap(MONTHS[now.getMonth()])}</div></div>
+    </button>
     ${memory ? `${sectionTitle('Цього дня колись', `${now.getFullYear() - +memory.date.slice(0, 4)} р. тому`)}${entryCard(memory, true)}` : ''}
     ${recent.length ? `<div class="row">${sectionTitle('Останні спогади')}<div class="grow"></div><button class="text-btn" data-go="/photos">Усі</button></div>
       <div class="strip">${recent.map((p, i) => `<button class="thumb" data-act="viewRecent" data-i="${i}" style="transform:rotate(${i % 2 ? 2 : -2}deg)"><img data-pid="${p.id}" alt=""></button>`).join('')}</div>` : ''}
@@ -348,27 +345,85 @@ function emotionGrid(list, selected, showOrder) {
   }).join('')}</div>`;
 }
 
+/* ---------- Настрій дня: позначки протягом дня та ілюстрація ---------- */
+function frequentEmotions(n = 10) {
+  const c = {};
+  for (const v of Object.values(S.dayMoods)) normDay(v).forEach((id) => (c[id] = (c[id] || 0) + 1));
+  for (const e of S.entries) (e.emotions || []).forEach((id) => (c[id] = (c[id] || 0) + 1));
+  const top = Object.entries(c).sort((a, b) => b[1] - a[1]).map((x) => x[0]).filter((id) => Emo.get(id));
+  const defaults = ['joy', 'calm', 'content', 'tired', 'sad', 'anxiety', 'inspiration', 'anger', 'tenderness', 'thoughtful', 'overwhelmed', 'cozy'];
+  return [...new Set([...top, ...defaults])].slice(0, n);
+}
+
+function moodDayCard(key, days, withQuick) {
+  const info = days[key];
+  const res = dayMood(info);
+  const isToday = key === D.key(new Date());
+  const marks = info?.marks || [];
+  const counts = {};
+  marks.forEach((id) => (counts[id] = (counts[id] || 0) + 1));
+  const top = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  const m = res && MOODS[res.mood];
+  const quick = withQuick ? `<div class="quick-row">${frequentEmotions(12).map((id) => `<button class="quick" data-act="quickMark" data-emo="${id}" data-day="${key}" title="${esc(Emo.get(id).name)}">${Emo.badge(Emo.get(id), 40)}</button>`).join('')}
+      <button class="quick more" data-act="dayEmotion" data-day="${key}">${icon('plus', 18)}</button></div>` : '';
+  return `<div class="card mood-day">
+    <div class="row top">
+      <div class="grow"><div class="hand">${isToday ? 'Настрій дня' : 'Настрій ' + D.dm(D.fromKey(key))}${isToday && res ? ' · поки що' : ''}</div>
+        <div class="serif" style="font-size:19px">${m ? m.sub.charAt(0).toUpperCase() + m.sub.slice(1) : (isToday ? 'Як ти почуваєшся?' : 'Без позначок настрою')}</div></div>
+      <button class="text-btn small" data-act="dayEmotion" data-day="${key}">${marks.length ? 'Змінити' : 'Позначити'}</button>
+    </div>
+    ${res ? `<div class="row top" style="gap:14px;margin-top:10px">
+        <button class="mood-art-wrap" data-act="dayEmotion" data-day="${key}">${moodCardSVG(res.mood, 'm' + key)}</button>
+        <div class="grow stack" style="gap:8px">
+          ${top.slice(0, 5).map(([id, c]) => `<div class="row small" style="gap:8px">${Emo.badge(Emo.get(id), 26)}<span class="grow">${esc(Emo.get(id).name)}</span><b class="muted">×${c}</b></div>`).join('')}
+          ${res.tie ? '<div class="small muted">Порівну різних емоцій — підсумок за середнім настроєм дня.</div>' : ''}
+        </div></div>`
+      : `<p class="small muted" style="margin:8px 0 0">${isToday ? 'Протягом дня торкайся смайликів, які відповідають настрою. Щоденник порахує, якого було найбільше, і покаже ілюстрацію твого дня.' : 'Цього дня настрій не позначали.'}</p>`}
+    ${quick}
+  </div>`;
+}
+
+ACT.quickMark = async (el) => {
+  const key = el.dataset.day;
+  const list = dayEmotions(key);
+  const times = (S.dayTimes[key] || []).slice();
+  list.push(el.dataset.emo);
+  times.push(D.time(new Date()));
+  await setDayEmotions(key, list, times);
+  toast(`${Emo.get(el.dataset.emo)?.name || ''} — позначено ✓`);
+  const y = scrollY;
+  await render();
+  scrollTo(0, y);
+};
+
 function openDayEmotion(key, onDone) {
   const date = D.fromKey(key);
-  const suggested = S.entries.filter((e) => e.date.startsWith(key)).sort((a, b) => a.date.localeCompare(b.date))
-    .flatMap((e) => e.emotions || []).filter((x, i, a) => a.indexOf(x) === i).map(Emo.get).filter(Boolean);
   const cur = dayEmotions(key).slice();
-  const build = () => `<p class="muted small" style="margin-top:0">${D.long(date)} — обери одну або кілька емоцій, які описують цей день.
-      Перша (★) — головна: вона показується в календарі та на графіку, а інші теж рахуються в статистиці.</p>
-      ${cur.length ? `<div class="chips" style="margin-bottom:12px">${cur.map(Emo.get).filter(Boolean).map((x, i) => Emo.chip(x, i === 0)).join('')}</div>` : ''}
-      ${suggested.length ? `<div class="card" style="margin-bottom:12px"><div class="serif" style="margin-bottom:10px">З твоїх записів цього дня</div>${emotionGrid(suggested, cur, true)}</div>` : ''}
-      ${CATS.map((c) => `<div class="card" style="margin-bottom:12px"><div class="serif" style="margin-bottom:10px">${c.title}</div>${emotionGrid(Emo.inCat(c.id), cur, true)}</div>`).join('')}
-      ${cur.length ? '<button class="btn danger full" data-reset="1">Скинути емоції дня</button>' : ''}`;
-  openSheet('Емоції дня', build(), (body, close) => {
+  const times = (S.dayTimes[key] || []).slice();
+  const build = () => {
+    const counts = {};
+    cur.forEach((id) => (counts[id] = (counts[id] || 0) + 1));
+    const grid = (list) => `<div class="emo-grid">${list.map((e) => `<button class="emo-cell ${counts[e.id] ? 'on' : ''}" data-emo="${e.id}">${Emo.badge(e, 50)}
+      ${counts[e.id] ? `<span class="order">${counts[e.id]}</span>` : ''}<span class="name">${esc(e.name)}</span></button>`).join('')}</div>`;
+    const fake = { marks: cur.concat(S.entries.filter((e) => e.date.startsWith(key)).flatMap((e) => e.emotions || [])) };
+    const res = dayMood(fake);
+    return `<p class="muted small" style="margin-top:0">${D.long(date)}. Торкайся емоції щоразу, коли її відчуваєш — одну й ту саму можна позначити кілька разів. Та, якої буде найбільше, визначить ілюстрацію дня.</p>
+      ${res ? `<div class="row" style="gap:12px;margin-bottom:12px"><div style="width:96px;flex:none">${moodCardSVG(res.mood, 'sh' + key)}</div><div class="serif">${MOODS[res.mood].sub}</div></div>` : ''}
+      ${cur.length ? `<div class="small muted">Позначки (торкнись, щоб прибрати):</div><div class="chips" style="margin:6px 0 12px;flex-wrap:wrap">${cur.map((id, i) => {
+        const e = Emo.get(id);
+        return e ? `<button class="chip" style="--c:${e.color}" data-rm="${i}">${Emo.badge(e, 22)}${esc(e.name)}${times[i] ? ` <span class="muted">${times[i]}</span>` : ''} ✕</button>` : '';
+      }).join('')}</div>` : ''}
+      ${CATS.map((c) => `<div class="card" style="margin-bottom:12px"><div class="serif" style="margin-bottom:10px">${c.title}</div>${grid(Emo.inCat(c.id))}</div>`).join('')}
+      ${cur.length ? '<button class="btn danger full" data-reset="1">Прибрати всі позначки дня</button>' : ''}`;
+  };
+  openSheet('Настрій дня', build(), (body, close) => {
     body.addEventListener('click', async (e) => {
-      const b = e.target.closest('[data-emo],[data-reset]');
+      const b = e.target.closest('[data-emo],[data-reset],[data-rm]');
       if (!b) return;
-      if (b.dataset.reset) cur.length = 0;
-      else {
-        const i = cur.indexOf(b.dataset.emo);
-        if (i >= 0) cur.splice(i, 1); else cur.push(b.dataset.emo);
-      }
-      await setDayEmotions(key, cur);
+      if (b.dataset.reset) { cur.length = 0; times.length = 0; }
+      else if (b.dataset.rm !== undefined) { cur.splice(+b.dataset.rm, 1); times.splice(+b.dataset.rm, 1); }
+      else { cur.push(b.dataset.emo); times.push(key === D.key(new Date()) ? D.time(new Date()) : ''); }
+      await setDayEmotions(key, cur, times);
       const top = body.parentElement.scrollTop;
       body.innerHTML = build();
       body.parentElement.scrollTop = top;
@@ -397,27 +452,30 @@ function openEmotionPicker(selected, onChange, title = 'Емоції', onClose) 
 }
 
 function openEmotionEditor(onSaved) {
+  let face = 'content';
   const html = `<div class="stack">
     <div class="center" id="ee-prev"></div>
-    <label class="small muted">Емодзі<input class="text-input" id="ee-emoji" value="🌸" maxlength="8"></label>
     <label class="small muted">Назва<input class="text-input" id="ee-name" placeholder="Наприклад, Мрійливість"></label>
-    <label class="small muted">Група<select class="text-input" id="ee-cat">${CATS.map((c) => `<option value="${c.id}">${c.title}</option>`).join('')}</select></label>
+    <div class="small muted">Обличчя</div>
+    <div class="emo-grid" id="ee-faces" style="grid-template-columns:repeat(6,1fr);gap:8px"></div>
     <label class="small muted">Колір <input type="color" id="ee-color" value="#C9A95B"></label>
+    <label class="small muted">Група<select class="text-input" id="ee-cat">${CATS.map((c) => `<option value="${c.id}">${c.title}</option>`).join('')}</select></label>
     <label class="small muted">Рівень настрою на графіку: <b id="ee-lvl"></b><input type="range" id="ee-score" min="-2" max="2" step="0.1" value="1" style="width:100%"></label>
     <button class="btn solid full" id="ee-save">Зберегти</button></div>`;
   openSheet('Нова емоція', html, (body, close) => {
     const upd = () => {
-      const e = { emoji: $('#ee-emoji').value || '🌸', color: $('#ee-color').value, name: $('#ee-name').value };
-      $('#ee-prev').innerHTML = Emo.badge(e, 72);
+      const color = $('#ee-color').value;
+      $('#ee-prev').innerHTML = Emo.badge({ id: 'prev', face, color, name: '' }, 72);
+      $('#ee-faces').innerHTML = FACE_PRESETS.map((f) => `<button class="emo-cell ${f === face ? 'on' : ''}" data-face="${f}">${Emo.badge({ id: f, face: f, color, name: '' }, 40)}</button>`).join('');
       $('#ee-lvl').textContent = Emo.moodLabel(+$('#ee-score').value);
     };
     body.addEventListener('input', upd);
+    body.addEventListener('click', (ev) => { const f = ev.target.closest('[data-face]'); if (f) { face = f.dataset.face; upd(); } });
     upd();
     $('#ee-save').addEventListener('click', async () => {
       const name = $('#ee-name').value.trim();
       if (!name) { toast('Напиши назву емоції'); return; }
-      const emoji = Array.from($('#ee-emoji').value.trim())[0] || '🌸';
-      S.settings.customEmotions.push({ id: 'c-' + uid().slice(0, 8), emoji, name, cat: $('#ee-cat').value, score: +$('#ee-score').value, color: $('#ee-color').value, custom: true });
+      S.settings.customEmotions.push({ id: 'c-' + uid().slice(0, 8), face, emoji: '', name, cat: $('#ee-cat').value, score: +$('#ee-score').value, color: $('#ee-color').value, custom: true });
       await saveSettings();
       close();
       toast('Емоцію додано');
@@ -442,7 +500,7 @@ ROUTES.entry = async (v, parts) => {
       <div><div class="hand" style="font-size:18px">${cap(WEEKDAYS[d.getDay()])}</div>
         <div class="row" style="align-items:baseline"><h1 style="font-size:30px">${D.dm(d)}</h1><span class="muted small">${d.getFullYear()} · ${D.time(d)}</span></div></div>
       ${(e.emotions || []).length ? `<div class="chips">${e.emotions.map(Emo.get).filter(Boolean).map((x) => Emo.chip(x)).join('')}</div>` : ''}
-      ${dayEmo ? `<a class="row small muted" data-go="/day/${e.date.slice(0, 10)}">${Emo.stack(dayList.map((x) => x.id), 22, 5)} ${dayList.length > 1 ? 'Емоції дня' : 'Емоція дня: ' + esc(dayEmo.name)} ›</a>` : ''}
+      ${dayEmo ? `<a class="row small muted" data-go="/day/${e.date.slice(0, 10)}">${Emo.stack([...new Set(dayList.map((x) => x.id))], 22, 5)} Настрій дня ›</a>` : ''}
       ${e.title ? `<h2 style="font-size:26px">${esc(e.title)}</h2>` : ''}
       ${orn()}
       <div class="rich" id="entry-body" style="min-height:0">${e.html || ''}</div>
@@ -526,7 +584,7 @@ ROUTES.edit = async (v, parts, q) => {
   const t = theme();
   const dayEmoHTML = () => {
     const list = dayEmotions(e.date.slice(0, 10));
-    return list.length ? `${Emo.stack(list, 22, 3)} ${list.length > 1 ? 'Емоції дня' : 'Емоція дня'}` : `☀︎ Емоції дня`;
+    return list.length ? `${Emo.stack([...new Set(list)], 22, 3)} Настрій дня` : `☀︎ Настрій дня`;
   };
 
   v.innerHTML = `
@@ -888,16 +946,9 @@ function monthGrid(month, days, selKey, compact) {
 function dayPanel(key, days) {
   const d = D.fromKey(key);
   const info = days[key];
-  const main = info?.main && Emo.get(info.main);
-  return `<div class="card stack">
-    <div class="row top">
-      <div class="grow"><div class="serif" style="font-size:19px">${D.long(d)}</div>
-        ${info?.score != null ? `<div class="hand">${Emo.moodLabel(info.score)}</div>` : ''}</div>
-      <button data-act="dayEmotion" data-day="${key}" class="center" style="color:var(--accent)">
-        ${main ? `${Emo.badge(main, 40)}<div class="small muted" style="font-size:9px">${info.dayEmotions ? (info.dayEmotions.length > 1 ? `емоції дня (${info.dayEmotions.length})` : 'емоція дня') : 'авто'}</div>` : `<span class="dashed">＋ Емоції дня</span>`}
-      </button>
-    </div>
-    ${info?.all?.length > 1 ? Emo.stack(info.all, 24, 8) : ''}
+  return `${moodDayCard(key, days, key === D.key(new Date()))}
+  <div class="card stack">
+    <div class="serif" style="font-size:19px">${D.long(d)}</div>
     ${info?.entries.length ? info.entries.map((e) => entryCard(e, true)).join('') : '<div class="muted small">Цього дня записів немає.</div>'}
     <button class="btn full" data-go="/edit/new?day=${key}">${icon('plus')} Новий запис на цей день</button>
   </div>`;
@@ -985,12 +1036,12 @@ function lineChart(st) {
   const Y = (s) => T + ih * (1 - (s + 2.3) / 4.6);
   const segs = {};
   st.points.forEach((p) => (segs[p.seg] = segs[p.seg] || []).push(p));
-  const labels = { 2: '😁', 1: '🙂', 0: '😐', '-1': '😕', '-2': '😢' };
+  const labels = { 2: 'elation', 1: 'content', 0: 'thoughtful', '-1': 'disappointed', '-2': 'grief' };
   let svg = `<svg viewBox="0 0 ${W} ${H}"><defs><linearGradient id="mg" gradientUnits="userSpaceOnUse" x1="0" y1="${Y(-2.3)}" x2="0" y2="${Y(2.3)}">
     <stop offset="0" stop-color="#6F86AE"/><stop offset=".5" stop-color="#9A97A8"/><stop offset="1" stop-color="${t.accent}"/></linearGradient></defs>`;
   for (const v of [-2, -1, 0, 1, 2]) {
     svg += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="${t.border}" stroke-opacity=".45" stroke-dasharray="${v === 0 ? '' : '3 4'}"/>`;
-    svg += `<text x="2" y="${Y(v) + 5}" font-size="13">${labels[v]}</text>`;
+    svg += Faces.nested(Emo.get(labels[v]), 2, Y(v) - 9, 18);
   }
   for (const pts of Object.values(segs)) {
     if (pts.length > 1) svg += `<path d="${smoothPath(pts.map((p) => [X(p.i), Y(p.score)]))}" fill="none" stroke="url(#mg)" stroke-width="3" stroke-linecap="round"/>`;
@@ -1047,7 +1098,7 @@ ROUTES.stats = async (v) => {
       const info = days[D.key(d)];
       const e = info?.main && Emo.get(info.main);
       if (!inR) pixels += `<div class="px" style="width:${cell}px;height:${cell}px"></div>`;
-      else if (e) pixels += `<a class="px" data-go="/day/${D.key(d)}" style="width:${cell}px;height:${cell}px;background:${e.color};font-size:${cell * 0.5}px">${cell >= 30 ? e.emoji : ''}</a>`;
+      else if (e) pixels += `<a class="px" data-go="/day/${D.key(d)}" style="width:${cell}px;height:${cell}px;background:${cell >= 30 ? 'transparent' : e.color}">${cell >= 30 ? Emo.badge(e, cell) : ''}</a>`;
       else pixels += `<div class="px none" style="width:${cell}px;height:${cell}px"></div>`;
     }
     pixels += '</div>';
@@ -1057,7 +1108,7 @@ ROUTES.stats = async (v) => {
   const maxC = st.counts[0]?.[1] || 1;
   const list = statState.allEmo ? st.counts : st.counts.slice(0, 8);
   const slices = statState.donutEmo
-    ? st.counts.slice(0, 7).map(([id, c]) => { const e = Emo.get(id); return e && { name: `${e.emoji} ${e.name}`, count: c, color: e.color }; }).filter(Boolean)
+    ? st.counts.slice(0, 7).map(([id, c]) => { const e = Emo.get(id); return e && { name: e.name, count: c, color: e.color }; }).filter(Boolean)
     : CATS.map((c) => ({ name: c.title, count: st.cats[c.id], color: c.color })).filter((s) => s.count > 0);
   const sTotal = slices.reduce((a, s) => a + s.count, 0);
   const wdData = st.weekdays.map((a, i) => ({ i, a })).filter((x) => x.a != null);
@@ -1159,7 +1210,7 @@ ROUTES.stats = async (v) => {
       ${cmp('Днів з емоціями', st.daysWithData, prev.daysWithData)}
       ${st.avg != null && prev.avg != null ? `<div class="row"><span class="grow">Настрій</span><span class="muted small">${Emo.moodLabel(prev.avg)} → ${Emo.moodLabel(st.avg)}</span>
         <b style="color:${st.avg >= prev.avg ? 'var(--accent)' : 'var(--sub)'};min-width:34px;text-align:right">${st.avg > prev.avg + 0.1 ? '↗' : st.avg < prev.avg - 0.1 ? '↘' : '→'}</b></div>` : ''}
-      ${topNow ? `<div class="row"><span class="grow">Найчастіша емоція дня</span>${topPrev ? topPrev.emoji + ' → ' : ''}${Emo.badge(topNow, 26)}</div>` : ''}
+      ${topNow ? `<div class="row"><span class="grow">Найчастіша емоція дня</span>${topPrev ? Emo.badge(topPrev, 22) + ' → ' : ''}${Emo.badge(topNow, 26)}</div>` : ''}
     </div>
   </div>`;
 };
@@ -1492,6 +1543,15 @@ ROUTES.settings = async (v) => {
     </div>
 
     <div class="card stack">
+      <div class="section-title" style="font-size:17px">Маленькі послання</div>
+      <div class="small muted">Іноді при відкритті щоденника зʼявляється цитата, побажання чи запитання до себе. У базі ${allMessages().length} послань, вони не повторюються, поки не покажуться майже всі.</div>
+      <select class="text-input" id="msg-freq">${MSG_FREQ.map(([v, n]) => `<option value="${v}" ${(st.msgFreq || 'sometimes') === v ? 'selected' : ''}>${n}</option>`).join('')}</select>
+      <textarea class="text-input" id="msg-new" rows="2" placeholder="Додати власне послання…"></textarea>
+      <button class="btn full" id="msg-add">${icon('plus')} Додати послання</button>
+      ${(st.customMessages || []).map((m, i) => `<div class="row small"><span class="grow">${esc(m.text)}</span><button class="text-btn" data-delmsg="${i}">${icon('trash', 16)}</button></div>`).join('')}
+    </div>
+
+    <div class="card stack">
       <div class="section-title" style="font-size:17px">Нагадування</div>
       <div class="small muted">Веб-застосунок не може сам надсилати щоденні сповіщення. Найпростіше: відкрий «Нагадування» на iPhone → нове нагадування «Записати день у щоденник» → щодня в потрібний час.</div>
     </div>
@@ -1555,6 +1615,16 @@ ROUTES.settings = async (v) => {
     }
   });
   $('#pin-set', v).addEventListener('click', () => setupPin());
+  $('#msg-freq', v).addEventListener('change', async (e) => { st.msgFreq = e.target.value; await saveSettings(); toast('Збережено'); });
+  $('#msg-add', v).addEventListener('click', async () => {
+    const t = $('#msg-new').value.trim();
+    if (!t) return;
+    st.customMessages = [...(st.customMessages || []), { kind: 'k', text: t }];
+    await saveSettings(); render(); toast('Послання додано ✉︎');
+  });
+  $$('[data-delmsg]', v).forEach((b) => b.addEventListener('click', async () => {
+    st.customMessages.splice(+b.dataset.delmsg, 1); await saveSettings(); render();
+  }));
   $('#pin-del', v)?.addEventListener('click', async () => { if (confirm('Прибрати пароль?')) { st.pinHash = ''; await saveSettings(); render(); } });
 };
 
@@ -1663,7 +1733,7 @@ function pinPad(onDone, subtitle) {
   const el = document.createElement('div');
   el.className = 'lock';
   el.innerHTML = `<div class="hero" style="height:calc(250px + var(--safe-top))">${headerURL ? `<div class="hero-img" style="background-image:url(${headerURL})"></div>` : '<canvas></canvas>'}<div class="fade"></div>
-      <div class="greet" style="text-align:center"><div style="color:var(--accent)">${icon('lock', 22)}</div><div class="today">Мій щоденник</div><div class="hello" id="pin-sub">${subtitle}</div></div></div>
+      <div class="greet" style="text-align:center"><div style="color:var(--accent)">${icon('lock', 22)}</div><div class="today" style="font-style:italic">own journal</div><div class="hello" id="pin-sub">${subtitle}</div></div></div>
     <div class="pin-dots" id="pin-dots"><i></i><i></i><i></i><i></i></div>
     <div class="pinpad">${['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'].map((k) => `<button class="${k === '' || k === '⌫' ? 'ghost' : ''}" data-k="${k}">${k}</button>`).join('')}</div>
     <div style="height:30px"></div>`;

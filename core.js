@@ -1,6 +1,6 @@
 'use strict';
 /* ==========================================================================
-   Мій щоденник — ядро: утиліти, дати, база даних, емоції, теми, фото, копії
+   own journal — ядро: утиліти, дати, база даних, емоції, теми, фото, копії
    Усі дані зберігаються ЛИШЕ на телефоні (IndexedDB). Нічого не надсилається.
    ========================================================================== */
 
@@ -191,7 +191,7 @@ const Emo = {
   inCat(c) { return Emo.all().filter((e) => e.cat === c); },
   badge(e, size = 32) {
     if (!e) return '';
-    return `<span class="emo" style="--c:${e.color};--s:${size}px" title="${esc(e.name)}">${e.emoji}</span>`;
+    return `<span class="emo face" style="--c:${e.color};--s:${size}px" title="${esc(e.name)}">${Faces.svg(e)}</span>`;
   },
   stack(ids, size = 30, max = 5) {
     const list = (ids || []).map(Emo.get).filter(Boolean);
@@ -262,7 +262,8 @@ const TEXT_COLORS = [['Як у темі', ''], ['Тьмяне золото', '#C
 const S = {
   entries: [],          // записи (без фото-даних)
   photoMeta: {},        // id -> {id, entryId, caption}
-  dayMoods: {},         // 'YYYY-MM-DD' -> [emotionId, ...] (перша — головна)
+  dayMoods: {},         // 'YYYY-MM-DD' -> [emotionId, ...] позначки настрою протягом дня
+  dayTimes: {},         // 'YYYY-MM-DD' -> [час кожної позначки]
   highlights: {},       // '2026-11' | '2026' -> {key, url}
   settings: {
     name: '', themeId: 'darkForest', accent: '', card: '', bg: '', decor: true, animate: true,
@@ -275,6 +276,7 @@ async function loadAll() {
   S.entries = entries.sort((a, b) => b.date.localeCompare(a.date));
   S.photoMeta = Object.fromEntries(metas.map((m) => [m.id, m]));
   S.dayMoods = Object.fromEntries(moods.map((m) => [m.key, normDay(m.emotions || m.emotion)]).filter(([, v]) => v.length));
+  S.dayTimes = Object.fromEntries(moods.map((m) => [m.key, m.times || []]));
   for (const row of kv) if (row.key === 'settings') Object.assign(S.settings, row.value);
   const hls = await DB.all('highlights');
   S.highlights = {};
@@ -287,12 +289,15 @@ function normDay(v) {
   return (Array.isArray(v) ? v : [v]).filter(Boolean);
 }
 function dayEmotions(key) { return normDay(S.dayMoods[key]); }
-async function setDayEmotions(key, list) {
-  list = normDay(list).filter((x, i, a) => a.indexOf(x) === i);
+/** Позначки настрою за день (одну емоцію можна позначати кілька разів). */
+async function setDayEmotions(key, list, times) {
+  list = normDay(list);
   if (list.length) {
     S.dayMoods[key] = list;
-    await DB.put('dayMoods', { key, emotions: list, emotion: list[0] });
+    S.dayTimes[key] = times || S.dayTimes[key] || [];
+    await DB.put('dayMoods', { key, emotions: list, emotion: list[0], times: S.dayTimes[key] });
   } else {
+    delete S.dayTimes[key];
     delete S.dayMoods[key];
     await DB.del('dayMoods', key);
   }
@@ -425,10 +430,11 @@ function buildIndex() {
   const list = S.entries.slice().sort((a, b) => a.date.localeCompare(b.date));
   for (const e of list) {
     const k = e.date.slice(0, 10);
-    const d = days[k] || (days[k] = { key: k, date: D.fromKey(k), entries: [], counts: {}, order: [], photos: 0 });
+    const d = days[k] || (days[k] = { key: k, date: D.fromKey(k), entries: [], counts: {}, order: [], photos: 0, marks: [] });
     d.entries.push(e);
     for (const id of e.emotions || []) {
       d.counts[id] = (d.counts[id] || 0) + 1;
+      d.marks.push(id);
       if (!d.order.includes(id)) d.order.push(id);
     }
     d.photos += (e.photos || []).length;
@@ -436,18 +442,20 @@ function buildIndex() {
   for (const [k, v] of Object.entries(S.dayMoods)) {
     const list = normDay(v);
     if (!list.length) continue;
-    const d = days[k] || (days[k] = { key: k, date: D.fromKey(k), entries: [], counts: {}, order: [], photos: 0 });
-    d.dayEmotion = list[0];
+    const d = days[k] || (days[k] = { key: k, date: D.fromKey(k), entries: [], counts: {}, order: [], photos: 0, marks: [] });
     d.dayEmotions = list;
-    // емоції дня, яких немає в записах, теж враховуються
+    // кожна позначка настрою протягом дня рахується
     for (const id of list) {
-      if (!d.order.includes(id)) { d.order.push(id); d.counts[id] = 1; d.extra = (d.extra || []).concat(id); }
+      d.counts[id] = (d.counts[id] || 0) + 1;
+      d.marks.push(id);
+      if (!d.order.includes(id)) d.order.push(id);
     }
   }
   for (const d of Object.values(days)) {
-    d.main = d.dayEmotion || d.order.slice().sort((a, b) => (d.counts[b] - d.counts[a]) || (d.order.indexOf(a) - d.order.indexOf(b)))[0] || null;
-    const head = d.dayEmotions || (d.main ? [d.main] : []);
-    d.all = [...head, ...d.order.filter((x) => !head.includes(x))];
+    // головна емоція — та, яку позначали найчастіше
+    d.main = d.order.slice().sort((a, b) => (d.counts[b] - d.counts[a]) || (d.order.indexOf(a) - d.order.indexOf(b)))[0] || null;
+    d.dayEmotion = d.main;
+    d.all = d.order.slice().sort((a, b) => (d.counts[b] - d.counts[a]) || (d.order.indexOf(a) - d.order.indexOf(b)));
     const scores = [];
     for (const [id, c] of Object.entries(d.counts)) { const em = Emo.get(id); if (em) for (let i = 0; i < c; i++) scores.push(em.score); }
     const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
@@ -501,6 +509,7 @@ function computeStats(days, start, end) {
   st.noData = Math.max(0, all.filter((d) => d <= today).length - scored.length);
   const counts = {}, pairs = {}, mains = {};
   for (const d of infos) {
+    (d.dayEmotions || []).forEach((id) => (counts[id] = (counts[id] || 0) + 1));
     for (const e of d.entries) {
       const ids = [...new Set(e.emotions || [])];
       ids.forEach((id) => (counts[id] = (counts[id] || 0) + 1));
@@ -509,7 +518,6 @@ function computeStats(days, start, end) {
         pairs[k] = (pairs[k] || 0) + 1;
       }
     }
-    for (const id of d.extra || []) counts[id] = (counts[id] || 0) + 1;
   }
   for (const d of scored) if (d.main) mains[d.main] = (mains[d.main] || 0) + 1;
   st.counts = Object.entries(counts).sort((a, b) => b[1] - a[1]);
@@ -579,7 +587,7 @@ async function makeBackup() {
   const json = new TextEncoder().encode(JSON.stringify(manifest));
   const header = 'MYDIARY1' + String(json.length).padStart(12, '0');
   const d = new Date();
-  const name = `Щоденник-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.diary`;
+  const name = `own-journal-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.diary`;
   return new File([header, json, ...blobs], name, { type: 'application/octet-stream' });
 }
 
