@@ -37,7 +37,8 @@ function emoArtKey(id) { return (S.settings.artEmo || {})[id] || ''; }
 
 /* ---------- імпорт набору картинок (один файл) ---------- */
 async function importArtPack(file) {
-  const pack = JSON.parse(await file.text());
+  let pack;
+  try { pack = JSON.parse(await file.text()); } catch { throw new Error('Це не той файл — вибери own-journal-картинки'); }
   if (pack.kind !== 'own-journal-art') throw new Error('Це не набір картинок own journal');
   let n = 0;
   for (const [k, data] of Object.entries(pack.lib || {})) {
@@ -154,7 +155,7 @@ function chooseArt(kind, slot) {
 ACT.artImport = async () => {
   const file = await new Promise((res) => {
     const inp = document.createElement('input');
-    inp.type = 'file'; inp.accept = '.json,application/json,.ojart';
+    inp.type = 'file'; // без обмеження типу: iPhone інколи не дає вибрати .json
     inp.onchange = () => res(inp.files[0] || null);
     inp.click();
   });

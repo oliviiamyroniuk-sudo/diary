@@ -1,6 +1,6 @@
 // Зберігає файли застосунку на телефоні, щоб щоденник працював без інтернету.
 // Твої записи тут НЕ зберігаються — вони лежать у базі даних телефона (IndexedDB).
-const CACHE = 'own-journal-v8';
+const CACHE = 'own-journal-v9';
 const FILES = ['./', 'index.html', 'styles.css', 'core.js', 'scenes.js', 'scenes2.js', 'faces.js', 'messages.js', 'app.js', 'planner.js', 'art.js', 'media.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 
