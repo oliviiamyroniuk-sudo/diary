@@ -365,11 +365,14 @@ ROUTES[''] = async (v) => {
         <button class="card tight row" data-go="/calendar">${icon('calendar')}<span class="serif grow" style="text-align:left">Календар настрою</span>${icon('right')}</button>
       </div>
     </div>
-    <button class="photo-card" style="height:170px" data-go="/month/${mk}">
-      ${hl ? `<img src="${hl.url}" alt="">` : autoPhoto ? `<img data-pid="${autoPhoto}" alt="">` : '<div class="empty">🖼️<br>Фото місяця</div>'}
-      <div class="shade"></div>
-      <div class="label"><div class="t1">фото місяця</div><div class="t2">${cap(MONTHS[now.getMonth()])}</div></div>
-    </button>
+    <div class="grid2">
+      <button class="photo-card" style="height:170px" data-go="/month/${mk}">
+        ${hl ? `<img src="${hl.url}" alt="">` : autoPhoto ? `<img data-pid="${autoPhoto}" alt="">` : '<div class="empty">🖼️<br>Фото місяця</div>'}
+        <div class="shade"></div>
+        <div class="label"><div class="t1">фото місяця</div><div class="t2">${cap(MONTHS[now.getMonth()])}</div></div>
+      </button>
+      ${homeUpcomingHTML()}
+    </div>
     ${memory ? `${sectionTitle('Цього дня колись', `${now.getFullYear() - +memory.date.slice(0, 4)} р. тому`)}${entryCard(memory, true)}` : ''}
     ${recent.length ? `<div class="row">${sectionTitle('Останні спогади')}<div class="grow"></div><button class="text-btn" data-go="/photos">Усі</button></div>
       <div class="strip">${recent.map((p, i) => `<button class="thumb" data-act="viewRecent" data-i="${i}" style="transform:rotate(${i % 2 ? 2 : -2}deg)"><img data-pid="${p.id}" alt=""></button>`).join('')}</div>` : ''}
@@ -383,7 +386,7 @@ ROUTES[''] = async (v) => {
   <div class="bottombar">
     <button class="round" data-go="/calendar" aria-label="Календар">${icon('calendar')}</button>
     <button class="fab" data-go="/edit/new" aria-label="Новий запис">${icon('plus')}</button>
-    <button class="round" data-go="/stats" aria-label="Статистика">${icon('chart')}</button>
+    <button class="round" data-go="/planner" aria-label="Планувальник">${icon('planner')}</button>
   </div>`;
 
   ACT.viewRecent = (el) => openViewer(recent.map((p) => p.id), +el.dataset.i);
@@ -400,6 +403,7 @@ ACT.homeMenu = () => {
     { label: 'Підсумок місяця', icon: 'book', run: () => go('/month/' + D.monthKey(now)) },
     { label: 'Календар', icon: 'calendar', run: () => go('/calendar') },
     { label: 'Статистика настрою', icon: 'chart', run: () => go('/stats') },
+    { label: 'Планувальник справ', icon: 'planner', run: () => go('/planner') },
     { label: 'Теми', icon: 'brush', run: () => go('/themes') },
     { label: 'Налаштування', icon: 'gear', run: () => go('/settings') },
   ]);
@@ -1973,6 +1977,7 @@ async function start() {
   try {
     await DB.open();
     await loadAll();
+    await loadTasks();
   } catch (err) {
     console.error(err);
     $('#view').innerHTML = `<div class="page"><div class="card">Не вдалося відкрити сховище щоденника. Перевір, що Safari не в режимі «Приватний доступ», і перезапусти.<br><small class="muted">${esc(err.message)}</small></div></div>`;
@@ -1986,4 +1991,4 @@ async function start() {
   if (S.entries.length) navigator.storage?.persist?.();
 }
 
-start();
+document.addEventListener('DOMContentLoaded', start);

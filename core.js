@@ -59,6 +59,18 @@ const ICONS = {
   up: '<path d="m18 15-6-6-6 6"/>',
   down: '<path d="m6 9 6 6 6-6"/>',
   divider: '<path d="M3 12h4M17 12h4M12 8l1.5 4L12 16l-1.5-4z"/>',
+  planner: '<rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18M8 15l2.5 2.5L16 13"/>',
+  repeat: '<path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/>',
+  bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5M8 22h8"/>',
+  pen: '<path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.6 7.6"/><circle cx="11" cy="11" r="2"/>',
+  tag: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8z"/><circle cx="7" cy="7" r="1.5"/>',
+  eyeOff: '<path d="M17.9 17.9A10 10 0 0 1 12 20c-7 0-10-8-10-8a18 18 0 0 1 5.1-5.9M9.9 4.2A9 9 0 0 1 12 4c7 0 10 8 10 8a18 18 0 0 1-2.2 3.2M1 1l22 22"/><path d="M14.1 14.1A3 3 0 1 1 9.9 9.9"/>',
+  play: '<path fill="currentColor" d="M7 4v16l13-8z"/>',
+  pause: '<path fill="currentColor" d="M6 4h4v16H6zM14 4h4v16h-4z"/>',
+  stop: '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>',
+  house: '<path d="M3 11 12 3l9 8M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
 };
 function icon(name, size) {
   const s = size ? ` style="width:${size}px;height:${size}px"` : '';
@@ -111,15 +123,13 @@ const DB = {
   db: null,
   open() {
     return new Promise((resolve, reject) => {
-      const r = indexedDB.open('my-diary', 1);
+      const r = indexedDB.open('my-diary', 2);
       r.onupgradeneeded = () => {
+        // нові сховища додаються, старі дані не чіпаються
         const db = r.result;
-        db.createObjectStore('entries', { keyPath: 'id' });
-        db.createObjectStore('photoMeta', { keyPath: 'id' });
-        db.createObjectStore('photoData', { keyPath: 'id' });
-        db.createObjectStore('dayMoods', { keyPath: 'key' });
-        db.createObjectStore('highlights', { keyPath: 'key' });
-        db.createObjectStore('kv', { keyPath: 'key' });
+        for (const [name, key] of [['entries', 'id'], ['photoMeta', 'id'], ['photoData', 'id'], ['dayMoods', 'key'], ['highlights', 'key'], ['kv', 'key'], ['tasks', 'id'], ['voices', 'id']]) {
+          if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: key });
+        }
       };
       r.onsuccess = () => { DB.db = r.result; resolve(); };
       r.onerror = () => reject(r.error);

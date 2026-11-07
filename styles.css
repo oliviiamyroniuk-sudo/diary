@@ -359,3 +359,43 @@ button > svg, a > svg, label > svg, .row > svg, .link-row svg, .tile-stat > svg 
 .btn.solid { background: var(--btn); color: var(--on-btn); }
 #bg .bg-scene { position: absolute; inset: 0; width: 100%; height: 100%; }
 #bg .bg-fade.strong { background: linear-gradient(180deg, color-mix(in srgb, var(--bg-top) 62%, transparent) 0%, color-mix(in srgb, var(--bg-top) 78%, transparent) 40%, color-mix(in srgb, var(--bg-bottom) 88%, transparent) 100%); }
+
+/* ---------- Планувальник ---------- */
+.psheet { border-radius: var(--radius); padding: 14px 10px; box-shadow: 0 6px 20px rgba(0,0,0,.25); background: var(--card-a); border: var(--card-border) solid color-mix(in srgb, var(--border) 75%, transparent); }
+.phead { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.ptitle { font-family: var(--serif); font-size: 24px; font-weight: 700; text-align: center; }
+.pdoodle { font-size: 22px; }
+.pgrid { display: grid; grid-template-columns: repeat(7, 1fr); border-top: 1px solid var(--pline); border-left: 1px solid var(--pline); }
+.pwd { font-size: 11px; font-weight: 700; text-align: center; padding: 4px 0; color: var(--sub); border-right: 1px solid var(--pline); border-bottom: 1px solid var(--pline); }
+.pcell { min-height: 74px; padding: 3px 2px; border-right: 1px solid var(--pline); border-bottom: 1px solid var(--pline); display: flex; flex-direction: column; gap: 2px; align-items: stretch; text-align: left; overflow: hidden; }
+.pcell.empty { background: color-mix(in srgb, var(--sub) 6%, transparent); }
+.pnum { font-size: 11px; width: 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center; background: color-mix(in srgb, var(--sub) 14%, transparent); position: relative; }
+.pcell.today .pnum { background: var(--accent); color: var(--on-accent); font-weight: 700; }
+.pcell.sel { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.pdot { position: absolute; right: -3px; top: -2px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.tpill { display: inline-block; max-width: 100%; font-size: 9.5px; line-height: 1.25; padding: 2px 5px; border-radius: 999px; background: color-mix(in srgb, var(--tc) 75%, white 10%); color: #2b2420; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+.trow .tpill, .stack .tpill { font-size: 12px; padding: 3px 9px; }
+.tpill.done { opacity: .5; text-decoration: line-through; }
+.pmore { font-size: 9px; color: var(--sub); padding-left: 3px; }
+.trow { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-bottom: 1px dashed color-mix(in srgb, var(--border) 60%, transparent); }
+.trow:last-of-type { border-bottom: 0; }
+.tcheck { width: 26px; height: 26px; border-radius: 50%; flex: none; border: 2px solid var(--tc); display: grid; place-items: center; color: #fff; margin-top: 2px; }
+.trow.done .tcheck { background: var(--tc); }
+.trow.done .ttitle { text-decoration: line-through; opacity: .55; }
+.tbody { text-align: left; color: var(--text); }
+.ttitle { font-size: 15px; font-weight: 500; }
+.planner { --pline: color-mix(in srgb, var(--border) 70%, transparent); }
+/* паперовий стиль, як у паперовому планері */
+.planner-paper .psheet { background: #FBF8F2; color: #4A4440; border-color: #E6DED0;
+  background-image: radial-gradient(#D9D1C2 1px, transparent 1.2px); background-size: 16px 16px; }
+.planner-paper { --pline: #DDD5C6; }
+.planner-paper .psheet .ptitle { color: #4A4440; }
+.planner-paper .psheet .pwd { color: #8A7F72; }
+.planner-paper .psheet .pnum { background: #EFE8DC; color: #6A6058; }
+.planner-paper .psheet .pcell.today .pnum { background: #E89A6A; color: #fff; }
+.planner-paper .psheet .pcell.sel { background: rgba(232,154,106,.14); }
+.planner-paper .psheet .icon-btn { background: #EFE8DC; color: #6A6058; border-color: #E0D6C6; }
+.planner-paper .psheet .text-btn { color: #C47A4A; }
+.planner-minimal .psheet { background: transparent; box-shadow: none; border: 0; }
+.planner-minimal .pcell { min-height: 60px; }
+.grid2 .photo-card .label .t2 { font-size: 21px; }
