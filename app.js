@@ -373,6 +373,7 @@ ROUTES[''] = async (v) => {
       </button>
       ${homeUpcomingHTML()}
     </div>
+    ${S.settings.showWorld !== false ? homeWorldHTML() : ''}
     ${memory ? `${sectionTitle('Цього дня колись', `${now.getFullYear() - +memory.date.slice(0, 4)} р. тому`)}${entryCard(memory, true)}` : ''}
     ${recent.length ? `<div class="row">${sectionTitle('Останні спогади')}<div class="grow"></div><button class="text-btn" data-go="/photos">Усі</button></div>
       <div class="strip">${recent.map((p, i) => `<button class="thumb" data-act="viewRecent" data-i="${i}" style="transform:rotate(${i % 2 ? 2 : -2}deg)"><img data-pid="${p.id}" alt=""></button>`).join('')}</div>` : ''}
@@ -391,7 +392,12 @@ ROUTES[''] = async (v) => {
 
   ACT.viewRecent = (el) => openViewer(recent.map((p) => p.id), +el.dataset.i);
   const canvas = $('#hero-canvas', v);
-  if (canvas) View.stop = paintScene(canvas, t, S.settings.animate);
+  const stops = [];
+  if (canvas) stops.push(paintScene(canvas, t, S.settings.animate));
+  const wc = $('#world-home', v);
+  if (wc) { stops.push(animateWorld(wc)); setTimeout(() => snapshotWorld(wc), 1500); }
+  View.stop = () => stops.forEach((f) => f());
+  checkNewItems();
 };
 
 ACT.homeMenu = () => {
@@ -404,6 +410,7 @@ ACT.homeMenu = () => {
     { label: 'Календар', icon: 'calendar', run: () => go('/calendar') },
     { label: 'Статистика настрою', icon: 'chart', run: () => go('/stats') },
     { label: 'Планувальник справ', icon: 'planner', run: () => go('/planner') },
+    { label: 'Мій куточок', icon: 'house', run: () => go('/world') },
     { label: 'Теми', icon: 'brush', run: () => go('/themes') },
     { label: 'Налаштування', icon: 'gear', run: () => go('/settings') },
   ]);
@@ -1591,6 +1598,7 @@ ROUTES.settings = async (v) => {
       <button class="link-row" data-go="/style" style="padding:12px 0">${icon('sparkle')}<span class="grow">Мій стиль: кольори, фон, шапка</span>${icon('right')}</button>
       ${sw('set-decor', st.decor, 'Декоративні дрібнички')}
       ${sw('set-anim', st.animate, 'Анімація шапки (світлячки, сніг…)')}
+      ${sw('set-world', st.showWorld !== false, 'Мій куточок на головній')}
       ${sw('set-serif', st.serif, 'Текст записів шрифтом із засічками')}
       <div class="form-row"><label>Розмір тексту: <b id="sz-lbl">${st.size}</b></label><input type="range" id="set-size" min="14" max="24" step="1" value="${st.size}" style="width:45%"></div>
     </div>
@@ -1642,7 +1650,7 @@ ROUTES.settings = async (v) => {
 
   $('#set-name', v).addEventListener('change', async (e) => { st.name = e.target.value.trim(); await saveSettings(); toast('Збережено'); });
   const toggle = (id, key) => $('#' + id, v).addEventListener('change', async (e) => { st[key] = e.target.checked; await saveSettings(); applyTheme(); });
-  toggle('set-decor', 'decor'); toggle('set-anim', 'animate'); toggle('set-serif', 'serif');
+  toggle('set-decor', 'decor'); toggle('set-anim', 'animate'); toggle('set-serif', 'serif'); toggle('set-world', 'showWorld');
   $('#set-size', v).addEventListener('input', async (e) => { st.size = +e.target.value; $('#sz-lbl').textContent = st.size; applyTheme(); await saveSettings(); });
 
   $('#bk-make', v).addEventListener('click', async () => {
@@ -1978,6 +1986,7 @@ async function start() {
     await DB.open();
     await loadAll();
     await loadTasks();
+    registerVisit();
   } catch (err) {
     console.error(err);
     $('#view').innerHTML = `<div class="page"><div class="card">Не вдалося відкрити сховище щоденника. Перевір, що Safari не в режимі «Приватний доступ», і перезапусти.<br><small class="muted">${esc(err.message)}</small></div></div>`;
