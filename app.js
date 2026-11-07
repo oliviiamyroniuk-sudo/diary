@@ -11,47 +11,93 @@ let bgURL = '';
 
 /* ---------- Тема ---------- */
 function theme() {
-  const base = THEMES.find((t) => t.id === S.settings.themeId) || THEMES[0];
+  const st = S.settings;
+  const base = THEMES.find((t) => t.id === st.themeId) || THEMES[0];
   const t = { ...base };
-  if (S.settings.accent) t.accent = S.settings.accent;
-  if (S.settings.card) t.card = S.settings.card;
-  if (S.settings.bg) { t.bgTop = S.settings.bg; t.bgBottom = S.settings.bg; }
+  if (st.accent) t.accent = st.accent;
+  if (st.card) t.card = st.card;
+  if (st.bg) { t.bgTop = st.bg; t.bgBottom = st.bg; }
+  if (st.textColor) t.text = st.textColor;
+  t.btn = st.btnColor || t.accent;
   return t;
 }
 
 function hexToRgba(hex, a) {
-  const h = hex.replace('#', '');
+  const h = String(hex || '#888').replace('#', '');
   const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h.slice(0, 6), 16);
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 }
 
+function isLight(hex) {
+  const h = String(hex || '#888').replace('#', '');
+  const n = parseInt(h.slice(0, 6), 16);
+  return (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) > 150;
+}
+
+const imgURLs = {};
+function blobURL(key, blob) {
+  if (imgURLs[key]?.blob === blob) return imgURLs[key].url;
+  if (imgURLs[key]) URL.revokeObjectURL(imgURLs[key].url);
+  if (!blob) { delete imgURLs[key]; return ''; }
+  imgURLs[key] = { blob, url: URL.createObjectURL(blob) };
+  return imgURLs[key].url;
+}
+
+const SECTIONS = [['home', 'Головна'], ['entry', 'Записи'], ['planner', 'Планувальник'], ['stats', 'Календар і статистика']];
+function sectionOf(route) {
+  if (route === '') return 'home';
+  if (['entry', 'edit', 'day'].includes(route)) return 'entry';
+  if (route === 'planner') return 'planner';
+  if (['stats', 'calendar', 'month', 'year'].includes(route)) return 'stats';
+  return 'other';
+}
+
 function applyTheme() {
   const t = theme();
+  const set = S.settings;
   const st = document.documentElement.style;
   st.setProperty('--bg-top', t.bgTop);
   st.setProperty('--bg-bottom', t.bgBottom);
   st.setProperty('--card', t.card);
-  st.setProperty('--card-a', hexToRgba(t.card, t.id === 'minimalist' ? 1 : 0.92));
+  const op = set.cardOpacity ?? (t.id === 'minimalist' ? 1 : 0.92);
+  st.setProperty('--card-a', hexToRgba(t.card, op));
   st.setProperty('--border', t.border);
   st.setProperty('--accent', t.accent);
+  st.setProperty('--btn', t.btn);
+  st.setProperty('--on-btn', isLight(t.btn) ? '#1c1714' : '#ffffff');
   st.setProperty('--text', t.text);
   st.setProperty('--sub', t.subc);
-  st.setProperty('--on-accent', t.dark ? '#141414' : '#ffffff');
-  st.setProperty('--body-font', S.settings.serif ? 'var(--serif)' : 'var(--sans)');
-  st.setProperty('--body-size', (S.settings.size || 17) + 'px');
+  st.setProperty('--on-accent', isLight(t.accent) ? '#141414' : '#ffffff');
+  st.setProperty('--radius', (set.radius ?? 22) + 'px');
+  st.setProperty('--card-border', set.cardBorder === false ? '0' : '1px');
+  st.setProperty('--serif', fontStack(set.fontHead || 'newyork', 'newyork'));
+  st.setProperty('--hand', fontStack(set.fontHead || 'newyork', 'newyork'));
+  st.setProperty('--body-font', fontStack(set.fontBody || (set.serif ? 'newyork' : 'system'), 'system'));
+  st.setProperty('--body-size', (set.size || 17) + 'px');
   document.documentElement.style.colorScheme = t.dark ? 'dark' : 'light';
   const meta = $('meta[name="theme-color"]');
   if (meta) meta.content = t.bgTop;
+  headerURL = blobURL('header', set.headerImg);
+  bgURL = blobURL('bg', set.bgImg);
+  applyCustomIcon();
+  paintBackground();
+}
 
-  if (headerURL) URL.revokeObjectURL(headerURL);
-  headerURL = S.settings.headerImg ? URL.createObjectURL(S.settings.headerImg) : '';
-  if (bgURL) URL.revokeObjectURL(bgURL);
-  bgURL = S.settings.bgImg ? URL.createObjectURL(S.settings.bgImg) : '';
-
+/** Фон сторінки: власна картинка розділу / загальна картинка / ілюстрація теми. */
+function paintBackground() {
+  const t = theme();
+  const set = S.settings;
+  const section = sectionOf(parseHash().parts[0] || '');
+  const secBlob = set.sectionBg?.[section];
+  const url = secBlob ? blobURL('sec-' + section, secBlob) : bgURL;
+  const key = [t.id, t.bgTop, url, set.decor, set.sceneBg !== false].join('|');
   const bg = $('#bg');
+  if (bg.dataset.key === key) return;
+  bg.dataset.key = key;
   let html = '';
-  if (bgURL) html += `<div class="bg-img" style="background-image:url(${bgURL})"></div><div class="bg-fade"></div>`;
-  if (S.settings.decor && t.decor.length) {
+  if (url) html += `<div class="bg-img" style="background-image:url(${url})"></div><div class="bg-fade"></div>`;
+  else if (set.sceneBg !== false && t.scene !== 'minimal') html += '<canvas class="bg-scene"></canvas><div class="bg-fade strong"></div>';
+  if (set.decor && t.decor.length) {
     const r = rng(11);
     for (let i = 0; i < 16; i++) {
       html += `<span class="decor" style="left:${(r() * 100).toFixed(1)}%;top:${(r() * 100).toFixed(1)}%;font-size:${Math.round(10 + r() * 12)}px;opacity:${(0.05 + r() * 0.08).toFixed(2)};transform:rotate(${Math.round(-40 + r() * 80)}deg)">${t.decor[i % t.decor.length]}</span>`;
@@ -59,6 +105,30 @@ function applyTheme() {
   }
   html += '<div class="grain"></div>';
   bg.innerHTML = html;
+  const cv = $('.bg-scene', bg);
+  if (cv) requestAnimationFrame(() => paintScene(cv, t, false));
+}
+
+/** Збереження попереднього оформлення, щоб до нього можна було повернутися. */
+const LOOK_KEYS = ['themeId', 'accent', 'card', 'bg', 'btnColor', 'textColor', 'fontHead', 'fontBody', 'size', 'cardOpacity', 'radius', 'cardBorder', 'headerImg', 'bgImg', 'sectionBg', 'sceneBg'];
+function snapshotLook() { const o = {}; LOOK_KEYS.forEach((k) => (o[k] = S.settings[k])); return o; }
+function pushLookHistory() {
+  const h = S.settings.lookHistory || [];
+  h.push(snapshotLook());
+  S.settings.lookHistory = h.slice(-10);
+}
+
+let iconApplied = null;
+function applyCustomIcon() {
+  const blob = S.settings.customIcon;
+  if (iconApplied === blob) return;
+  iconApplied = blob;
+  const link = $('link[rel="apple-touch-icon"]');
+  if (!link) return;
+  if (!blob) { link.href = 'apple-touch-icon.png'; return; }
+  const fr = new FileReader();
+  fr.onload = () => { link.href = fr.result; };
+  fr.readAsDataURL(blob);
 }
 
 /* ---------- Навігація ---------- */
@@ -86,6 +156,7 @@ async function render() {
   const v = $('#view');
   v.innerHTML = '';
   const fn = ROUTES[name] || ROUTES[''];
+  paintBackground();
   await fn(v, parts, q);
   hydrate(v);
   window.scrollTo(0, name === '' ? scrollMem.home || 0 : 0);
@@ -1629,17 +1700,18 @@ ROUTES.settings = async (v) => {
 };
 
 /* ---------- Теми ---------- */
-function themePreview(t, h, selected) {
+function themePreview(t, h, selected, imgURL) {
+  const btn = t.btn || t.accent;
   return `<div class="theme-prev ${selected ? 'sel' : ''}" style="background:linear-gradient(${t.bgTop},${t.bgBottom})">
-    <canvas data-theme="${t.id}" style="height:${h}px"></canvas>
+    ${imgURL ? `<div style="height:${h}px;background:url(${imgURL}) center/cover"></div>` : `<canvas data-theme="${t.id}" style="height:${h}px"></canvas>`}
     <div class="mock">${[0, 1].map((i) => `<div class="mc" style="background:${t.card}">
       <div style="display:flex;gap:5px;align-items:center"><i style="width:18px;height:9px;background:${t.text};opacity:.7"></i><i style="width:26px;background:${t.subc};opacity:.5"></i>
       <span style="flex:1"></span><i style="width:10px;height:10px;border-radius:50%;background:${CATS[i].color}"></i></div>
       <i style="background:${t.text};opacity:.25"></i><i style="width:60%;background:${t.text};opacity:.18"></i>
       ${i ? `<div style="display:flex;gap:3px">${[0, 1, 2, 3].map(() => `<i style="flex:1;height:14px;background:${t.border};border-radius:3px"></i>`).join('')}</div>` : ''}</div>`).join('')}
       <div style="display:flex;justify-content:center;gap:14px;align-items:center"><i style="width:11px;height:11px;border-radius:50%;background:${t.card}"></i>
-      <i style="width:18px;height:18px;border-radius:50%;background:${t.accent}"></i><i style="width:11px;height:11px;border-radius:50%;background:${t.card}"></i></div></div>
-    ${selected ? `<span class="check" style="background:${t.accent};color:${t.dark ? '#111' : '#fff'}">✓</span>` : ''}</div>`;
+      <i style="width:18px;height:18px;border-radius:50%;background:${btn}"></i><i style="width:11px;height:11px;border-radius:50%;background:${t.card}"></i></div></div>
+    ${selected ? `<span class="check" style="background:${t.accent};color:${isLight(t.accent) ? '#111' : '#fff'}">✓</span>` : ''}</div>`;
 }
 
 function paintPreviews(root) {
@@ -1649,64 +1721,161 @@ function paintPreviews(root) {
   }
 }
 
+let themeCat = 'all';
 ROUTES.themes = async (v) => {
+  const st = S.settings;
+  const mine = st.savedThemes || [];
+  const list = themeCat === 'all' ? THEMES : THEMES.filter((t) => t.cat === themeCat);
   const cols = [[], []];
-  THEMES.forEach((t, i) => cols[i % 2].push([t, (Math.floor(i / 2) + i) % 2 === 0 ? 130 : 90]));
-  v.innerHTML = `${topbar('Теми')}
+  let tiles = [];
+  if (themeCat === 'mine') {
+    tiles = mine.map((m, i) => {
+      const base = THEMES.find((x) => x.id === m.themeId) || THEMES[0];
+      const t = { ...base, accent: m.accent || base.accent, card: m.card || base.card, bgTop: m.bg || base.bgTop, bgBottom: m.bg || base.bgBottom, btn: m.btnColor || m.accent || base.accent };
+      return `<button class="theme-tile" data-act="applyMine" data-i="${i}">${themePreview(t, i % 2 ? 90 : 130, false, m.headerImg ? blobURL('mine-' + i, m.headerImg) : '')}
+        <div class="row"><div class="grow"><div class="serif" style="font-size:15px;margin-top:8px">${esc(m.name)}</div><div class="small muted">на основі «${esc(base.name)}»</div></div>
+        <span class="text-btn" data-act="delMine" data-i="${i}">${icon('trash', 16)}</span></div></button>`;
+    });
+  } else {
+    tiles = list.map((t, i) => `<button class="theme-tile" data-act="pickTheme" data-id="${t.id}">
+      ${themePreview(t, (Math.floor(i / 2) + i) % 2 === 0 ? 130 : 90, st.themeId === t.id)}<div class="serif" style="font-size:15px;margin-top:8px">${t.name}</div><div class="small muted">${t.sub}</div></button>`);
+  }
+  tiles.forEach((h, i) => cols[i % 2].push(h));
+  const canUndo = (st.lookHistory || []).length > 0;
+  v.innerHTML = `${topbar('Теми', canUndo ? `<button class="icon-btn" data-act="undoLook" title="Повернути попереднє">↩︎</button>` : '')}
   <div class="page stack">
-    <div class="small muted">Тема змінює фон, картки, кнопки, ілюстрацію шапки, декор, календар і графіки. Підлаштувати кольори й поставити свої картинки можна в «Мій стиль».</div>
-    <div class="masonry">${cols.map((col) => `<div class="col">${col.map(([t, h]) => `<button class="theme-tile" data-act="pickTheme" data-id="${t.id}">
-      ${themePreview(t, h, S.settings.themeId === t.id)}<div class="serif" style="font-size:15px;margin-top:8px">${t.name}</div><div class="small muted">${t.sub}</div></button>`).join('')}</div>`).join('')}</div>
-    <button class="btn full" data-go="/style">${icon('sparkle')} Створити власну комбінацію</button>
+    <div class="periods">${THEME_CATS.map(([id, n]) => `<button class="pill ${themeCat === id ? 'on' : ''}" data-act="themeCat" data-c="${id}">${n}${id === 'mine' && mine.length ? ' · ' + mine.length : ''}</button>`).join('')}</div>
+    ${canUndo ? `<button class="btn full" data-act="undoLook">↩︎ Повернути попереднє оформлення</button>` : ''}
+    ${themeCat === 'mine' && !mine.length ? '<div class="card small muted">Тут зʼявляться твої власні теми. Налаштуй кольори, шрифти й картинки в «Мій стиль» і натисни «Зберегти як мою тему».</div>' : ''}
+    <div class="masonry">${cols.map((c) => `<div class="col">${c.join('')}</div>`).join('')}</div>
+    <button class="btn full" data-go="/style">${icon('sparkle')} Мій стиль: кольори, шрифти, картинки</button>
   </div>`;
   requestAnimationFrame(() => paintPreviews(v));
 };
+ACT.themeCat = (el) => { themeCat = el.dataset.c; render(); };
 ACT.pickTheme = async (el) => {
-  Object.assign(S.settings, { themeId: el.dataset.id, accent: '', card: '', bg: '' });
+  if (S.settings.themeId === el.dataset.id && !S.settings.accent && !S.settings.card && !S.settings.bg) return;
+  pushLookHistory();
+  Object.assign(S.settings, { themeId: el.dataset.id, accent: '', card: '', bg: '', btnColor: '', textColor: '' });
   await saveSettings();
   applyTheme();
   const y = scrollY;
   await render();
   scrollTo(0, y);
-  toast('Тему змінено ✨');
+  toast('Тему змінено ✨ (можна повернути ↩︎)');
+};
+ACT.undoLook = async () => {
+  const h = S.settings.lookHistory || [];
+  const prev = h.pop();
+  if (!prev) return;
+  Object.assign(S.settings, prev);
+  S.settings.lookHistory = h;
+  await saveSettings();
+  applyTheme();
+  await render();
+  toast('Повернуто попереднє оформлення');
+};
+ACT.applyMine = async (el, ev) => {
+  if (ev.target.closest('[data-act="delMine"]')) return;
+  const m = (S.settings.savedThemes || [])[+el.dataset.i];
+  if (!m) return;
+  pushLookHistory();
+  LOOK_KEYS.forEach((k) => { if (k in m) S.settings[k] = m[k]; });
+  await saveSettings();
+  applyTheme();
+  await render();
+  toast(`Тема «${m.name}» ✨`);
+};
+ACT.delMine = async (el) => {
+  if (!confirm('Видалити цю власну тему?')) return;
+  S.settings.savedThemes.splice(+el.dataset.i, 1);
+  await saveSettings();
+  render();
 };
 
 ROUTES.style = async (v) => {
   const t = theme();
   const st = S.settings;
+  const fontSel = (id, cur) => `<select class="text-input" id="${id}">${FONTS.map(([fid, n, stack]) => `<option value="${fid}" ${cur === fid ? 'selected' : ''} style="font-family:${stack.replace(/"/g, "'")}">${n}</option>`).join('')}</select>`;
+  const colorRow = (id, label, val) => `<div class="form-row"><label>${label}</label><input type="color" id="${id}" value="${val}"></div>`;
+  const imgRow = (id, label, has) => `<div class="row" style="gap:8px"><label class="btn grow">${icon('image')} ${label}${has ? ' ✓' : ''}<input type="file" accept="image/*" data-img="${id}" hidden></label>
+    ${has ? `<button class="btn danger" data-imgdel="${id}" aria-label="Прибрати">${icon('x', 16)}</button>` : ''}</div>`;
   v.innerHTML = `${topbar('Мій стиль')}
   <div class="page stack">
-    <div style="width:200px;margin:0 auto">${themePreview(t, 110, false)}</div>
+    <div style="width:200px;margin:0 auto">${themePreview(t, 110, false, headerURL)}</div>
+    <button class="btn solid full" id="save-mine">${icon('star')} Зберегти як мою тему</button>
+
     <div class="card">
-      <button class="link-row" data-go="/themes" style="padding:10px 0"><span class="grow">Основа</span><span class="muted">${esc(t.name)}</span>${icon('right')}</button>
-      <div class="form-row"><label>Акцент (кнопки, лінії)</label><input type="color" id="c-accent" value="${t.accent}"></div>
-      <div class="form-row"><label>Картки записів</label><input type="color" id="c-card" value="${t.card}"></div>
-      <div class="form-row"><label>Фон</label><input type="color" id="c-bg" value="${t.bgTop}"></div>
+      <div class="section-title" style="font-size:17px">Основа</div>
+      <button class="link-row" data-go="/themes" style="padding:10px 0"><span class="grow">Тема</span><span class="muted">${esc(t.name)}</span>${icon('right')}</button>
+      <div class="form-row"><label>Ілюстрація теми на весь фон</label><span class="switch"><input type="checkbox" id="scene-bg" ${st.sceneBg !== false ? 'checked' : ''}><span></span></span></div>
     </div>
+
+    <div class="card">
+      <div class="section-title" style="font-size:17px">Шрифти</div>
+      <div class="small muted" style="margin:6px 0">Заголовки</div>${fontSel('f-head', st.fontHead || 'newyork')}
+      <div class="small muted" style="margin:10px 0 6px">Текст записів</div>${fontSel('f-body', st.fontBody || (st.serif ? 'newyork' : 'system'))}
+      <div class="form-row"><label>Розмір тексту: <b id="sz2">${st.size || 17}</b></label><input type="range" id="f-size" min="14" max="24" step="1" value="${st.size || 17}" style="width:45%"></div>
+      <div class="card tight" style="margin-top:8px"><div style="font-family:var(--serif);font-size:20px;font-weight:600">Заголовок запису</div><div style="font-family:var(--body-font);font-size:var(--body-size)">Так виглядатиме звичайний текст у щоденнику.</div></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title" style="font-size:17px">Кольори</div>
+      ${colorRow('c-accent', 'Акцент (лінії, позначки)', t.accent)}
+      ${colorRow('c-btn', 'Кнопки', t.btn)}
+      ${colorRow('c-card', 'Блоки й картки', t.card)}
+      ${colorRow('c-text', 'Текст', t.text)}
+      ${colorRow('c-bg', 'Фон', t.bgTop)}
+    </div>
+
+    <div class="card">
+      <div class="section-title" style="font-size:17px">Вигляд блоків</div>
+      <div class="form-row"><label>Прозорість карток</label><input type="range" id="b-op" min="0.45" max="1" step="0.05" value="${st.cardOpacity ?? 0.92}" style="width:45%"></div>
+      <div class="form-row"><label>Заокруглення кутів</label><input type="range" id="b-rad" min="6" max="32" step="1" value="${st.radius ?? 22}" style="width:45%"></div>
+      <div class="form-row"><label>Рамка навколо блоків</label><span class="switch"><input type="checkbox" id="b-border" ${st.cardBorder !== false ? 'checked' : ''}><span></span></span></div>
+    </div>
+
     <div class="card stack">
-      <div class="section-title" style="font-size:17px">Картинки</div>
-      <div class="small muted">Можна поставити будь-яку картинку з телефону — наприклад, збережену з Pinterest атмосферну ілюстрацію лісу чи бібліотеки.</div>
-      <label class="btn full">${icon('image')} ${st.headerImg ? 'Змінити картинку шапки' : 'Власна картинка шапки'}<input type="file" accept="image/*" id="i-head" hidden></label>
-      ${st.headerImg ? '<button class="btn danger full" id="i-head-del">Повернути ілюстрацію теми</button>' : ''}
-      <label class="btn full">${icon('photos')} ${st.bgImg ? 'Змінити фон' : 'Власний фон'}<input type="file" accept="image/*" id="i-bg" hidden></label>
-      ${st.bgImg ? '<button class="btn danger full" id="i-bg-del">Прибрати фон</button>' : ''}
+      <div class="section-title" style="font-size:17px">Власні картинки</div>
+      <div class="small muted">Будь-які фото чи ілюстрації з галереї телефону. Для кожного розділу можна поставити свою.</div>
+      ${imgRow('headerImg', 'Картинка головного екрана', !!st.headerImg)}
+      ${imgRow('bgImg', 'Фон щоденника (загальний)', !!st.bgImg)}
+      ${SECTIONS.map(([k, n]) => imgRow('sec:' + k, 'Фон: ' + n, !!st.sectionBg?.[k])).join('')}
+      ${imgRow('coverImg', 'Обкладинка (екран входу)', !!st.coverImg)}
     </div>
-    ${st.accent || st.card || st.bg || st.headerImg || st.bgImg ? '<button class="btn danger full" id="style-reset">Скинути мій стиль</button>' : ''}
+    ${(st.lookHistory || []).length ? '<button class="btn full" data-act="undoLook">↩︎ Повернути попереднє оформлення</button>' : ''}
   </div>`;
   requestAnimationFrame(() => paintPreviews(v));
-  const color = (id, key) => $('#' + id, v).addEventListener('change', async (e) => { st[key] = e.target.value; await saveSettings(); applyTheme(); render(); });
-  color('c-accent', 'accent'); color('c-card', 'card'); color('c-bg', 'bg');
-  const img = (id, key, max) => $('#' + id, v).addEventListener('change', async (e) => {
+  const save = async (fn, rerender = true) => { pushLookHistory(); fn(); await saveSettings(); applyTheme(); if (rerender) { const y = scrollY; await render(); scrollTo(0, y); } };
+  const color = (id, key) => $('#' + id, v).addEventListener('change', (e) => save(() => { st[key] = e.target.value; }));
+  color('c-accent', 'accent'); color('c-btn', 'btnColor'); color('c-card', 'card'); color('c-bg', 'bg'); color('c-text', 'textColor');
+  $('#f-head', v).addEventListener('change', (e) => save(() => { st.fontHead = e.target.value; }));
+  $('#f-body', v).addEventListener('change', (e) => save(() => { st.fontBody = e.target.value; }));
+  $('#f-size', v).addEventListener('input', (e) => { st.size = +e.target.value; $('#sz2').textContent = st.size; applyTheme(); saveSettings(); });
+  $('#b-op', v).addEventListener('input', (e) => { st.cardOpacity = +e.target.value; applyTheme(); saveSettings(); });
+  $('#b-rad', v).addEventListener('input', (e) => { st.radius = +e.target.value; applyTheme(); saveSettings(); });
+  $('#b-border', v).addEventListener('change', (e) => save(() => { st.cardBorder = e.target.checked; }, false));
+  $('#scene-bg', v).addEventListener('change', (e) => save(() => { st.sceneBg = e.target.checked; }, false));
+  $$('[data-img]', v).forEach((inp) => inp.addEventListener('change', async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
     const im = await loadImage(f);
-    st[key] = await resizeTo(im, max, 0.85);
-    await saveSettings(); applyTheme(); render(); toast('Готово ✨');
+    const blob = await resizeTo(im, 1800, 0.85);
+    const key = inp.dataset.img;
+    save(() => { if (key.startsWith('sec:')) { st.sectionBg = { ...(st.sectionBg || {}), [key.slice(4)]: blob }; } else st[key] = blob; });
+    toast('Готово ✨');
+  }));
+  $$('[data-imgdel]', v).forEach((b) => b.addEventListener('click', () => {
+    const key = b.dataset.imgdel;
+    save(() => { if (key.startsWith('sec:')) { const o = { ...(st.sectionBg || {}) }; delete o[key.slice(4)]; st.sectionBg = o; } else st[key] = null; });
+  }));
+  $('#save-mine', v).addEventListener('click', async () => {
+    const name = prompt('Назва твоєї теми:', 'Моя тема ' + ((st.savedThemes || []).length + 1));
+    if (!name) return;
+    st.savedThemes = [...(st.savedThemes || []), { name: name.trim(), ...snapshotLook() }];
+    await saveSettings();
+    toast('Тему збережено в «Мої теми» ⭐');
   });
-  img('i-head', 'headerImg', 1600); img('i-bg', 'bgImg', 1600);
-  $('#i-head-del', v)?.addEventListener('click', async () => { st.headerImg = null; await saveSettings(); applyTheme(); render(); });
-  $('#i-bg-del', v)?.addEventListener('click', async () => { st.bgImg = null; await saveSettings(); applyTheme(); render(); });
-  $('#style-reset', v)?.addEventListener('click', async () => { Object.assign(st, { accent: '', card: '', bg: '', headerImg: null, bgImg: null }); await saveSettings(); applyTheme(); render(); });
 };
 
 ROUTES.emotions = async (v) => {
