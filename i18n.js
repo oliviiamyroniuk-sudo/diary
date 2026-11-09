@@ -137,6 +137,7 @@ const RU = {
   'Forest walk': 'Прогулка в лесу', 'Autumn sunbeams between the trees': 'Осенние лучи между деревьями', 'The Order': 'Орден', 'Hooded figures and a red glow': 'Фигуры в капюшонах и красный свет', 'Summer night': 'Летняя ночь', 'Two friends and a glowing crystal': 'Двое друзей и светящийся кристалл',
   'App version': 'Версия приложения', 'Check for updates': 'Проверить обновления', 'Checking…': 'Проверяю…', 'Updated ✨': 'Обновлено ✨', 'You have the latest version ✓': 'У вас последняя версия ✓',
   'Stickers': 'Стикеры', 'Add all stickers to emotions': 'Добавить все стикеры в эмоции', 'All stickers are already in emotions ✓': 'Все стикеры уже в эмоциях ✓',
+  'Picture of the day': 'Картинка дня', 'Change picture of the day': 'Изменить картинку дня', 'Change picture': 'Изменить картинку', 'No own picture': 'Без своей картинки', 'When this emotion is the one you marked most during the day, the day shows this picture.': 'Когда эта эмоция отмечена чаще всего за день, у дня будет эта картинка.',
   'My theme': 'Моя тема', 'Seasons': 'Времена года', 'Fairy tale': 'Сказочные', 'My themes': 'Мои темы', 'Autumn': 'Осень', 'Winter': 'Зима', 'Spring': 'Весна', 'Summer': 'Лето',
   'Theme default': 'Как в теме', 'Muted gold': 'Тусклое золото', 'Sage': 'Шалфей', 'Moss': 'Мох', 'Burgundy': 'Бордо', 'Rose': 'Роза', 'Lavender': 'Лаванда', 'Night sky': 'Ночное небо', 'Coffee': 'Кофе', 'Amber': 'Янтарь',
   'Moss, mist and fireflies': 'Мох, туман и светлячки', 'Bookshelves and candles': 'Книжные полки и свечи', 'Flowers, butterflies, magic': 'Цветы, бабочки, магия', 'Cottage, garden and linen': 'Домик, сад и лён',
@@ -253,6 +254,8 @@ const RU = {
 
 /* шаблони з числами */
 const RU_PATTERNS = [
+  [/^Card (\d+)$/, 'Карточка $1'],
+  [/^Picture of the day · (.+)$/, 'Картинка дня · $1'],
   [/^Stickers added to emotions: (\d+) ✨$/, 'Стикеров добавлено в эмоции: $1 ✨'],
   [/^Sticker (\d+)$/, 'Стикер $1'],
   [/^New themes: (\d+) ✨ — see Themes → Pictures$/, 'Новых тем: $1 ✨ — смотрите Темы → Картинки'],

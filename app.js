@@ -457,11 +457,11 @@ function moodDayCard(key, days, withQuick) {
   return `<div class="card mood-day">
     <div class="row top">
       <div class="grow"><div class="hand">${isToday ? 'Mood of the day' : 'Mood ' + D.dm(D.fromKey(key))}${isToday && res ? ' · so far' : ''}</div>
-        <div class="serif" style="font-size:19px">${m ? `<span ${(S.settings.moodNames || {})[res.mood] ? 'translate="no"' : ''}>${esc(moodHeadline(res.mood))}</span> <button class="text-btn" data-act="renameMood" data-m="${res.mood}" aria-label="Rename" style="padding:0 4px;vertical-align:middle">${icon('pen', 15)}</button>` : (isToday ? 'How are you feeling?' : 'No mood marks')}</div></div>
+        <div class="serif" style="font-size:19px">${m ? moodTitleHTML(res) : (isToday ? 'How are you feeling?' : 'No mood marks')}</div></div>
       <button class="text-btn small" data-act="dayEmotion" data-day="${key}">${marks.length ? 'Change' : 'Mark'}</button>
     </div>
     ${res ? `<div class="row top" style="gap:14px;margin-top:10px">
-        <button class="mood-art-wrap" data-act="dayEmotion" data-day="${key}">${moodCardSVG(res.mood, 'm' + key)}</button>
+        <button class="mood-art-wrap" data-act="dayEmotion" data-day="${key}">${moodArtHTML(res, 'm' + key)}</button>
         <div class="grow stack" style="gap:8px">
           ${top.slice(0, 5).map(([id, c]) => `<div class="row small" style="gap:8px">${Emo.badge(Emo.get(id), 26)}<span class="grow">${esc(Emo.get(id).name)}</span><b class="muted">×${c}</b></div>`).join('')}
           ${res.tie ? '<div class="small muted">A tie between emotions — the result follows the day’s average mood.</div>' : ''}
@@ -496,8 +496,8 @@ function openDayEmotion(key, onDone) {
     const fake = { marks: cur.concat(S.entries.filter((e) => e.date.startsWith(key)).flatMap((e) => e.emotions || [])) };
     const res = dayMood(fake);
     return `<p class="muted small" style="margin-top:0">${D.long(date)}. Tap an emotion every time you feel it — you can mark the same one several times. The one you mark most sets the picture of the day.</p>
-      ${res ? `<div class="row" style="gap:12px;margin-bottom:12px"><div style="width:96px;flex:none">${moodCardSVG(res.mood, 'sh' + key)}</div><div class="grow"><div class="serif" ${(S.settings.moodNames || {})[res.mood] ? 'translate="no"' : ''}>${esc(moodHeadline(res.mood))}</div>
-        <button class="btn" style="margin-top:8px" data-act="renameMood" data-m="${res.mood}">${icon('pen', 16)} Rename this mood</button></div></div>` : ''}
+      ${res ? `<div class="row" style="gap:12px;margin-bottom:12px"><div style="width:96px;flex:none">${moodArtHTML(res, 'sh' + key)}</div><div class="grow"><div class="serif">${moodTitleHTML(res)}</div>
+        ${res.picEmo ? `<button class="btn" style="margin-top:8px" data-act="emoPic" data-id="${res.picEmo}">${icon('image', 16)} Change picture</button>` : `<button class="btn" style="margin-top:8px" data-act="renameMood" data-m="${res.mood}">${icon('pen', 16)} Rename this mood</button>`}</div></div>` : ''}
       <button class="btn full" style="margin-bottom:12px" data-go="/emotions">${icon('pen', 16)} Rename emotions</button>
       ${cur.length ? `<div class="small muted">Marks (tap to remove):</div><div class="chips" style="margin:6px 0 12px;flex-wrap:wrap">${cur.map((id, i) => {
         const e = Emo.get(id);
@@ -1215,7 +1215,9 @@ function monthMood(month, days) {
   const max = Math.max(...Object.values(votes));
   const top = Object.keys(votes).filter((m) => votes[m] === max);
   const mood = top.length === 1 ? top[0] : (dayMood({ marks: list.flatMap((d) => d.marks) }) || { mood: top[0] }).mood;
-  return { mood, days: list.length, moodDays: votes[mood] || 0, emo: Object.entries(emo).sort((a, b) => b[1] - a[1]) };
+  const emoList = Object.entries(emo).sort((a, b) => b[1] - a[1]);
+  const topEmo = emoList.length && emoList.filter((x) => x[1] === emoList[0][1]).map((x) => x[0]).find((id) => emoPicKey(id));
+  return { mood, days: list.length, moodDays: votes[mood] || 0, emo: emoList, ...(topEmo ? { pic: emoPicKey(topEmo), picEmo: topEmo } : {}) };
 }
 
 function monthMoodCard(month, days) {
@@ -1225,9 +1227,9 @@ function monthMoodCard(month, days) {
   const own = (S.settings.moodNames || {})[r.mood];
   return `<div class="card mood-day">
     <div class="row top"><div class="grow"><div class="hand">${title}</div>
-      <div class="serif" style="font-size:19px"><span ${own ? 'translate="no"' : ''}>${esc(moodHeadline(r.mood))}</span> <button class="text-btn" data-act="renameMood" data-m="${r.mood}" aria-label="Rename" style="padding:0 4px;vertical-align:middle">${icon('pen', 15)}</button></div></div></div>
+      <div class="serif" style="font-size:19px">${moodTitleHTML(r)}</div></div></div>
     <div class="row top" style="gap:14px;margin-top:10px">
-      <div class="mood-art-wrap">${moodCardSVG(r.mood, 'mm' + D.monthKey(month))}</div>
+      <div class="mood-art-wrap">${moodArtHTML(r, 'mm' + D.monthKey(month))}</div>
       <div class="grow stack" style="gap:8px">
         ${r.emo.slice(0, 5).map(([id, c]) => Emo.get(id) ? `<div class="row small" style="gap:8px">${Emo.badge(Emo.get(id), 26)}<span class="grow">${esc(Emo.get(id).name)}</span><b class="muted">×${c}</b></div>` : '').join('')}
         <div class="small muted">${r.moodDays} of ${r.days} days</div>
@@ -2188,6 +2190,7 @@ ACT.emoMenu = (el) => {
     S.settings.emoNames = { ...(S.settings.emoNames || {}), [e.id]: name.trim() };
     await saveSettings(); render();
   } }];
+  items.push({ label: emoPicKey(e.id) ? 'Change picture of the day' : 'Picture of the day', icon: 'image', run: () => chooseArt('emopic', e.id) });
   if ((S.settings.emoNames || {})[e.id]) items.push({ label: 'Restore original name', icon: 'back', run: async () => { const n = { ...S.settings.emoNames }; delete n[e.id]; S.settings.emoNames = n; await saveSettings(); render(); } });
   if (e.custom) items.push({ label: 'Delete emotion', icon: 'trash', danger: true, run: () => ACT.delEmotion(el) });
   menuSheet(esc(e.name), items);
