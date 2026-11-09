@@ -148,6 +148,7 @@ async function importArtPack(file) {
   // якщо ще нічого не обрано — одразу ставимо набір за замовчуванням
   if (!Object.keys(S.settings.artMood || {}).length && pack.defaultMood && pack.moodSets?.[pack.defaultMood]) S.settings.artMood = { ...pack.moodSets[pack.defaultMood] };
   if (!Object.keys(S.settings.artEmo || {}).length && pack.faceMap) S.settings.artEmo = { ...pack.faceMap };
+  syncStickerEmotions(); S.settings.stickersSynced = true;
   await saveSettings();
   return n;
 }
@@ -253,6 +254,38 @@ ACT.myBgReset = async () => {
   applyTheme(); toast('Saved ✓'); render();
 };
 
+/** Усі стікери-обличчя → емоції групи «Stickers» (ті, що ще не стоять на жодній емоції). */
+function syncStickerEmotions() {
+  const keys = libKeys('face');
+  if (!keys.length) return 0;
+  S.settings.artEmo = S.settings.artEmo || {};
+  S.settings.customEmotions = S.settings.customEmotions || [];
+  const used = new Set(Object.values(S.settings.artEmo));
+  const have = new Set(S.settings.customEmotions.map((e) => e.id));
+  let n = S.settings.customEmotions.filter((e) => e.cat === 'stk').length, added = 0;
+  for (const k of keys) {
+    const id = 'stk-' + k.replace(/[^a-zA-Z0-9]/g, '_');
+    if (used.has(k) || have.has(id)) continue;
+    n++; added++;
+    S.settings.customEmotions.push({ id, emoji: '', name: (S.art.names || {})[k] || 'Sticker ' + n, cat: 'stk', score: 0, color: '#A99FBF', custom: true });
+    S.settings.artEmo[id] = k;
+  }
+  return added;
+}
+ACT.addAllStickers = async () => {
+  const n = syncStickerEmotions();
+  S.settings.stickersSynced = true;
+  await saveSettings();
+  toast(n ? `Stickers added to emotions: ${n} ✨` : 'All stickers are already in emotions ✓', 3500);
+  render();
+};
+async function autoStickerEmotions() {
+  if (S.settings.stickersSynced || !libKeys('face').length) return;
+  syncStickerEmotions();
+  S.settings.stickersSynced = true;
+  await saveSettings();
+}
+
 function libKeys(kind) {
   return Object.keys(S.art.lib).filter((k) => (kind === 'face' ? k.startsWith('f:') || k.startsWith('own:face') : /^m\d:/.test(k) || k.startsWith('own:mood'))).sort();
 }
@@ -278,6 +311,7 @@ ROUTES.art = async (v) => {
     <div class="card stack">
       <div class="serif" style="font-size:18px">Emotion smileys</div>
       ${Object.keys(S.art.faceMap || {}).length ? `<div class="row" style="flex-wrap:wrap;gap:6px"><button class="pill" data-act="artFaces" data-v="pack">From pack</button><button class="pill" data-act="artFaces" data-v="">Drawn</button></div>` : ''}
+      <button class="btn full" data-act="addAllStickers" style="margin-bottom:10px">${icon('plus', 16)} Add all stickers to emotions</button>
       <div class="art-face-grid">${Emo.all().map((e) => `<button class="art-face" data-act="artEmo" data-id="${e.id}"><span class="emo face" style="--s:52px">${Faces.svg(e)}</span><span class="small">${esc(e.name)}</span></button>`).join('')}</div>
     </div>
   </div>`;

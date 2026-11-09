@@ -185,6 +185,7 @@ const CATS = [
   { id: 'pos', title: 'Positive', color: '#C9A95B' },
   { id: 'mix', title: 'Neutral & mixed', color: '#9A97A8' },
   { id: 'neg', title: 'Difficult', color: '#6F86AE' },
+  { id: 'stk', title: 'Stickers', color: '#A99FBF' },
 ];
 
 const Emo = {
@@ -544,8 +545,8 @@ function computeStats(days, start, end) {
   for (const d of scored) if (d.main) mains[d.main] = (mains[d.main] || 0) + 1;
   st.counts = Object.entries(counts).sort((a, b) => b[1] - a[1]);
   st.total = st.counts.reduce((a, c) => a + c[1], 0);
-  st.cats = { pos: 0, mix: 0, neg: 0 };
-  for (const [id, c] of st.counts) { const e = Emo.get(id); if (e) st.cats[e.cat] += c; }
+  st.cats = { pos: 0, mix: 0, neg: 0, stk: 0 };
+  for (const [id, c] of st.counts) { const e = Emo.get(id); if (e) st.cats[e.cat] = (st.cats[e.cat] || 0) + c; }
   st.pairs = Object.entries(pairs).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k, c]) => [...k.split('|'), c]);
   st.mains = Object.entries(mains).sort((a, b) => b[1] - a[1]);
   const byScore = scored.slice().sort((a, b) => b.score - a.score);

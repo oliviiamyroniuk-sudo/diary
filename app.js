@@ -2319,6 +2319,7 @@ async function start() {
     await loadAll();
     await loadTasks();
     await loadArt();
+    try { await autoStickerEmotions(); } catch (e) { console.warn(e); }
     for (const k of ['world', 'worldMax', 'seasonMax', 'seasonVisits', 'visitCount', 'lastVisit', 'showWorld']) delete S.settings[k];
     try {
       if (S.settings.lang && S.settings.lang !== LANG) {
