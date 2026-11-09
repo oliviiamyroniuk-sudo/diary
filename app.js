@@ -98,7 +98,7 @@ function paintBackground() {
   bg.dataset.key = key;
   let html = '';
   if (url) html += `<div class="bg-img" style="background-image:url(${url})"></div><div class="bg-fade"></div>`;
-  else if (pic) html += `<div class="bg-pic" style="background-image:url(${pic})"></div>`;
+  else if (pic) html += `<div class="bg-pic" style="background-image:url(${pic})${t.picH ? `;background-size:auto ${+t.picH}px` : ''}"></div>`;
   else if (set.sceneBg !== false && t.scene !== 'minimal') html += '<canvas class="bg-scene"></canvas><div class="bg-fade strong"></div>';
   if (set.decor && t.decor.length) {
     const r = rng(11);
@@ -2208,7 +2208,7 @@ function pinPad(onDone, subtitle, cancellable, extraHTML = '') {
   const picT = theme();
   const cover = S.settings.coverImg ? blobURL('cover', S.settings.coverImg) : headerURL || picURL(picT);
   const coverTop = !S.settings.coverImg && !headerURL && picT.img;
-  el.innerHTML = `<div class="hero" style="height:calc(${coverTop ? 330 : 250}px + var(--safe-top))">${cover ? `<div class="hero-img" style="background-image:url(${cover})${coverTop ? ';background-position:top;background-size:100% auto' : ''}"></div>` : '<canvas></canvas>'}<div class="fade"></div>
+  el.innerHTML = `<div class="hero" style="height:calc(${coverTop ? 330 : 250}px + var(--safe-top))">${cover ? `<div class="hero-img" style="background-image:url(${cover})${coverTop ? `;background-position:top;background-size:${picT.picH ? `auto ${+picT.picH}px` : '100% auto'}` : ''}"></div>` : '<canvas></canvas>'}<div class="fade"></div>
       <div class="greet" style="text-align:center"><div style="color:var(--accent)">${icon('lock', 22)}</div><div class="today" style="font-style:italic">own journal</div><div class="hello" id="pin-sub">${subtitle}</div></div></div>
     <div class="pin-dots" id="pin-dots"><i></i><i></i><i></i><i></i></div>
     <div class="pinpad">${['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'].map((k) => `<button class="${k === '' || k === '⌫' ? 'ghost' : ''}" data-k="${k}">${k}</button>`).join('')}</div>
