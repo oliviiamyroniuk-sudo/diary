@@ -470,7 +470,7 @@ ROUTES.pdfimport = async (v) => {
     try {
       await pdfScan(st, (p) => {
         const el = $('#pi-prog');
-        if (el) el.textContent = `Page ${p} of ${st.to} · ${st.result.added + st.entries.length} entries · ${st.photoIds.length} photos`;
+        if (el) { const dg = st.diag || {}; el.textContent = `Page ${p} of ${st.to} · ${st.result.added + st.entries.length} entries · ${st.photoIds.length} photos · read: ${dg.lines || 0} lines, ${dg.dates || 0} dates${st.result.skipped ? ` · already in journal: ${st.result.skipped}` : ''}`; }
         const bar = $('.pbar i'); if (bar) bar.style.width = Math.round(((p - st.from + 1) / (st.to - st.from + 1)) * 100) + '%';
       });
     } catch (e) { console.error(e); toast('Stopped: ' + (e.message || e), 6000); }
@@ -511,6 +511,9 @@ ACT.pdfStart = () => {
       st.dayPage = st.from;
     }
   }
+  // пропуск початку потрібен лише при точному продовженні після збою
+  const last = S.settings.pdfImportLast;
+  if (st.skipHead && !(last && st.from === last.done + 1)) st.skipHead = false;
   st.skipHeadStart = !!st.skipHead;
   st.phase = 'scan';
   render();
