@@ -221,6 +221,9 @@ async function pdfScan(st, onProgress) {
     }
     items.push(...r.texts);
     const lines = PdfImport.buildLines(items);
+    const dg = st.diag || (st.diag = { pages: 0, glyphs: 0, texts: 0, lines: 0, dates: 0, imgs: 0, skippedHead: 0, sample: [], errs: 0, err: '' });
+    dg.pages++; dg.glyphs += r.glyphs.length; dg.texts += r.texts.length; dg.lines += lines.length; dg.imgs += r.images.length;
+    if (dg.sample.length < 5) for (const l of lines) { if (dg.sample.length >= 5) break; dg.sample.push(`p${p} [${Math.round(l.size)}] ${l.text.trim().slice(0, 40)}`); }
     const rightEdge = Math.max(0, ...lines.map((l) => l.items[l.items.length - 1].x1));
     // картинки сторінки: фони (на всю сторінку) пропускаємо; маленька вгорі праворуч — смайлик настрою
     const blocks = lines.map((l) => ({ kind: 'line', y: l.y1, l }));
@@ -237,8 +240,8 @@ async function pdfScan(st, onProgress) {
         const l = b.l, t = l.text.trim();
         const dm = l.size >= 12 && t.match(/^(\d{1,2})\s*(\S+?)\.?\s+(\d{4})$/);
         const tm = t.match(/^\((\d{1,2}):(\d{2})\)$/);
-        if (dm) { st.day = { d: +dm[1], mon: dm[2], y: +dm[3] }; st.cur = null; prevLine = null; st.dayMood = st.pendingMoodNext ?? null; st.pendingMoodNext = null; st.skipHead = false; st.dayPage = p; continue; }
-        if (st.skipHead) continue;
+        if (dm) { dg.dates++; st.day = { d: +dm[1], mon: dm[2], y: +dm[3] }; st.cur = null; prevLine = null; st.dayMood = st.pendingMoodNext ?? null; st.pendingMoodNext = null; st.skipHead = false; st.dayPage = p; continue; }
+        if (st.skipHead) { dg.skippedHead++; continue; }
         if (tm && st.day) { st.cur = newImported(st, `${pad(+tm[1])}:${tm[2]}`); prevLine = null; continue; }
         if (!st.cur) { if (!st.day && st.lastEntry) st.cur = st.lastEntry; else if (st.day) st.cur = newImported(st, '12:00'); else continue; }
         const e = st.cur;
@@ -436,6 +439,11 @@ ROUTES.pdfimport = async (v) => {
       <div class="serif" style="font-size:20px">Imported ${st.result.added} entries</div>
       ${st.result.skipped ? `<div class="small muted">Skipped: ${st.result.skipped} (already imported or without a date)</div>` : ''}
       ${st.result.failed ? `<div class="small muted" translate="no">Not saved: ${st.result.failed} — ${esc(st.result.firstErr || '')}</div>` : ''}
+      ${!st.result.added && st.diag ? `<div class="card small" style="text-align:left" translate="no"><b>Details for Claude</b><br>
+        pages ${st.diag.pages} · glyphs ${st.diag.glyphs} · texts ${st.diag.texts} · lines ${st.diag.lines} · dates ${st.diag.dates} · images ${st.diag.imgs} · skipped ${st.diag.skippedHead} · resume ${st.skipHeadStart ? 'yes' : 'no'}<br>
+        ${st.diag.sample.map(esc).join('<br>') || 'no text found'}</div>
+        <div class="small muted">Nothing was imported from these pages. Please send a screenshot of this screen to Claude. You can also read these pages again:</div>
+        <button class="btn full" data-act="pdfRedoPart" data-from="${st.from}">Read pages ${st.from}–${st.to} again</button>` : ''}
       ${st.to < st.pages ? `<div class="small muted">Pages ${st.from}–${st.to} of ${st.pages} are done. Choose the same file again to continue from page ${st.to + 1}.</div>` : ''}
       <button class="btn full solid" data-act="pdfClose">Open my journal</button>
     </div>`;
@@ -503,7 +511,17 @@ ACT.pdfStart = () => {
       st.dayPage = st.from;
     }
   }
+  st.skipHeadStart = !!st.skipHead;
   st.phase = 'scan';
+  render();
+};
+ACT.pdfRedoPart = async (el) => {
+  const from = +el.dataset.from || 1;
+  const last = S.settings.pdfImportLast;
+  if (last) { last.done = from - 1; last.skipHead = false; }
+  await saveSettings();
+  PDFI.state = null;
+  toast(`Choose the same file — it will start from page ${from}`, 4000);
   render();
 };
 ACT.pdfStop = () => { if (PDFI.state) PDFI.state.cancel = true; };
