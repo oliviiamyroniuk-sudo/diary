@@ -128,32 +128,87 @@ function emoArtKey(id) { return (S.settings.artEmo || {})[id] || ''; }
   };
 })();
 
-/* ---------- своя картинка дня для емоції: S.settings.emoPic = { емоція: ключ } ---------- */
-function emoPicKey(id) { const k = (S.settings.emoPic || {})[id]; return k && S.art.lib[k] ? k : ''; }
+/* ---------- картинки дня і їхні емоції: S.settings.picEmos = { картинка: [емоції] } ---------- */
+function picEmosMap() {
+  const m = S.settings.picEmos || {};
+  const out = {};
+  for (const [k, ids] of Object.entries(m)) if (S.art.lib[k] && ids && ids.length) out[k] = ids;
+  return out;
+}
+/** Яка картинка найбільше підходить до відміток: сума відміток її емоцій. */
+function pickDayPic(marks) {
+  const map = picEmosMap();
+  const keys = Object.keys(map);
+  if (!keys.length || !marks || !marks.length) return null;
+  const counts = {};
+  marks.forEach((id) => (counts[id] = (counts[id] || 0) + 1));
+  let best = null, bestScore = 0, bestFirst = Infinity;
+  for (const k of keys) {
+    const ids = map[k];
+    const score = ids.reduce((a, id) => a + (counts[id] || 0), 0);
+    if (!score) continue;
+    const first = Math.min(...ids.map((id) => { const i = marks.indexOf(id); return i < 0 ? Infinity : i; }));
+    if (score > bestScore || (score === bestScore && first < bestFirst)) { best = k; bestScore = score; bestFirst = first; }
+  }
+  if (!best) return null;
+  const top = map[best].filter((id) => counts[id]).sort((x, y) => counts[y] - counts[x])[0];
+  return { pic: best, picEmo: top };
+}
+function picName(k) { return (S.art.names || {})[k] || ''; }
 (function hookDayMood() {
   const base = dayMood;
   dayMood = function (day) {
     const r = base(day);
     if (!r || !day || !day.marks) return r;
-    const counts = {};
-    day.marks.forEach((id) => (counts[id] = (counts[id] || 0) + 1));
-    const max = Math.max(...Object.values(counts));
-    // найчастіша емоція дня; якщо порівну — перша позначена, що має свою картинку
-    const top = [...new Set(day.marks)].filter((id) => counts[id] === max);
-    const id = top.find((x) => emoPicKey(x));
-    return id ? { ...r, pic: emoPicKey(id), picEmo: id } : r;
+    const p = pickDayPic(day.marks);
+    return p ? { ...r, ...p } : r;
   };
 })();
-/** Картинка дня/місяця: своя картинка емоції або картинка настрою. */
+/** Картинка дня/місяця: картинка, що найбільше підходить, або картинка настрою. */
 function moodArtHTML(res, uidStr) {
   const u = res && res.pic && artURL(res.pic);
   return u ? `<img class="mood-art" src="${u}" alt="" draggable="false">` : moodCardSVG(res.mood, uidStr);
 }
 function moodTitleHTML(res) {
-  if (res && res.picEmo && Emo.get(res.picEmo)) return `<span translate="no">${esc(Emo.get(res.picEmo).name)}</span>`;
+  if (res && res.pic) {
+    const nm = picName(res.pic) || Emo.get(res.picEmo)?.name || '';
+    return `<span translate="no">${esc(nm)}</span>`;
+  }
   return `<span ${(S.settings.moodNames || {})[res.mood] ? 'translate="no"' : ''}>${esc(moodHeadline(res.mood))}</span> <button class="text-btn" data-act="renameMood" data-m="${res.mood}" aria-label="Rename" style="padding:0 4px;vertical-align:middle">${icon('pen', 15)}</button>`;
 }
-ACT.emoPic = (el) => chooseArt('emopic', el.dataset.id);
+/** Вибір емоцій для картинки. */
+ACT.picEmos = (el) => {
+  const k = el.dataset.k;
+  const sel = new Set((S.settings.picEmos || {})[k] || []);
+  const other = {};
+  for (const [pk, ids] of Object.entries(picEmosMap())) if (pk !== k) ids.forEach((id) => (other[id] = (other[id] || 0) + 1));
+  const html = () => `<div class="row top" style="gap:12px;margin-bottom:10px"><img src="${artURL(k)}" alt="" style="width:90px;border-radius:8px;flex:none">
+      <div class="small muted">Tap the emotions you associate with this picture. When these emotions are the ones you mark most during the day, the home screen shows this picture.
+      <div style="margin-top:6px"><b>${sel.size}</b> chosen</div></div></div>
+    ${CATS.map((c) => { const list = Emo.inCat(c.id); return list.length ? `<div class="serif" style="margin:10px 0 6px">${c.title}</div><div class="emo-grid">${list.map((e) => `<button class="emo-cell ${sel.has(e.id) ? 'on' : ''}" data-e="${e.id}">${Emo.badge(e, 46)}${sel.has(e.id) ? '<span class="order">✓</span>' : ''}<span class="name">${esc(e.name)}</span></button>`).join('')}</div>` : ''; }).join('')}`;
+  openSheet(esc(picName(k) || 'Picture'), html(), (body, close) => {
+    body.addEventListener('click', (ev) => {
+      const b = ev.target.closest('[data-e]');
+      if (!b) return;
+      const id = b.dataset.e;
+      if (sel.has(id)) sel.delete(id); else sel.add(id);
+      const y = body.scrollTop; body.innerHTML = html(); body.scrollTop = y;
+    });
+  }, { doneText: 'Done', onClose: async () => {
+    const m = { ...(S.settings.picEmos || {}) };
+    if (sel.size) m[k] = [...sel]; else delete m[k];
+    S.settings.picEmos = m;
+    await saveSettings(); render();
+  } });
+};
+function migrateEmoPic() {
+  const ep = S.settings.emoPic;
+  if (!ep || !Object.keys(ep).length) return false;
+  const m = { ...(S.settings.picEmos || {}) };
+  for (const [id, k] of Object.entries(ep)) { m[k] = [...new Set([...(m[k] || []), id])]; }
+  S.settings.picEmos = m; delete S.settings.emoPic;
+  return true;
+}
 
 /* ---------- імпорт набору картинок (один файл) ---------- */
 async function importArtPack(file) {
@@ -307,11 +362,13 @@ ACT.addAllStickers = async () => {
   render();
 };
 async function autoStickerEmotions() {
+  if (migrateEmoPic()) await saveSettings();
   // прибираємо картки-емоції з попередньої версії (картки — лише картинки дня)
   const cards = (S.settings.customEmotions || []).filter((e) => e.card).map((e) => e.id);
   if (cards.length) {
     S.settings.customEmotions = S.settings.customEmotions.filter((e) => !e.card);
     for (const id of cards) { if (S.settings.artEmo) delete S.settings.artEmo[id]; if (S.settings.emoPic) delete S.settings.emoPic[id]; }
+    migrateEmoPic();
     await saveSettings();
   }
   if (S.settings.stickersSynced || !libKeys('face').length) return;
@@ -338,10 +395,11 @@ ROUTES.art = async (v) => {
       ${haveLib ? `<div class="small muted">In the library: ${libKeys('mood').length} mood pictures, ${libKeys('face').length} smileys.${credits.length ? ` Artists: ${credits.map(esc).join(', ')}.` : ''}</div>` : ''}
     </div>
     <div class="card stack" id="daypics">
-      <div class="serif" style="font-size:18px">Picture of the day for each smiley</div>
-      <div class="small muted">Tap a smiley and choose the picture it gives. The smiley you mark most during the day decides the picture of the day. Smileys without a picture use the mood pictures below.</div>
-      <div class="art-face-grid">${Emo.all().map((e) => { const k = emoPicKey(e.id); return `<button class="art-face" data-act="emoPic" data-id="${e.id}"><span class="emo face" style="--s:52px">${Faces.svg(e)}</span>
-        ${k ? `<img src="${artURL(k)}" alt="" loading="lazy" style="width:52px;height:64px;object-fit:cover;border-radius:6px;margin-top:4px">` : '<span class="small muted" style="margin-top:4px">—</span>'}<span class="small">${esc(e.name)}</span></button>`; }).join('')}</div>
+      <div class="serif" style="font-size:18px">Pictures of the day and their emotions</div>
+      <div class="small muted">Tap a picture and choose the emotions you associate with it. Every day the journal looks at the emotions you marked most and shows the picture that fits them best. Pictures without emotions are not used this way.</div>
+      ${libKeys('mood').length ? `<div class="art-mood-grid">${libKeys('mood').map((k) => { const ids = (picEmosMap()[k] || []).filter((id) => Emo.get(id)); return `<button class="art-mood" data-act="picEmos" data-k="${k}"><img class="mood-art" src="${artURL(k)}" alt="" loading="lazy">
+        <span class="small" style="display:flex;flex-wrap:wrap;gap:2px;justify-content:center;min-height:22px">${ids.length ? ids.slice(0, 6).map((id) => `<span class="emo face" style="--s:20px">${Faces.svg(Emo.get(id))}</span>`).join('') + (ids.length > 6 ? `<b>+${ids.length - 6}</b>` : '') : '<span class="muted">+ emotions</span>'}</span></button>`; }).join('')}</div>`
+        : '<div class="small muted">Add pictures first: import a picture pack or add your own from photos.</div>'}
     </div>
     <div class="card stack">
       <div class="serif" style="font-size:18px">Mood of the day</div>
@@ -383,7 +441,7 @@ function chooseArt(kind, slot) {
       <button class="btn" data-pick="__own">${icon('photos', 18)} From photos</button>
       <button class="btn" data-pick="__none">${ep ? 'No own picture' : 'Drawn'}</button>
       ${ep ? '' : `<button class="btn" data-pick="__rename">${icon('pen', 18)} Rename</button>`}
-      ${kind === 'face' ? `<button class="btn" data-pick="__daypic">${icon('image', 18)} Picture of the day</button>` : ''}</div>
+</div>
     ${keys.length ? `<div class="${kind === 'face' ? 'art-pick-faces' : 'art-pick-moods'}">${keys.map((k) => `<button class="art-pick ${k === cur ? 'on' : ''}" data-pick="${k}"><img src="${artURL(k)}" alt="" loading="lazy"></button>`).join('')}</div>`
       : '<div class="small muted">The library is empty — import a pack or add your own picture from photos.</div>'}`;
   openSheet(title, html, (body, close) => {
@@ -391,7 +449,6 @@ function chooseArt(kind, slot) {
       const b = e.target.closest('[data-pick]');
       if (!b) return;
       let key = b.dataset.pick;
-      if (key === '__daypic') { close(); setTimeout(() => chooseArt('emopic', slot), 250); return; }
       if (key === '__rename') {
         const isFace = kind === 'face';
         const cur = isFace ? Emo.get(slot)?.name : moodName(slot);

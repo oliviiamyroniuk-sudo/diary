@@ -497,9 +497,9 @@ function openDayEmotion(key, onDone) {
     const res = dayMood(fake);
     return `<p class="muted small" style="margin-top:0">${D.long(date)}. Tap an emotion every time you feel it — you can mark the same one several times. The one you mark most sets the picture of the day.</p>
       ${res ? `<div class="row" style="gap:12px;margin-bottom:12px"><div style="width:96px;flex:none">${moodArtHTML(res, 'sh' + key)}</div><div class="grow"><div class="serif">${moodTitleHTML(res)}</div>
-        ${res.picEmo ? `<button class="btn" style="margin-top:8px" data-act="emoPic" data-id="${res.picEmo}">${icon('image', 16)} Change picture</button>` : `<button class="btn" style="margin-top:8px" data-act="renameMood" data-m="${res.mood}">${icon('pen', 16)} Rename this mood</button>`}</div></div>` : ''}
+        ${res.pic ? `<button class="btn" style="margin-top:8px" data-go="/art">${icon('image', 16)} Pictures and emotions</button>` : `<button class="btn" style="margin-top:8px" data-act="renameMood" data-m="${res.mood}">${icon('pen', 16)} Rename this mood</button>`}</div></div>` : ''}
       <button class="btn full" style="margin-bottom:12px" data-go="/emotions">${icon('pen', 16)} Rename emotions</button>
-      <button class="btn full" style="margin-bottom:12px" data-go="/art">${icon('image', 16)} Pictures of the day for smileys</button>
+      <button class="btn full" style="margin-bottom:12px" data-go="/art">${icon('image', 16)} Pictures and their emotions</button>
       ${cur.length ? `<div class="small muted">Marks (tap to remove):</div><div class="chips" style="margin:6px 0 12px;flex-wrap:wrap">${cur.map((id, i) => {
         const e = Emo.get(id);
         return e ? `<button class="chip" style="--c:${e.color}" data-rm="${i}">${Emo.badge(e, 22)}${esc(e.name)}${times[i] ? ` <span class="muted">${times[i]}</span>` : ''} ✕</button>` : '';
@@ -1217,8 +1217,8 @@ function monthMood(month, days) {
   const top = Object.keys(votes).filter((m) => votes[m] === max);
   const mood = top.length === 1 ? top[0] : (dayMood({ marks: list.flatMap((d) => d.marks) }) || { mood: top[0] }).mood;
   const emoList = Object.entries(emo).sort((a, b) => b[1] - a[1]);
-  const topEmo = emoList.length && emoList.filter((x) => x[1] === emoList[0][1]).map((x) => x[0]).find((id) => emoPicKey(id));
-  return { mood, days: list.length, moodDays: votes[mood] || 0, emo: emoList, ...(topEmo ? { pic: emoPicKey(topEmo), picEmo: topEmo } : {}) };
+  const p = pickDayPic(list.flatMap((d) => d.marks));
+  return { mood, days: list.length, moodDays: votes[mood] || 0, emo: emoList, ...(p || {}) };
 }
 
 function monthMoodCard(month, days) {
@@ -2191,7 +2191,6 @@ ACT.emoMenu = (el) => {
     S.settings.emoNames = { ...(S.settings.emoNames || {}), [e.id]: name.trim() };
     await saveSettings(); render();
   } }];
-  items.push({ label: emoPicKey(e.id) ? 'Change picture of the day' : 'Picture of the day', icon: 'image', run: () => chooseArt('emopic', e.id) });
   if ((S.settings.emoNames || {})[e.id]) items.push({ label: 'Restore original name', icon: 'back', run: async () => { const n = { ...S.settings.emoNames }; delete n[e.id]; S.settings.emoNames = n; await saveSettings(); render(); } });
   if (e.custom) items.push({ label: 'Delete emotion', icon: 'trash', danger: true, run: () => ACT.delEmotion(el) });
   menuSheet(esc(e.name), items);
