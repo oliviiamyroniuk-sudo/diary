@@ -135,6 +135,7 @@ const RU = {
   'Moonlight, lanterns and a little bridge': 'Лунный свет, фонари и мостик', 'Horned friend': 'Рогатый друг', 'Knitting by a warm window': 'Вязание у тёплого окна',
   'Welcome back, firefly': 'С возвращением, светлячок', 'Pink and green watercolor heart': 'Розово-зелёное акварельное сердце',
   'Forest walk': 'Прогулка в лесу', 'Autumn sunbeams between the trees': 'Осенние лучи между деревьями', 'The Order': 'Орден', 'Hooded figures and a red glow': 'Фигуры в капюшонах и красный свет', 'Summer night': 'Летняя ночь', 'Two friends and a glowing crystal': 'Двое друзей и светящийся кристалл',
+  'App version': 'Версия приложения', 'Check for updates': 'Проверить обновления', 'Checking…': 'Проверяю…', 'Updated ✨': 'Обновлено ✨', 'You have the latest version ✓': 'У вас последняя версия ✓',
   'My theme': 'Моя тема', 'Seasons': 'Времена года', 'Fairy tale': 'Сказочные', 'My themes': 'Мои темы', 'Autumn': 'Осень', 'Winter': 'Зима', 'Spring': 'Весна', 'Summer': 'Лето',
   'Theme default': 'Как в теме', 'Muted gold': 'Тусклое золото', 'Sage': 'Шалфей', 'Moss': 'Мох', 'Burgundy': 'Бордо', 'Rose': 'Роза', 'Lavender': 'Лаванда', 'Night sky': 'Ночное небо', 'Coffee': 'Кофе', 'Amber': 'Янтарь',
   'Moss, mist and fireflies': 'Мох, туман и светлячки', 'Bookshelves and candles': 'Книжные полки и свечи', 'Flowers, butterflies, magic': 'Цветы, бабочки, магия', 'Cottage, garden and linen': 'Домик, сад и лён',

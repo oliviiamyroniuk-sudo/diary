@@ -1882,8 +1882,11 @@ ROUTES.settings = async (v) => {
       <div class="form-row"><span class="grow">Photo</span><b>${totalPhotos}</b></div>
       ${usage ? `<div class="form-row"><span class="grow">Space used on phone</span><b>${usage}</b></div>` : ''}
       <div class="form-row"><span class="grow">Protected storage</span><b>${persisted ? 'yes ✓' : 'standard'}</b></div>
+      <div class="form-row"><span class="grow">App version</span><b id="app-ver">…</b></div>
+      <button class="btn full" data-act="checkUpdate">${icon('download', 16)} Check for updates</button>
     </div>
   </div>`;
+  appVersion().then((x) => { const el = $('#app-ver', v); if (el) el.textContent = x || '—'; });
 
   $('#set-name', v).addEventListener('change', async (e) => { st.name = e.target.value.trim(); await saveSettings(); toast('Saved'); });
   const toggle = (id, key) => $('#' + id, v).addEventListener('change', async (e) => { st[key] = e.target.checked; await saveSettings(); applyTheme(); });
@@ -2274,6 +2277,39 @@ document.addEventListener('visibilitychange', () => {
   if ((parseHash().parts[0] || '') === '' && !$('#ed-body')) render();
 });
 
+/* ---------- Оновлення: журнал сам перевіряє нову версію ---------- */
+let swReg = null;
+async function appVersion() {
+  try { const k = (await caches.keys()).filter((x) => x.startsWith('own-journal-')).sort(); return (k.pop() || '').replace('own-journal-', ''); } catch (_) { return ''; }
+}
+function reloadForUpdate() {
+  // не перезавантажуємо, поки пишеться запис — тоді після виходу з редактора
+  if ((parseHash().parts[0] || '') === 'edit') { sessionStorage.setItem('oj-update', '1'); return; }
+  if (sessionStorage.getItem('oj-reloaded') === String(Date.now()).slice(0, -4)) return;
+  sessionStorage.setItem('oj-reloaded', String(Date.now()).slice(0, -4));
+  location.reload();
+}
+function setupUpdates() {
+  if (!('serviceWorker' in navigator)) return;
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((r) => { swReg = r; r.update().catch(() => {}); }).catch(() => {});
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) reloadForUpdate(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && swReg) swReg.update().catch(() => {}); });
+  window.addEventListener('hashchange', () => { if (sessionStorage.getItem('oj-update') && (parseHash().parts[0] || '') !== 'edit') { sessionStorage.removeItem('oj-update'); location.reload(); } });
+}
+ACT.checkUpdate = async () => {
+  toast('Checking…', 2000);
+  try {
+    if (!swReg) swReg = await navigator.serviceWorker.getRegistration();
+    const before = await appVersion();
+    await swReg?.update();
+    await new Promise((r) => setTimeout(r, 2500));
+    const after = await appVersion();
+    if (after && after !== before) { toast('Updated ✨'); setTimeout(() => location.reload(), 600); }
+    else toast('You have the latest version ✓', 3000);
+  } catch (e) { toast('Couldn’t check: ' + (e.message || e), 4000); }
+};
+
 /* ==========================================================================
    ЗАПУСК
    ========================================================================== */
@@ -2299,7 +2335,7 @@ async function start() {
   if (S.settings.pinHash) lockScreen();
   if (location.hash && location.hash !== '#/' && location.hash !== '#') location.replace('#/');
   else await render();
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  setupUpdates();
   if (S.entries.length) navigator.storage?.persist?.();
 }
 
