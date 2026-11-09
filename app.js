@@ -2285,9 +2285,14 @@ let swReg = null;
 async function appVersion() {
   try { const k = (await caches.keys()).filter((x) => x.startsWith('own-journal-')).sort(); return (k.pop() || '').replace('own-journal-', ''); } catch (_) { return ''; }
 }
+function updateBusy() {
+  const r = parseHash().parts[0] || '';
+  const ph = typeof PDFI !== 'undefined' && PDFI.state && PDFI.state.phase;
+  return r === 'edit' || r === 'pdfimport' || ['scan', 'learn', 'moods', 'saving'].includes(ph);
+}
 function reloadForUpdate() {
-  // не перезавантажуємо, поки пишеться запис — тоді після виходу з редактора
-  if ((parseHash().parts[0] || '') === 'edit') { sessionStorage.setItem('oj-update', '1'); return; }
+  // не перезавантажуємо, поки пишеться запис або йде імпорт — тоді після виходу
+  if (updateBusy()) { sessionStorage.setItem('oj-update', '1'); return; }
   if (sessionStorage.getItem('oj-reloaded') === String(Date.now()).slice(0, -4)) return;
   sessionStorage.setItem('oj-reloaded', String(Date.now()).slice(0, -4));
   location.reload();
@@ -2298,7 +2303,7 @@ function setupUpdates() {
   navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((r) => { swReg = r; r.update().catch(() => {}); }).catch(() => {});
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) reloadForUpdate(); });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && swReg) swReg.update().catch(() => {}); });
-  window.addEventListener('hashchange', () => { if (sessionStorage.getItem('oj-update') && (parseHash().parts[0] || '') !== 'edit') { sessionStorage.removeItem('oj-update'); location.reload(); } });
+  window.addEventListener('hashchange', () => { if (sessionStorage.getItem('oj-update') && !updateBusy()) { sessionStorage.removeItem('oj-update'); location.reload(); } });
 }
 ACT.checkUpdate = async () => {
   toast('Checking…', 2000);
