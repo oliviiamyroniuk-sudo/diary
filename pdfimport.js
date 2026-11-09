@@ -64,14 +64,16 @@ const PdfImport = (() => {
         case O.setTextMatrix: tm = args.slice(); tlm = args.slice(); break;
         case O.moveText: tlm = mul(tlm, [1, 0, 0, 1, args[0], args[1]]); tm = tlm.slice(); break;
         case O.showText: case O.showSpacedText: {
+          let sp = false;
           for (const g of args[0]) {
-            if (typeof g === 'number') { tm = mul(tm, [1, 0, 0, 1, -g / 1000 * fontSize, 0]); continue; }
+            if (typeof g === 'number') { tm = mul(tm, [1, 0, 0, 1, -g / 1000 * fontSize, 0]); if (-g > 150) sp = true; continue; }
             if (!g) continue;
+            if (g.isSpace || (g.unicode != null && !g.unicode.trim())) { sp = true; tm = mul(tm, [1, 0, 0, 1, (g.width || 250) / 1000 * fontSize, 0]); continue; }
             const m = mul(ctm, mul(tm, [fontSize, 0, 0, fontSize, 0, 0]));
             const size = Math.hypot(m[2], m[3]);
             const [x, y] = ap(m, 0, 0);
             const w = (g.width || 500) / 1000 * size;
-            if (g.unicode && g.unicode.trim()) texts.push({ real: true, ch: g.unicode, x0: x, x1: x + w, y0: y - size * 0.18, y1: y + size * 0.68, size });
+            if (g.unicode && g.unicode.trim()) { texts.push({ real: true, sp, ch: g.unicode, x0: x, x1: x + w, y0: y - size * 0.18, y1: y + size * 0.68, size }); sp = false; }
             tm = mul(tm, [1, 0, 0, 1, (g.width || 500) / 1000 * fontSize, 0]);
           }
           break;
@@ -130,8 +132,10 @@ const PdfImport = (() => {
         if (prev) {
           const gap = it.x0 - prev.x1;
           // між словами відстань ≥ 0.47 розміру шрифту, усередині слова ≤ 0.40 (виміряно на експорті «My Diary»)
-          const k = !!prev.real !== !!it.real ? 0.3 : 0.44;
-          if (gap > ln.size * k) s += ' ';
+          // справжній текст: пробіл є в самому PDF (sp) або видно проміжок; контури — за проміжком
+          const both = prev.real && it.real;
+          const k = both ? 0.2 : !!prev.real !== !!it.real ? 0.3 : 0.44;
+          if ((both && it.sp) || gap > ln.size * k) s += ' ';
         }
         s += it.ch;
         prev = it;
@@ -238,7 +242,7 @@ async function pdfScan(st, onProgress) {
     for (const b of blocks) {
       if (b.kind === 'line') {
         const l = b.l, t = l.text.trim();
-        const dm = l.size >= 12 && t.match(/^(\d{1,2})\s*(\S+?)\.?\s+(\d{4})$/);
+        const dm = l.size >= 12 && t.match(/^(\d{1,2})\s*([^\d\s.]+)\.?\s*(\d{4})\s*(?:р\.?|г\.?)?$/);
         const tm = t.match(/^\((\d{1,2}):(\d{2})\)$/);
         if (dm) { dg.dates++; st.day = { d: +dm[1], mon: dm[2], y: +dm[3] }; st.cur = null; prevLine = null; st.dayMood = st.pendingMoodNext ?? null; st.pendingMoodNext = null; st.skipHead = false; st.dayPage = p; continue; }
         if (st.skipHead) { dg.skippedHead++; continue; }
