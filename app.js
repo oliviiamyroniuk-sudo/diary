@@ -1038,7 +1038,19 @@ ROUTES.edit = async (v, parts, q) => {
     convertFonts();
     schedule();
   };
+  // запам'ятовуємо вибраний шрифт і колір — ними пишеться наступний запис
+  const remember = (k, val) => { S.settings[k] = val || ''; saveSettings().catch(() => {}); };
+  const typingStyle = () => {
+    const f = S.settings.editorFont, c = S.settings.editorColor;
+    if ((!f && !c) || ed.textContent.trim() || document.activeElement !== ed) return;
+    document.execCommand('styleWithCSS', false, true);
+    if (f) document.execCommand('fontName', false, f);
+    if (c) document.execCommand('foreColor', false, c);
+  };
+  ed.addEventListener('focus', () => setTimeout(typingStyle, 0));
+  ed.addEventListener('input', () => { if (!ed.textContent.trim()) typingStyle(); });
   const applyColor = (hex) => {
+    remember('editorColor', hex);
     restoreSelection();
     document.execCommand('styleWithCSS', false, true);
     document.execCommand('foreColor', false, hex || '#010203');
@@ -1049,6 +1061,7 @@ ROUTES.edit = async (v, parts, q) => {
     schedule();
   };
   const applyFont = (stack) => {
+    remember('editorFont', stack);
     restoreSelection();
     document.execCommand('styleWithCSS', false, true);
     document.execCommand('fontName', false, stack || 'inherit');
