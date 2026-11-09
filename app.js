@@ -91,7 +91,7 @@ function paintBackground() {
   const section = sectionOf(parseHash().parts[0] || '');
   const secBlob = set.sectionBg?.[section];
   const url = secBlob ? blobURL('sec-' + section, secBlob) : bgURL;
-  const pic = !url && t.img ? artURL(t.img) : '';
+  const pic = !url && t.img ? picURL(t) : '';
   const key = [t.id, t.bgTop, url, pic, set.decor, set.sceneBg !== false].join('|');
   const bg = $('#bg');
   if (bg.dataset.key === key) return;
@@ -2002,9 +2002,9 @@ ROUTES.themes = async (v) => {
     });
   } else {
     tiles = list.map((t, i) => `<button class="theme-tile" data-act="pickTheme" data-id="${t.id}">
-      ${themePreview(t, t.img ? 150 : (Math.floor(i / 2) + i) % 2 === 0 ? 130 : 90, st.themeId === t.id, t.img ? artURL(t.img) : '')}
+      ${themePreview(t, t.img ? 150 : (Math.floor(i / 2) + i) % 2 === 0 ? 130 : 90, st.themeId === t.id, t.img ? picURL(t) : '')}
       <div class="row"><div class="grow"><div class="serif" style="font-size:15px;margin-top:8px">${esc(t.name)}</div><div class="small muted">${esc(t.sub || '')}</div></div>
-      ${themeCat === 'pictures' ? `<span class="text-btn" data-act="picThemeDel" data-id="${t.id}">${icon('trash', 16)}</span>` : ''}</div></button>`);
+      ${themeCat === 'pictures' && !t.builtin ? `<span class="text-btn" data-act="picThemeDel" data-id="${t.id}">${icon('trash', 16)}</span>` : ''}</div></button>`);
   }
   tiles.forEach((h, i) => cols[i % 2].push(h));
   const canUndo = (st.lookHistory || []).length > 0;
@@ -2190,7 +2190,7 @@ function pinPad(onDone, subtitle, cancellable, extraHTML = '') {
   const el = document.createElement('div');
   el.className = 'lock';
   const picT = theme();
-  const cover = S.settings.coverImg ? blobURL('cover', S.settings.coverImg) : headerURL || (picT.img ? artURL(picT.img) : '');
+  const cover = S.settings.coverImg ? blobURL('cover', S.settings.coverImg) : headerURL || picURL(picT);
   const coverTop = !S.settings.coverImg && !headerURL && picT.img;
   el.innerHTML = `<div class="hero" style="height:calc(${coverTop ? 330 : 250}px + var(--safe-top))">${cover ? `<div class="hero-img" style="background-image:url(${cover})${coverTop ? ';background-position:top;background-size:100% auto' : ''}"></div>` : '<canvas></canvas>'}<div class="fade"></div>
       <div class="greet" style="text-align:center"><div style="color:var(--accent)">${icon('lock', 22)}</div><div class="today" style="font-style:italic">own journal</div><div class="hello" id="pin-sub">${subtitle}</div></div></div>

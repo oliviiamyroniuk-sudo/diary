@@ -15,9 +15,21 @@ async function loadArt() {
 }
 
 /* ---------- теми-картинки: картинка зверху, суцільний колір нижче ---------- */
+const BUILTIN_PIC_THEMES = [
+  {"id": "pic_cozyCat", "name": "Cozy evening", "sub": "A sleepy cat, fireplace and snow outside", "dark": true, "bgTop": "#331508", "bgBottom": "#331508", "card": "#46200F", "border": "#7A4326", "accent": "#F0A85A", "text": "#F6E6D2", "subc": "#CDAA88", "orn": "· ✦ ·", "src": "themes/cozyCat.webp", "builtin": true},
+  {"id": "pic_rainyLondon", "name": "Rainy London", "sub": "Red umbrella, lamplight, evening rain", "dark": true, "bgTop": "#071A3E", "bgBottom": "#071A3E", "card": "#10264F", "border": "#2E4A7A", "accent": "#E0574F", "text": "#EAF0FA", "subc": "#A4B4D0", "orn": "· ✦ ·", "src": "themes/rainyLondon.webp", "builtin": true},
+  {"id": "pic_summerFair", "name": "Summer fair", "sub": "Ferris wheel, carousel and fireworks", "dark": true, "bgTop": "#051749", "bgBottom": "#051749", "card": "#10245E", "border": "#34408A", "accent": "#F0A8D8", "text": "#F1ECFF", "subc": "#B4B2DA", "orn": "· ✦ ·", "src": "themes/summerFair.webp", "builtin": true},
+  {"id": "pic_deepSea", "name": "Deep sea", "sub": "Glowing jellyfish in sunbeams", "dark": true, "bgTop": "#05153E", "bgBottom": "#05153E", "card": "#0E2152", "border": "#2A3F86", "accent": "#8FD0FF", "text": "#E8F2FF", "subc": "#A0B6DC", "orn": "· ✦ ·", "src": "themes/deepSea.webp", "builtin": true},
+  {"id": "pic_mushroomVillage", "name": "Mushroom village", "sub": "Moonlight, lanterns and a little bridge", "dark": true, "bgTop": "#031442", "bgBottom": "#031442", "card": "#0E1F55", "border": "#34397F", "accent": "#F4C46A", "text": "#EFEAFF", "subc": "#B0AAD8", "orn": "· ✦ ·", "src": "themes/mushroomVillage.webp", "builtin": true},
+  {"id": "pic_hornedFriend", "name": "Horned friend", "sub": "Knitting by a warm window", "dark": true, "bgTop": "#28150C", "bgBottom": "#28150C", "card": "#3A2015", "border": "#6A3C26", "accent": "#E9854E", "text": "#F2E4CC", "subc": "#C4A88A", "orn": "· ✦ ·", "heroH": 380, "src": "themes/hornedFriend.webp", "builtin": true},
+  {"id": "pic_firefly", "name": "Welcome back, firefly", "sub": "Pink and green watercolor heart", "dark": true, "bgTop": "#344737", "bgBottom": "#344737", "card": "#3F5A45", "border": "#6E8E70", "accent": "#F2A0BC", "text": "#F6F0E6", "subc": "#C8D8C4", "orn": "· ✦ ·", "heroH": 430, "src": "themes/firefly.webp", "builtin": true},
+];
+/** Адреса картинки теми: вбудована (файл) або своя (з бібліотеки). */
+function picURL(t) { return !t || !t.img ? '' : t.src || artURL(t.img); }
 function registerPicThemes() {
   for (let i = THEMES.length - 1; i >= 0; i--) if (THEMES[i].img) THEMES.splice(i, 1);
-  const list = (S.art.themes || []).filter((t) => t && t.id && S.art.lib[t.img]);
+  const own = (S.art.themes || []).filter((t) => t && t.id && S.art.lib[t.img] && !BUILTIN_PIC_THEMES.some((b) => b.id === t.id));
+  const list = [...BUILTIN_PIC_THEMES.map((t) => ({ ...t, img: t.src })), ...own];
   THEMES.unshift(...list.map((t) => T({ sky: [], layers: [], scene: 'minimal', particles: '', dark: true, ...t, cat: 'pictures', decor: [] })));
 }
 function mergePicThemes(list) {
@@ -338,3 +350,4 @@ ACT.artImport = async () => {
     render();
   } catch (e) { console.error(e); toast(e.message || 'Couldn’t import the pack', 3500); }
 };
+registerPicThemes();
