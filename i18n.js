@@ -125,6 +125,15 @@ const RU = {
   'Card transparency': 'Прозрачность карточек', 'Corner rounding': 'Скругление углов', 'Border around blocks': 'Рамка вокруг блоков', 'Your own pictures': 'Свои картинки',
   'Any photos or illustrations from your library. Each section can have its own.': 'Любые фото или иллюстрации из галереи. Для каждого раздела можно поставить свою.',
   'Home screen picture': 'Картинка главного экрана', 'Journal background (general)': 'Фон дневника (общий)', 'Cover (lock screen)': 'Обложка (экран входа)', 'Name of your theme:': 'Название твоей темы:',
+  'Pictures': 'Картинки', 'Make a theme from my picture': 'Сделать тему из своей картинки', 'Import theme pack': 'Импортировать набор тем',
+  'Making a theme…': 'Создаю тему…', 'Name for the new theme:': 'Название новой темы:', 'My picture theme': 'Моя тема-картинка', 'From my picture': 'Из моей картинки',
+  'Couldn’t make the theme': 'Не получилось создать тему', 'Couldn’t open this picture': 'Не получилось открыть картинку',
+  'Themes made from pictures appear here. Import a theme pack (Settings → My pictures → Import picture pack) or make one from any picture in your library.': 'Здесь появятся темы из картинок. Импортируйте набор тем или сделайте тему из любой картинки в галерее.',
+  'Cozy evening': 'Уютный вечер', 'A sleepy cat, fireplace and snow outside': 'Сонный кот, камин и снег за окном', 'Rainy London': 'Дождливый Лондон',
+  'Red umbrella, lamplight, evening rain': 'Красный зонт, свет фонаря, вечерний дождь', 'Summer fair': 'Летняя ярмарка', 'Ferris wheel, carousel and fireworks': 'Колесо обозрения, карусель и салют',
+  'Deep sea': 'Глубокое море', 'Glowing jellyfish in sunbeams': 'Светящиеся медузы в лучах солнца', 'Mushroom village': 'Грибная деревня',
+  'Moonlight, lanterns and a little bridge': 'Лунный свет, фонари и мостик', 'Horned friend': 'Рогатый друг', 'Knitting by a warm window': 'Вязание у тёплого окна',
+  'Welcome back, firefly': 'С возвращением, светлячок', 'Pink and green watercolor heart': 'Розово-зелёное акварельное сердце',
   'My theme': 'Моя тема', 'Seasons': 'Времена года', 'Fairy tale': 'Сказочные', 'My themes': 'Мои темы', 'Autumn': 'Осень', 'Winter': 'Зима', 'Spring': 'Весна', 'Summer': 'Лето',
   'Theme default': 'Как в теме', 'Muted gold': 'Тусклое золото', 'Sage': 'Шалфей', 'Moss': 'Мох', 'Burgundy': 'Бордо', 'Rose': 'Роза', 'Lavender': 'Лаванда', 'Night sky': 'Ночное небо', 'Coffee': 'Кофе', 'Amber': 'Янтарь',
   'Moss, mist and fireflies': 'Мох, туман и светлячки', 'Bookshelves and candles': 'Книжные полки и свечи', 'Flowers, butterflies, magic': 'Цветы, бабочки, магия', 'Cottage, garden and linen': 'Домик, сад и лён',
@@ -241,6 +250,8 @@ const RU = {
 
 /* шаблони з числами */
 const RU_PATTERNS = [
+  [/^New themes: (\d+) ✨ — see Themes → Pictures$/, 'Новых тем: $1 ✨ — смотрите Темы → Картинки'],
+  [/^Delete the theme “(.+)”\?$/, 'Удалить тему «$1»?'],
   [/^(\d+) of (\d+) done$/, '$1 из $2 выполнено'],
   [/^(\d+) years ago$/, '$1 г. назад'],
   [/^(\d+) days · (\d+) photos$/, '$1 дн. · $2 фото'],

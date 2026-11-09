@@ -4,14 +4,92 @@
    S.art = { lib: { ключ: Blob }, names: {}, credits: {}, moodSets: {}, faceMap: {} }
    S.settings.artMood = { настрій: ключ }, S.settings.artEmo = { емоція: ключ } */
 
-S.art = { lib: {}, names: {}, credits: {}, moodSets: {}, faceMap: {} };
+S.art = { lib: {}, names: {}, credits: {}, moodSets: {}, faceMap: {}, themes: [] };
 
 async function loadArt() {
   try {
     const row = (await DB.all('kv')).find((r) => r.key === 'art');
-    if (row && row.value) S.art = { lib: {}, names: {}, credits: {}, moodSets: {}, faceMap: {}, ...row.value };
+    if (row && row.value) S.art = { lib: {}, names: {}, credits: {}, moodSets: {}, faceMap: {}, themes: [], ...row.value };
   } catch (e) { console.warn(e); }
+  registerPicThemes();
 }
+
+/* ---------- теми-картинки: картинка зверху, суцільний колір нижче ---------- */
+function registerPicThemes() {
+  for (let i = THEMES.length - 1; i >= 0; i--) if (THEMES[i].img) THEMES.splice(i, 1);
+  const list = (S.art.themes || []).filter((t) => t && t.id && S.art.lib[t.img]);
+  THEMES.unshift(...list.map((t) => T({ sky: [], layers: [], scene: 'minimal', particles: '', dark: true, ...t, cat: 'pictures', decor: [] })));
+}
+function mergePicThemes(list) {
+  const cur = S.art.themes || (S.art.themes = []);
+  for (const t of list || []) {
+    if (!t || !t.id) continue;
+    const i = cur.findIndex((x) => x.id === t.id);
+    if (i >= 0) cur[i] = t; else cur.push(t);
+  }
+}
+
+/** Тема з власної картинки: колір фону береться з низу картинки, акцент — найяскравіший колір. */
+async function themeFromImage(file) {
+  const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Couldn’t open this picture')); i.src = URL.createObjectURL(file); });
+  const W = 900, H = Math.round(img.naturalHeight * W / img.naturalWidth);
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const c = cv.getContext('2d');
+  c.drawImage(img, 0, 0, W, H);
+  const data = c.getImageData(0, 0, W, H).data;
+  const at = (x, y) => { const i = (y * W + x) * 4; return [data[i], data[i + 1], data[i + 2]]; };
+  // колір низу — медіана нижніх 6 % картинки
+  const bottom = [];
+  for (let y = Math.floor(H * 0.94); y < H; y += 3) for (let x = 0; x < W; x += 9) bottom.push(at(x, y));
+  const med = [0, 1, 2].map((k) => { const a = bottom.map((p) => p[k]).sort((m, n) => m - n); return a[a.length >> 1]; });
+  // акцент — найнасиченіший світлий колір верхньої частини
+  let best = null, bs = -1;
+  for (let y = 0; y < H * 0.7; y += 7) for (let x = 0; x < W; x += 7) {
+    const [r, g, b] = at(x, y), mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    const score = (mx - mn) * (mx / 255) * (mx > 120 ? 1 : 0.2);
+    if (score > bs) { bs = score; best = [r, g, b]; }
+  }
+  // плавний перехід низу картинки в колір фону
+  const fade = Math.round(H * 0.08);
+  for (let y = H - fade; y < H; y++) { c.fillStyle = `rgba(${med},${((y - (H - fade)) / fade) ** 1.3})`; c.fillRect(0, y, W, 1); }
+  const blob = await new Promise((res) => cv.toBlob(res, 'image/jpeg', 0.86));
+  const hex = (p) => '#' + p.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+  const mix = (p, q, k) => p.map((v, i) => v + (q[i] - v) * k);
+  const bg = hex(med), dark = !isLight(bg);
+  const toward = dark ? [255, 255, 255] : [0, 0, 0];
+  return {
+    blob,
+    theme: { dark, bgTop: bg, bgBottom: bg, card: hex(mix(med, toward, dark ? 0.08 : 0.5)), border: hex(mix(med, toward, dark ? 0.22 : 0.18)),
+      accent: hex(best || mix(med, toward, 0.6)), text: dark ? '#F4EEE6' : '#2E2620', subc: hex(mix(med, toward, 0.62)), orn: '· ✦ ·' },
+  };
+}
+ACT.picThemeAdd = async () => {
+  const file = await new Promise((res) => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.onchange = () => res(inp.files[0] || null); inp.click(); });
+  if (!file) return;
+  try {
+    toast('Making a theme…', 3000);
+    const { blob, theme: t } = await themeFromImage(file);
+    const name = prompt('Name for the new theme:', 'My picture theme');
+    if (name == null) return;
+    const id = 'pic_' + uid().slice(0, 8);
+    S.art.lib['th:' + id] = blob;
+    mergePicThemes([{ ...t, id, img: 'th:' + id, name: name.trim() || 'My picture theme', sub: 'From my picture', own: true }]);
+    await saveArt();
+    registerPicThemes();
+    await ACT.pickTheme({ dataset: { id } });
+  } catch (e) { console.error(e); toast(e.message || 'Couldn’t make the theme', 4000); }
+};
+ACT.picThemeDel = async (el, ev) => {
+  ev && ev.stopPropagation();
+  const id = el.dataset.id, t = (S.art.themes || []).find((x) => x.id === id);
+  if (!t || !confirm(`Delete the theme “${t.name}”?`)) return;
+  S.art.themes = S.art.themes.filter((x) => x.id !== id);
+  delete S.art.lib[t.img];
+  await saveArt();
+  registerPicThemes();
+  if (S.settings.themeId === id) { S.settings.themeId = 'darkForest'; await saveSettings(); applyTheme(); }
+  render();
+};
 async function saveArt() { await DB.put('kv', { key: 'art', value: S.art }); }
 
 function artURL(key) { const b = key && S.art.lib[key]; return b ? blobURL('art-' + key, b) : ''; }
@@ -49,7 +127,9 @@ async function importArtPack(file) {
   Object.assign(S.art.credits, pack.credits || {});
   Object.assign(S.art.moodSets, pack.moodSets || {});
   Object.assign(S.art.faceMap, pack.faceMap || {});
+  mergePicThemes(pack.themes);
   await saveArt();
+  registerPicThemes();
   // якщо ще нічого не обрано — одразу ставимо набір за замовчуванням
   if (!Object.keys(S.settings.artMood || {}).length && pack.defaultMood && pack.moodSets?.[pack.defaultMood]) S.settings.artMood = { ...pack.moodSets[pack.defaultMood] };
   if (!Object.keys(S.settings.artEmo || {}).length && pack.faceMap) S.settings.artEmo = { ...pack.faceMap };
@@ -251,8 +331,10 @@ ACT.artImport = async () => {
   if (!file) return;
   try {
     toast('Importing pictures…', 1500);
+    const before = (S.art.themes || []).length;
     const n = await importArtPack(file);
-    toast(`Pictures added: ${n} ✨`);
+    const nt = (S.art.themes || []).length - before;
+    toast(nt > 0 ? `New themes: ${nt} ✨ — see Themes → Pictures` : `Pictures added: ${n} ✨`, 3500);
     render();
   } catch (e) { console.error(e); toast(e.message || 'Couldn’t import the pack', 3500); }
 };

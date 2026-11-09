@@ -59,7 +59,7 @@ function applyTheme() {
   st.setProperty('--bg-top', t.bgTop);
   st.setProperty('--bg-bottom', t.bgBottom);
   st.setProperty('--card', t.card);
-  const op = set.cardOpacity ?? (t.id === 'minimalist' ? 1 : 0.92);
+  const op = set.cardOpacity ?? (t.id === 'minimalist' ? 1 : t.img ? 0.82 : 0.92);
   st.setProperty('--card-a', hexToRgba(t.card, op));
   st.setProperty('--border', t.border);
   st.setProperty('--accent', t.accent);
@@ -91,12 +91,14 @@ function paintBackground() {
   const section = sectionOf(parseHash().parts[0] || '');
   const secBlob = set.sectionBg?.[section];
   const url = secBlob ? blobURL('sec-' + section, secBlob) : bgURL;
-  const key = [t.id, t.bgTop, url, set.decor, set.sceneBg !== false].join('|');
+  const pic = !url && t.img ? artURL(t.img) : '';
+  const key = [t.id, t.bgTop, url, pic, set.decor, set.sceneBg !== false].join('|');
   const bg = $('#bg');
   if (bg.dataset.key === key) return;
   bg.dataset.key = key;
   let html = '';
   if (url) html += `<div class="bg-img" style="background-image:url(${url})"></div><div class="bg-fade"></div>`;
+  else if (pic) html += `<div class="bg-pic" style="background-image:url(${pic})"></div>`;
   else if (set.sceneBg !== false && t.scene !== 'minimal') html += '<canvas class="bg-scene"></canvas><div class="bg-fade strong"></div>';
   if (set.decor && t.decor.length) {
     const r = rng(11);
@@ -338,9 +340,9 @@ ROUTES[''] = async (v) => {
     <button class="icon-btn" data-go="/search" aria-label="Search">${icon('search')}</button>
     <button class="icon-btn" data-go="/settings" aria-label="Settings">${icon('gear')}</button>
   </div>
-  <div class="hero">
-    ${headerURL ? `<div class="hero-img" style="background-image:url(${headerURL})"></div>` : '<canvas id="hero-canvas"></canvas>'}
-    <div class="fade"></div>
+  <div class="hero" ${t.img && t.heroH && !headerURL && !bgURL ? `style="height:calc(${+t.heroH}px + var(--safe-top))"` : ''}>
+    ${headerURL ? `<div class="hero-img" style="background-image:url(${headerURL})"></div>` : t.img && !bgURL ? '' : '<canvas id="hero-canvas"></canvas>'}
+    <div class="fade ${t.img && !headerURL && !bgURL ? 'soft' : ''}"></div>
     <div class="greet">
       <div class="hello">${D.greeting()}${name ? ', ' + esc(name) : ''} ✦</div>
       <div class="today">${D.long(now)}</div>
@@ -1965,7 +1967,7 @@ ROUTES.settings = async (v) => {
 function themePreview(t, h, selected, imgURL) {
   const btn = t.btn || t.accent;
   return `<div class="theme-prev ${selected ? 'sel' : ''}" style="background:linear-gradient(${t.bgTop},${t.bgBottom})">
-    ${imgURL ? `<div style="height:${h}px;background:url(${imgURL}) center/cover"></div>` : `<canvas data-theme="${t.id}" style="height:${h}px"></canvas>`}
+    ${imgURL ? `<div style="height:${h}px;background:url(${imgURL}) ${t.img ? 'top' : 'center'}/cover"></div>` : `<canvas data-theme="${t.id}" style="height:${h}px"></canvas>`}
     <div class="mock">${[0, 1].map((i) => `<div class="mc" style="background:${t.card}">
       <div style="display:flex;gap:5px;align-items:center"><i style="width:18px;height:9px;background:${t.text};opacity:.7"></i><i style="width:26px;background:${t.subc};opacity:.5"></i>
       <span style="flex:1"></span><i style="width:10px;height:10px;border-radius:50%;background:${CATS[i].color}"></i></div>
@@ -2000,7 +2002,9 @@ ROUTES.themes = async (v) => {
     });
   } else {
     tiles = list.map((t, i) => `<button class="theme-tile" data-act="pickTheme" data-id="${t.id}">
-      ${themePreview(t, (Math.floor(i / 2) + i) % 2 === 0 ? 130 : 90, st.themeId === t.id)}<div class="serif" style="font-size:15px;margin-top:8px">${t.name}</div><div class="small muted">${t.sub}</div></button>`);
+      ${themePreview(t, t.img ? 150 : (Math.floor(i / 2) + i) % 2 === 0 ? 130 : 90, st.themeId === t.id, t.img ? artURL(t.img) : '')}
+      <div class="row"><div class="grow"><div class="serif" style="font-size:15px;margin-top:8px">${esc(t.name)}</div><div class="small muted">${esc(t.sub || '')}</div></div>
+      ${themeCat === 'pictures' ? `<span class="text-btn" data-act="picThemeDel" data-id="${t.id}">${icon('trash', 16)}</span>` : ''}</div></button>`);
   }
   tiles.forEach((h, i) => cols[i % 2].push(h));
   const canUndo = (st.lookHistory || []).length > 0;
@@ -2009,6 +2013,9 @@ ROUTES.themes = async (v) => {
     ${myBackgroundsCard()}
     <div class="periods">${THEME_CATS.map(([id, n]) => `<button class="pill ${themeCat === id ? 'on' : ''}" data-act="themeCat" data-c="${id}">${n}${id === 'mine' && mine.length ? ' · ' + mine.length : ''}</button>`).join('')}</div>
     ${canUndo ? `<button class="btn full" data-act="undoLook">↩︎ Restore previous look</button>` : ''}
+    ${themeCat === 'pictures' ? `<div class="grid2"><button class="btn solid" data-act="picThemeAdd">${icon('plus', 18)} Make a theme from my picture</button>
+      <button class="btn" data-act="artImport">${icon('download', 18)} Import theme pack</button></div>
+      ${list.length ? '' : '<div class="card small muted">Themes made from pictures appear here. Import a theme pack (Settings → My pictures → Import picture pack) or make one from any picture in your library.</div>'}` : ''}
     ${themeCat === 'mine' && !mine.length ? '<div class="card small muted">Your own themes will appear here. Set colors, fonts and pictures in “My style” and tap “Save as my theme”.</div>' : ''}
     <div class="masonry">${cols.map((c) => `<div class="col">${c.join('')}</div>`).join('')}</div>
     <button class="btn full" data-go="/style">${icon('sparkle')} My style: colors, fonts, pictures</button>
@@ -2182,8 +2189,10 @@ ACT.delEmotion = async (el) => {
 function pinPad(onDone, subtitle, cancellable, extraHTML = '') {
   const el = document.createElement('div');
   el.className = 'lock';
-  const cover = S.settings.coverImg ? blobURL('cover', S.settings.coverImg) : headerURL;
-  el.innerHTML = `<div class="hero" style="height:calc(250px + var(--safe-top))">${cover ? `<div class="hero-img" style="background-image:url(${cover})"></div>` : '<canvas></canvas>'}<div class="fade"></div>
+  const picT = theme();
+  const cover = S.settings.coverImg ? blobURL('cover', S.settings.coverImg) : headerURL || (picT.img ? artURL(picT.img) : '');
+  const coverTop = !S.settings.coverImg && !headerURL && picT.img;
+  el.innerHTML = `<div class="hero" style="height:calc(${coverTop ? 330 : 250}px + var(--safe-top))">${cover ? `<div class="hero-img" style="background-image:url(${cover})${coverTop ? ';background-position:top;background-size:100% auto' : ''}"></div>` : '<canvas></canvas>'}<div class="fade"></div>
       <div class="greet" style="text-align:center"><div style="color:var(--accent)">${icon('lock', 22)}</div><div class="today" style="font-style:italic">own journal</div><div class="hello" id="pin-sub">${subtitle}</div></div></div>
     <div class="pin-dots" id="pin-dots"><i></i><i></i><i></i><i></i></div>
     <div class="pinpad">${['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'].map((k) => `<button class="${k === '' || k === '⌫' ? 'ghost' : ''}" data-k="${k}">${k}</button>`).join('')}</div>

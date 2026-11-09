@@ -429,7 +429,7 @@ THEMES.push(
     sky: ['#06081A', '#141A40', '#2A1E4A'], layers: [], scene: 'space', particles: 'twinkle', decor: ['✦', '☾', '🪐'], orn: '✦ · 🪐 · ✦', corner: '🪐' }),
 );
 
-const THEME_CATS = [['all', 'All'], ['season', 'Seasons'], ['fairy', 'Fairy tale'], ['cozy', 'Cozy'], ['mine', 'My themes']];
+const THEME_CATS = [['all', 'All'], ['pictures', 'Pictures'], ['season', 'Seasons'], ['fairy', 'Fairy tale'], ['cozy', 'Cozy'], ['mine', 'My themes']];
 const OLD_CATS = { darkForest: 'fairy', cozyLibrary: 'cozy', fairycore: 'fairy', cottagecore: 'cozy', gothicNature: 'fairy', minimalist: 'cozy', autumn: 'season', winter: 'season', spring: 'season', summer: 'season' };
 THEMES.forEach((t) => { if (!t.cat) t.cat = OLD_CATS[t.id] || 'cozy'; });
 // впорядкувати: пори року → казкові → затишні

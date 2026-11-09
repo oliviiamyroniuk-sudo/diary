@@ -377,6 +377,8 @@ restoreBackup = async function restoreBackupV2(file) {
   if (manifest.art) {
     const art = await dec(manifest.art);
     for (const f of ['lib', 'names', 'credits', 'moodSets', 'faceMap']) S.art[f] = { ...(art[f] || {}), ...(S.art[f] || {}) };
+    const mine = S.art.themes || [];
+    S.art.themes = [...(art.themes || []).filter((t) => !mine.some((x) => x.id === t.id)), ...mine];
     await saveArt();
   }
   await saveSettings();
