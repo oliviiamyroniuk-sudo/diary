@@ -499,6 +499,7 @@ function openDayEmotion(key, onDone) {
       ${res ? `<div class="row" style="gap:12px;margin-bottom:12px"><div style="width:96px;flex:none">${moodArtHTML(res, 'sh' + key)}</div><div class="grow"><div class="serif">${moodTitleHTML(res)}</div>
         ${res.picEmo ? `<button class="btn" style="margin-top:8px" data-act="emoPic" data-id="${res.picEmo}">${icon('image', 16)} Change picture</button>` : `<button class="btn" style="margin-top:8px" data-act="renameMood" data-m="${res.mood}">${icon('pen', 16)} Rename this mood</button>`}</div></div>` : ''}
       <button class="btn full" style="margin-bottom:12px" data-go="/emotions">${icon('pen', 16)} Rename emotions</button>
+      <button class="btn full" style="margin-bottom:12px" data-go="/art">${icon('image', 16)} Pictures of the day for smileys</button>
       ${cur.length ? `<div class="small muted">Marks (tap to remove):</div><div class="chips" style="margin:6px 0 12px;flex-wrap:wrap">${cur.map((id, i) => {
         const e = Emo.get(id);
         return e ? `<button class="chip" style="--c:${e.color}" data-rm="${i}">${Emo.badge(e, 22)}${esc(e.name)}${times[i] ? ` <span class="muted">${times[i]}</span>` : ''} ✕</button>` : '';

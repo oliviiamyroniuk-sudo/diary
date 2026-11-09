@@ -175,7 +175,7 @@ async function importArtPack(file) {
   // якщо ще нічого не обрано — одразу ставимо набір за замовчуванням
   if (!Object.keys(S.settings.artMood || {}).length && pack.defaultMood && pack.moodSets?.[pack.defaultMood]) S.settings.artMood = { ...pack.moodSets[pack.defaultMood] };
   if (!Object.keys(S.settings.artEmo || {}).length && pack.faceMap) S.settings.artEmo = { ...pack.faceMap };
-  syncStickerEmotions(); S.settings.stickersSynced = S.settings.cardsSynced = true;
+  syncStickerEmotions(); S.settings.stickersSynced = true;
   await saveSettings();
   return n;
 }
@@ -284,23 +284,12 @@ ACT.myBgReset = async () => {
 /** Усі стікери-обличчя → емоції групи «Stickers» (ті, що ще не стоять на жодній емоції). */
 function syncStickerEmotions() {
   const keys = libKeys('face');
-  if (!keys.length && !libKeys('mood').length) return 0;
+  if (!keys.length) return 0;
   S.settings.artEmo = S.settings.artEmo || {};
   S.settings.customEmotions = S.settings.customEmotions || [];
   const used = new Set(Object.values(S.settings.artEmo));
   const have = new Set(S.settings.customEmotions.map((e) => e.id));
   let n = S.settings.customEmotions.filter((e) => e.cat === 'stk').length, added = 0;
-  // картинки настрою (картки) теж стають емоціями — і одразу стають картинкою дня для себе
-  S.settings.emoPic = S.settings.emoPic || {};
-  let nc = S.settings.customEmotions.filter((e) => e.cat === 'stk' && e.card).length;
-  for (const k of libKeys('mood')) {
-    const id = 'stk-' + k.replace(/[^a-zA-Z0-9]/g, '_');
-    if (have.has(id)) continue;
-    nc++; added++;
-    S.settings.customEmotions.push({ id, emoji: '', name: (S.art.names || {})[k] || 'Card ' + nc, cat: 'stk', score: 0, color: '#A99FBF', custom: true, card: true });
-    S.settings.artEmo[id] = k;
-    S.settings.emoPic[id] = k;
-  }
   for (const k of keys) {
     const id = 'stk-' + k.replace(/[^a-zA-Z0-9]/g, '_');
     if (used.has(k) || have.has(id)) continue;
@@ -312,16 +301,22 @@ function syncStickerEmotions() {
 }
 ACT.addAllStickers = async () => {
   const n = syncStickerEmotions();
-  S.settings.stickersSynced = S.settings.cardsSynced = true;
+  S.settings.stickersSynced = true;
   await saveSettings();
   toast(n ? `Stickers added to emotions: ${n} ✨` : 'All stickers are already in emotions ✓', 3500);
   render();
 };
 async function autoStickerEmotions() {
-  if (S.settings.stickersSynced && S.settings.cardsSynced) return;
-  if (!libKeys('face').length && !libKeys('mood').length) return;
+  // прибираємо картки-емоції з попередньої версії (картки — лише картинки дня)
+  const cards = (S.settings.customEmotions || []).filter((e) => e.card).map((e) => e.id);
+  if (cards.length) {
+    S.settings.customEmotions = S.settings.customEmotions.filter((e) => !e.card);
+    for (const id of cards) { if (S.settings.artEmo) delete S.settings.artEmo[id]; if (S.settings.emoPic) delete S.settings.emoPic[id]; }
+    await saveSettings();
+  }
+  if (S.settings.stickersSynced || !libKeys('face').length) return;
   syncStickerEmotions();
-  S.settings.stickersSynced = S.settings.cardsSynced = true;
+  S.settings.stickersSynced = true;
   await saveSettings();
 }
 
@@ -341,6 +336,12 @@ ROUTES.art = async (v) => {
       <div class="small muted">Here you can use your own pictures instead of the drawn ones: for the mood of the day and for each smiley. Pictures are stored only on this phone and are included in the full backup.</div>
       <button class="btn full solid" data-act="artImport">${icon('download')} Import picture pack</button>
       ${haveLib ? `<div class="small muted">In the library: ${libKeys('mood').length} mood pictures, ${libKeys('face').length} smileys.${credits.length ? ` Artists: ${credits.map(esc).join(', ')}.` : ''}</div>` : ''}
+    </div>
+    <div class="card stack" id="daypics">
+      <div class="serif" style="font-size:18px">Picture of the day for each smiley</div>
+      <div class="small muted">Tap a smiley and choose the picture it gives. The smiley you mark most during the day decides the picture of the day. Smileys without a picture use the mood pictures below.</div>
+      <div class="art-face-grid">${Emo.all().map((e) => { const k = emoPicKey(e.id); return `<button class="art-face" data-act="emoPic" data-id="${e.id}"><span class="emo face" style="--s:52px">${Faces.svg(e)}</span>
+        ${k ? `<img src="${artURL(k)}" alt="" loading="lazy" style="width:52px;height:64px;object-fit:cover;border-radius:6px;margin-top:4px">` : '<span class="small muted" style="margin-top:4px">—</span>'}<span class="small">${esc(e.name)}</span></button>`; }).join('')}</div>
     </div>
     <div class="card stack">
       <div class="serif" style="font-size:18px">Mood of the day</div>
