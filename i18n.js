@@ -142,6 +142,10 @@ const RU = {
   'Pictures of the day and their emotions': 'Картинки дня и их эмоции', 'Pictures and their emotions': 'Картинки и их эмоции', 'Pictures and emotions': 'Картинки и эмоции', '+ emotions': '+ эмоции', 'Picture': 'Картинка', 'chosen': 'выбрано', 'Add pictures first: import a picture pack or add your own from photos.': 'Сначала добавьте картинки: импортируйте набор или добавьте свои из фото.',
   'Tap a picture and choose the emotions you associate with it. Every day the journal looks at the emotions you marked most and shows the picture that fits them best. Pictures without emotions are not used this way.': 'Нажмите на картинку и выберите эмоции, которые с ней ассоциируются. Каждый день дневник смотрит, какие эмоции вы отмечали чаще всего, и показывает картинку, которая подходит лучше всего.',
   'Tap the emotions you associate with this picture. When these emotions are the ones you mark most during the day, the home screen shows this picture.': 'Отметьте эмоции, которые ассоциируются с этой картинкой. Когда за день чаще всего отмечены эти эмоции, на главном экране будет эта картинка.',
+  'Choose a smiley': 'Выберите смайлик', 'Choose a smiley…': 'Выбрать смайлик…', 'No emotion': 'Без эмоции', 'Smileys of the old diary': 'Смайлики старого дневника', 'Change smileys of the old diary': 'Изменить смайлики старого дневника', 'Back': 'Назад', 'No imported icons yet.': 'Импортированных иконок пока нет.',
+  'Tap the smiley next to each old icon and choose the emotion it means. It will be added to those entries. You can change it later too.': 'Нажмите на смайлик рядом с каждой старой иконкой и выберите эмоцию. Её можно изменить и позже.',
+  'Tap a smiley to change which emotion an old icon means. All imported entries with that icon change too.': 'Нажмите на смайлик, чтобы изменить эмоцию для старой иконки. Все импортированные записи с этой иконкой тоже изменятся.',
+  'Icons without a picture were imported before this screen existed — import any part again and their pictures will appear here.': 'Иконки без картинки были импортированы раньше — импортируйте любую часть ещё раз, и картинки появятся.',
   'My theme': 'Моя тема', 'Seasons': 'Времена года', 'Fairy tale': 'Сказочные', 'My themes': 'Мои темы', 'Autumn': 'Осень', 'Winter': 'Зима', 'Spring': 'Весна', 'Summer': 'Лето',
   'Theme default': 'Как в теме', 'Muted gold': 'Тусклое золото', 'Sage': 'Шалфей', 'Moss': 'Мох', 'Burgundy': 'Бордо', 'Rose': 'Роза', 'Lavender': 'Лаванда', 'Night sky': 'Ночное небо', 'Coffee': 'Кофе', 'Amber': 'Янтарь',
   'Moss, mist and fireflies': 'Мох, туман и светлячки', 'Bookshelves and candles': 'Книжные полки и свечи', 'Flowers, butterflies, magic': 'Цветы, бабочки, магия', 'Cottage, garden and linen': 'Домик, сад и лён',
@@ -258,6 +262,7 @@ const RU = {
 
 /* шаблони з числами */
 const RU_PATTERNS = [
+  [/^Changed in (\d+) entries ✓$/, 'Изменено в записях: $1 ✓'],
   [/^Card (\d+)$/, 'Карточка $1'],
   [/^Picture of the day · (.+)$/, 'Картинка дня · $1'],
   [/^Stickers added to emotions: (\d+) ✨$/, 'Стикеров добавлено в эмоции: $1 ✨'],

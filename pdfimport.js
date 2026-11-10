@@ -291,7 +291,11 @@ async function pdfScan(st, onProgress) {
         if (cv) {
           const h = iconHash(cv);
           let k = st.icons.findIndex((x) => sameIcon(x.hash, h));
-          if (k < 0) { k = st.icons.length; st.icons.push({ hash: h, url: cv.toDataURL('image/png'), n: 0 }); }
+          if (k < 0) {
+            k = st.icons.length; st.icons.push({ hash: h, url: cv.toDataURL('image/png'), n: 0 });
+            const imgs = S.settings.pdfIconImgs || (S.settings.pdfIconImgs = {});
+            if (!Object.keys(imgs).some((x) => sameIcon(x, h))) imgs[h] = st.icons[k].url;
+          }
           st.icons[k].n++;
           st.pendingMoodNext = k;
         }
@@ -419,6 +423,7 @@ ROUTES.pdfimport = async (v) => {
       <div class="small muted">Import your old diary from a PDF (for example, the “My Diary” export): all days with their dates, times, texts and photos become entries here. Entries that are already imported are skipped.</div>
       <label class="btn full solid">${icon('download')} Choose PDF file<input type="file" accept="application/pdf,.pdf" id="pdf-file" hidden></label>
       ${last ? `<div class="small muted">Last import: “${esc(last.name)}”, pages 1–${last.done} of ${last.pages}.</div>` : ''}
+      ${S.entries.some((e) => e.importIcon) || Object.keys(S.settings.pdfMoodMap || {}).length ? `<button class="btn full" data-act="pdfRemapOpen">${icon('smile', 16)} Change smileys of the old diary</button>` : ''}
       ${S.entries.some((e) => e.importKey) ? `<button class="btn full" data-act="pdfWipe">${icon('trash', 16)} Delete imported entries and start over</button>` : ''}
       <div class="small muted">Big files are fine — the PDF is read piece by piece. Keep the screen on and the journal open while it works. You can import in parts: choose the pages to import.</div>
     </div>`;
@@ -453,14 +458,15 @@ ROUTES.pdfimport = async (v) => {
       <button class="btn full solid" data-act="pdfLearned">${icon('check')} Continue</button>
     </div>`;
   } else if (st.phase === 'moods') {
-    const emoOpts = Emo.all().map((e) => `<option value="${e.id}">${esc(e.name)}</option>`).join('');
+    st.choice = st.choice || st.icons.map((ic) => moodFor(ic.hash) || '');
     body = `<div class="card stack">
       <div class="serif" style="font-size:18px">Moods from your old diary</div>
-      <div class="small muted">Which emotion does each icon mean? It will be added to those entries.</div>
-      ${st.icons.map((ic, i) => `<div class="row" style="gap:12px"><img src="${ic.url}" style="width:48px;height:48px;flex:none" alt="">
-        <select class="text-input grow" data-icon="${i}"><option value="">— no emotion —</option>${emoOpts}</select><span class="small muted">${ic.n}×</span></div>`).join('')}
+      <div class="small muted">Tap the smiley next to each old icon and choose the emotion it means. It will be added to those entries. You can change it later too.</div>
+      ${st.icons.map((ic, i) => iconRowHTML(ic.url, st.choice[i], `data-act="pdfIconPick" data-i="${i}"`, `${ic.n}×`)).join('')}
       <button class="btn full solid" data-act="pdfMoodsDone">${icon('check')} Finish import</button>
     </div>`;
+  } else if (st.phase === 'remap') {
+    body = remapHTML();
   } else if (st.phase === 'saving') {
     body = `<div class="card stack center"><div class="serif" style="font-size:18px" id="pi-save">Saving entries…</div><div class="small muted">Keep the screen on and the journal open.</div></div>`;
   } else if (st.phase === 'error') {
@@ -556,6 +562,63 @@ ACT.pdfStart = () => {
   st.phase = 'scan';
   render();
 };
+/** Рядок «стара іконка → смайлик емоції». */
+function iconRowHTML(url, emoId, attrs, note) {
+  const e = emoId && Emo.get(emoId);
+  return `<div class="row" style="gap:12px">${url ? `<img src="${url}" style="width:44px;height:44px;flex:none;border-radius:8px;background:#fff" alt="">` : '<div style="width:44px;height:44px;flex:none;border-radius:8px;border:1px dashed var(--border)"></div>'}
+    <span class="muted">→</span>
+    <button class="row grow" style="gap:10px;text-align:left;padding:6px 10px;border:1px solid var(--border);border-radius:14px;background:var(--card)" ${attrs}>
+      ${e ? `${Emo.badge(e, 40)}<span class="grow">${esc(e.name)}</span>` : `<span class="grow muted">Choose a smiley…</span>`}${icon('right', 16)}</button>
+    ${note ? `<span class="small muted" style="flex:none">${note}</span>` : ''}</div>`;
+}
+/** Вибір емоції сіткою смайликів. */
+function pickEmotionSheet(title, cur, done) {
+  const html = `<button class="btn full" data-e="">No emotion</button>
+    ${CATS.map((c) => { const list = Emo.inCat(c.id); return list.length ? `<div class="serif" style="margin:12px 0 6px">${c.title}</div><div class="emo-grid">${list.map((e) => `<button class="emo-cell ${e.id === cur ? 'on' : ''}" data-e="${e.id}">${Emo.badge(e, 46)}<span class="name">${esc(e.name)}</span></button>`).join('')}</div>` : ''; }).join('')}`;
+  openSheet(title, html, (body, close) => {
+    body.addEventListener('click', (ev) => { const b = ev.target.closest('[data-e]'); if (!b) return; close(); done(b.dataset.e); });
+  });
+}
+ACT.pdfIconPick = (el) => {
+  const st = PDFI.state, i = +el.dataset.i;
+  pickEmotionSheet('Choose a smiley', st.choice[i], (id) => { st.choice[i] = id; render(); });
+};
+/** Екран «змінити емоції для старих іконок» — міняє й уже імпортовані записи. */
+function remapHTML() {
+  const map = S.settings.pdfMoodMap || {}, imgs = S.settings.pdfIconImgs || {};
+  const hashes = [...new Set([...Object.keys(map), ...Object.keys(imgs)])].filter((h, i, a) => a.findIndex((x) => sameIcon(x, h)) === i);
+  const count = (h) => S.entries.filter((e) => e.importIcon && sameIcon(e.importIcon, h)).length;
+  const imgOf = (h) => { const k = Object.keys(imgs).find((x) => sameIcon(x, h)); return k ? imgs[k] : ''; };
+  const rows = hashes.map((h) => ({ h, n: count(h), url: imgOf(h), emo: moodFor(h) })).filter((r) => r.n || r.url).sort((a, b) => b.n - a.n);
+  return `<div class="card stack">
+    <div class="serif" style="font-size:18px">Smileys of the old diary</div>
+    <div class="small muted">Tap a smiley to change which emotion an old icon means. All imported entries with that icon change too.</div>
+    ${rows.length ? rows.map((r) => iconRowHTML(r.url, r.emo, `data-act="pdfRemap" data-h="${r.h}"`, `${r.n}×`)).join('') : '<div class="small muted">No imported icons yet.</div>'}
+    ${rows.some((r) => !r.url) ? '<div class="small muted">Icons without a picture were imported before this screen existed — import any part again and their pictures will appear here.</div>' : ''}
+    <button class="btn full" data-act="pdfClose">Back</button>
+  </div>`;
+}
+ACT.pdfRemapOpen = () => { PDFI.state = { phase: 'remap' }; render(); };
+ACT.pdfRemap = (el) => {
+  const h = el.dataset.h, old = moodFor(h);
+  pickEmotionSheet('Choose a smiley', old, async (id) => {
+    const map = { ...(S.settings.pdfMoodMap || {}) };
+    for (const k of Object.keys(map)) if (sameIcon(k, h)) delete map[k];
+    if (id) map[h] = id;
+    S.settings.pdfMoodMap = map;
+    await saveSettings();
+    let n = 0;
+    for (const e of S.entries) {
+      if (!e.importIcon || !sameIcon(e.importIcon, h)) continue;
+      let list = (e.emotions || []).filter((x) => x !== old);
+      if (id && !list.includes(id)) list = [id, ...list];
+      e.emotions = list; refreshEntry(e); n++;
+      try { await DB.put('entries', e); } catch (_) {}
+    }
+    toast(`Changed in ${n} entries ✓`);
+    render();
+  });
+};
 ACT.pdfInspect = async () => {
   const st = PDFI.state;
   if (!st || !st.pdf) return;
@@ -598,7 +661,7 @@ ACT.pdfLearned = async () => {
 ACT.pdfMoodsDone = async () => {
   const st = PDFI.state;
   const map = { ...(S.settings.pdfMoodMap || {}) };
-  for (const sel of $$('[data-icon]')) { const ic = st.icons[+sel.dataset.icon]; if (sel.value) map[ic.hash] = sel.value; }
+  (st.choice || []).forEach((id, i) => { if (id) map[st.icons[i].hash] = id; });
   S.settings.pdfMoodMap = map;
   await pdfFinalize(st);
   render();
