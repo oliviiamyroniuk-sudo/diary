@@ -37,6 +37,7 @@ const PdfImport = (() => {
     const stack = [];
     let path = [];  // [opName, ...points] у координатах сторінки
     let tm = [1, 0, 0, 1, 0, 0], tlm = [1, 0, 0, 1, 0, 0], fontSize = 1, font = null;
+    let sp = false; // пробіл перед наступною літерою (живе між окремими фрагментами тексту)
     for (let i = 0; i < ol.fnArray.length; i++) {
       const fn = ol.fnArray[i], args = ol.argsArray[i];
       switch (fn) {
@@ -64,11 +65,12 @@ const PdfImport = (() => {
         case O.setTextMatrix: tm = args.slice(); tlm = args.slice(); break;
         case O.moveText: tlm = mul(tlm, [1, 0, 0, 1, args[0], args[1]]); tm = tlm.slice(); break;
         case O.showText: case O.showSpacedText: {
-          let sp = false;
           for (const g of args[0]) {
             if (typeof g === 'number') { tm = mul(tm, [1, 0, 0, 1, -g / 1000 * fontSize, 0]); if (-g > 150) sp = true; continue; }
             if (!g) continue;
-            if (g.isSpace || (g.unicode != null && !g.unicode.trim())) { sp = true; tm = mul(tm, [1, 0, 0, 1, (g.width || 250) / 1000 * fontSize, 0]); continue; }
+            // пробіл — лише якщо сам символ порожній; позначка isSpace буває й на літерах (у твоєму PDF — на «е»)
+            const blank = typeof g.unicode !== 'string' ? g.isSpace : !g.unicode.trim();
+            if (blank) { sp = true; tm = mul(tm, [1, 0, 0, 1, (g.width || 250) / 1000 * fontSize, 0]); continue; }
             const m = mul(ctm, mul(tm, [fontSize, 0, 0, fontSize, 0, 0]));
             const size = Math.hypot(m[2], m[3]);
             const [x, y] = ap(m, 0, 0);
