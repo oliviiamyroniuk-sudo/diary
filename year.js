@@ -27,7 +27,8 @@ function daySnippet(d, n = 140) {
 
 function dayCardHTML(d, extra = '') {
   const res = dayMood(d);
-  const ph = d.entries.flatMap((e) => e.photos || [])[0];
+  const phs = d.entries.flatMap((e) => e.photos || []);
+  const ph = phs[0];
   return `<a class="card yr-day" data-go="/day/${d.key}">
     <div class="yr-day-art">${res ? moodArtHTML(res, 'yr' + d.key) : ph ? `<img data-pid="${ph}" alt="">` : ''}</div>
     <div class="grow" style="min-width:0">
@@ -35,6 +36,7 @@ function dayCardHTML(d, extra = '') {
       <div class="serif" style="font-size:17px">${D.long(d.date)}</div>
       <div style="margin:4px 0">${Emo.stack(d.all.slice(0, 5), 24, 5)}</div>
       ${daySnippet(d) ? `<div class="small yr-snip" translate="no">${esc(daySnippet(d))}</div>` : ''}
+      ${phs.length ? `<div class="yr-photos">${phs.slice(0, 3).map((p) => `<img data-pid="${p}" alt="">`).join('')}${phs.length > 3 ? `<span>+${phs.length - 3}</span>` : ''}</div>` : ''}
     </div></a>`;
 }
 
@@ -80,8 +82,8 @@ ROUTES.review = async (v, parts) => {
 
   // найкращі і сумні дні
   const scored = days.filter((d) => d.score != null);
-  const best = spread(scored.filter((d) => d.score >= GOOD).sort((a, b) => b.score - a.score), 3);
-  const sad = spread(scored.filter((d) => d.score <= SAD).sort((a, b) => a.score - b.score), 3, 14);
+  const best = spread(scored.filter((d) => d.score >= GOOD).sort((a, b) => b.score - a.score), 4);
+  const sad = spread(scored.filter((d) => d.score <= SAD).sort((a, b) => a.score - b.score), 2, 14);
   const afterSad = sad.map((d) => {
     const next = Object.values(all).filter((x) => x.key > d.key && x.score != null && x.score >= 0.5).sort((a, b) => a.key.localeCompare(b.key))[0];
     return { d, next, gap: next ? D.between(d.date, next.date) : null };
@@ -104,14 +106,15 @@ ROUTES.review = async (v, parts) => {
     ${years.length > 1 ? `<div class="seg" style="align-self:center">${years.slice(0, 6).map((y) => `<button class="${y === year ? 'on' : ''}" data-go="/review/${y}">${y}</button>`).join('')}</div>` : ''}
 
     <div class="card yr-cover center">
-      <div class="small muted">your year</div>
+      <div class="small muted">goodbye,</div>
       <div class="yr-year">${year}</div>
+      <div class="small muted" style="margin-top:6px">let’s look back at it together one last time</div>
       <div class="grid3" style="margin-top:14px">
         <div><div class="big-num">${entries.length}</div><div class="small muted">entries</div></div>
         <div><div class="big-num">${written}</div><div class="small muted">days written</div></div>
         <div><div class="big-num">${photos.length}</div><div class="small muted">photos</div></div>
       </div>
-      ${words ? `<div class="small muted" style="margin-top:10px">${words.toLocaleString('en')} words — that’s about ${Math.max(1, Math.round(words / 250))} pages of your story</div>` : ''}
+      ${words ? `<div class="small muted" style="margin-top:10px">${words.toLocaleString('en')} words — that’s about ${Math.max(1, Math.round(words / 250))} page${Math.round(words / 250) > 1 ? "s" : ""} of your story</div>` : ''}
     </div>
 
     ${top.length ? `<div class="card stack">
@@ -128,7 +131,7 @@ ROUTES.review = async (v, parts) => {
       <div class="small muted center">blue — harder days · warm — brighter days</div>
     </div>
 
-    ${best.length ? `${sectionTitle('Your best days', 'the days that shone')}${best.map((d, i) => dayCardHTML(d, ['☀️ the brightest day', '✨ another happy day', '🌼 a lovely day'][i])).join('')}` : ''}
+    ${best.length ? `${sectionTitle('Your best days', 'the days that shone')}${best.map((d, i) => dayCardHTML(d, ['☀️ the brightest day', '✨ another happy day', '🌼 a lovely day', '💛 a warm day'][i])).join('')}` : ''}
 
     ${sad.length ? `<div class="card stack yr-pass">
       ${sectionTitle('Everything passes', 'even after the hardest days, good ones came')}
@@ -146,9 +149,24 @@ ROUTES.review = async (v, parts) => {
       <div style="font-size:34px">🌿</div>
       <div class="serif" style="font-size:19px">${goodDays ? `This year had ${goodDays} bright day${goodDays === 1 ? '' : 's'}.` : 'You made it through this year.'}</div>
       <div class="small muted">${sad.length ? 'Some days were heavy — and every one of them passed. ' : ''}Thank you for writing your story. 💛</div>
+      <div class="serif" style="font-size:17px;margin-top:6px">Goodbye, ${year}. Hello, ${+year + 1} ✨</div>
     </div>
   </div>`;
   ACT.reviewPhoto = (el) => openViewer(yearPhotos.map((p) => p.id), +el.dataset.i);
   hydrate(v);
 };
 ACT.openReview = () => go('/review/' + (reviewYears()[0] || new Date().getFullYear()));
+
+/** На Новий рік (31 грудня — 14 січня) підсумок відкривається сам — один раз. */
+function maybeAutoReview() {
+  const now = new Date();
+  const inWindow = (now.getMonth() === 11 && now.getDate() === 31) || (now.getMonth() === 0 && now.getDate() <= 14);
+  if (!inWindow) return false;
+  const y = String(now.getMonth() === 11 ? now.getFullYear() : now.getFullYear() - 1);
+  if ((S.settings.reviewShown || '') === y || !S.entries.some((e) => e.date.startsWith(y))) return false;
+  if ((parseHash().parts[0] || '') !== '') return false;
+  S.settings.reviewShown = y;
+  saveSettings().catch(() => {});
+  go('/review/' + y);
+  return true;
+}

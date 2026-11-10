@@ -383,7 +383,7 @@ ROUTES[''] = async (v) => {
       </button>
       ${homeUpcomingHTML()}
     </div>
-    ${(now.getMonth() === 11 && now.getDate() >= 10) || now.getMonth() === 0 ? (() => { const y = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear(); return S.entries.some((e) => e.date.startsWith(String(y))) ? `<a class="card tight row" data-go="/review/${y}" style="gap:12px"><span style="font-size:26px">✨</span><span class="grow"><span class="serif" style="font-size:17px">Your ${y} in review</span><br><span class="small muted">emotions, best days and photos of the year</span></span>${icon('right')}</a>` : ''; })() : ''}
+    ${(now.getMonth() === 11 && now.getDate() >= 20) || now.getMonth() === 0 ? (() => { const y = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear(); return S.entries.some((e) => e.date.startsWith(String(y))) ? `<a class="card tight row" data-go="/review/${y}" style="gap:12px"><span style="font-size:26px">✨</span><span class="grow"><span class="serif" style="font-size:17px">Your ${y} in review</span><br><span class="small muted">say goodbye to the year: best days, hard days and photos</span></span>${icon('right')}</a>` : ''; })() : ''}
     ${memory ? `${sectionTitle('On this day', `${now.getFullYear() - +memory.date.slice(0, 4)} years ago`)}${entryCard(memory, true)}` : ''}
     ${recent.length && S.settings.showRecent ? `<div class="row">${sectionTitle('Recent memories')}<div class="grow"></div><button class="text-btn" data-go="/photos">All</button></div>
       <div class="strip">${recent.map((p, i) => `<button class="thumb" data-act="viewRecent" data-i="${i}" style="transform:rotate(${i % 2 ? 2 : -2}deg)"><img data-pid="${p.id}" alt=""></button>`).join('')}</div>` : ''}
@@ -2344,6 +2344,7 @@ async function start() {
     await loadTasks();
     await loadArt();
     try { await autoStickerEmotions(); } catch (e) { console.warn(e); }
+    setTimeout(() => { try { maybeAutoReview(); } catch (e) { console.warn(e); } }, 600);
     loadBuiltinStickers().then(() => { if (!['edit', 'pdfimport'].includes(parseHash().parts[0] || '')) render(); }).catch((e) => console.warn(e));
     for (const k of ['world', 'worldMax', 'seasonMax', 'seasonVisits', 'visitCount', 'lastVisit', 'showWorld']) delete S.settings[k];
     try {

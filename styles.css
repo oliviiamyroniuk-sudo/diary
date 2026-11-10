@@ -483,3 +483,6 @@ img.mood-art { display: block; width: 100%; height: auto; }
 .yr-arrow { text-align: center; color: var(--accent); font-family: var(--font-head); }
 .yr-hr { border: 0; border-top: 1px dashed var(--border); margin: 6px 0; }
 .yr-pass .card { background: color-mix(in srgb, var(--card) 80%, transparent); }
+.yr-photos { display: flex; gap: 6px; margin-top: 8px; align-items: center; }
+.yr-photos img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; }
+.yr-photos span { font-size: 12px; opacity: .7; }
