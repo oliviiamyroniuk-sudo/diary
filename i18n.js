@@ -147,6 +147,13 @@ const RU = {
   'Tap a smiley to change which emotion an old icon means. All imported entries with that icon change too.': 'Нажмите на смайлик, чтобы изменить эмоцию для старой иконки. Все импортированные записи с этой иконкой тоже изменятся.',
   'Icons without a picture were imported before this screen existed — import any part again and their pictures will appear here.': 'Иконки без картинки были импортированы раньше — импортируйте любую часть ещё раз, и картинки появятся.',
   'Recent photos on the home screen': 'Недавние фото на главном экране',
+  'Year in review': 'Итоги года', 'your year': 'твой год', 'days written': 'дней с записями', 'Emotions of the year': 'Эмоции года', 'Month by month': 'Месяц за месяцем',
+  'blue — harder days · warm — brighter days': 'синий — тяжёлые дни · тёплый — светлые дни', 'Your best days': 'Твои лучшие дни', 'the days that shone': 'дни, которые сияли',
+  '☀️ the brightest day': '☀️ самый светлый день', '✨ another happy day': '✨ ещё один счастливый день', '🌼 a lovely day': '🌼 чудесный день',
+  'Everything passes': 'Всё проходит', 'even after the hardest days, good ones came': 'даже после самых тяжёлых дней приходили хорошие', '🌧 a hard day': '🌧 тяжёлый день', '☀️ and then': '☀️ а потом',
+  '↓ the very next day': '↓ уже на следующий день', '↓ and you kept going': '↓ и ты продолжала идти', 'Photos of the year': 'Фото года', 'one from every month': 'по одному из каждого месяца',
+  'You made it through this year.': 'Ты прошла через этот год.', 'Thank you for writing your story. 💛': 'Спасибо, что пишешь свою историю. 💛', 'Some days were heavy — and every one of them passed. ': 'Некоторые дни были тяжёлыми — и каждый из них прошёл. ',
+  'emotions, best days and photos of the year': 'эмоции, лучшие дни и фото года',
   'My theme': 'Моя тема', 'Seasons': 'Времена года', 'Fairy tale': 'Сказочные', 'My themes': 'Мои темы', 'Autumn': 'Осень', 'Winter': 'Зима', 'Spring': 'Весна', 'Summer': 'Лето',
   'Theme default': 'Как в теме', 'Muted gold': 'Тусклое золото', 'Sage': 'Шалфей', 'Moss': 'Мох', 'Burgundy': 'Бордо', 'Rose': 'Роза', 'Lavender': 'Лаванда', 'Night sky': 'Ночное небо', 'Coffee': 'Кофе', 'Amber': 'Янтарь',
   'Moss, mist and fireflies': 'Мох, туман и светлячки', 'Bookshelves and candles': 'Книжные полки и свечи', 'Flowers, butterflies, magic': 'Цветы, бабочки, магия', 'Cottage, garden and linen': 'Домик, сад и лён',
@@ -263,6 +270,13 @@ const RU = {
 
 /* шаблони з числами */
 const RU_PATTERNS = [
+  [/^([\d,]+) words — that’s about (\d+) pages of your story$/, '$1 слов — это примерно $2 страниц твоей истории'],
+  [/^↓ (\d+) days later$/, '↓ через $1 дн.'],
+  [/^This year had (\d+) bright days?\.$/, 'В этом году было светлых дней: $1.'],
+  [/^(\d+)% of your marks were bright ones$/, '$1% твоих отметок были светлыми'],
+  [/^brightest month — (.+)$/, 'самый светлый месяц — $1'],
+  [/^Your (\d{4}) in review$/, 'Твои итоги $1 года'],
+  [/^No entries in (\d{4}) yet\.$/, 'В $1 году пока нет записей.'],
   [/^Changed in (\d+) entries ✓$/, 'Изменено в записях: $1 ✓'],
   [/^Card (\d+)$/, 'Карточка $1'],
   [/^Picture of the day · (.+)$/, 'Картинка дня · $1'],

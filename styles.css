@@ -466,3 +466,20 @@ img.mood-art { display: block; width: 100%; height: auto; }
 
 .pbar { height: 10px; border-radius: 6px; background: color-mix(in srgb, var(--text) 14%, transparent); overflow: hidden; }
 .pbar i { display: block; height: 100%; background: var(--accent); transition: width .3s; }
+
+/* ---------- підсумок року ---------- */
+.yr-cover { padding: 26px 18px; background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 22%, var(--card)), var(--card)); }
+.yr-year { font-family: var(--font-head); font-size: 64px; line-height: 1; color: var(--accent); }
+.yr-bar { height: 8px; border-radius: 6px; background: rgba(127,127,127,.18); overflow: hidden; margin-top: 4px; }
+.yr-bar span { display: block; height: 100%; border-radius: 6px; }
+.yr-months { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.yr-month { display: flex; flex-direction: column; align-items: center; gap: 4px; color: inherit; text-decoration: none; }
+.yr-month span { width: 100%; aspect-ratio: 1; border-radius: 12px; }
+.yr-month small { font-size: 11px; opacity: .75; }
+.yr-day { display: flex; gap: 12px; align-items: flex-start; color: inherit; text-decoration: none; }
+.yr-day-art { width: 74px; flex: none; border-radius: 10px; overflow: hidden; }
+.yr-day-art img, .yr-day-art svg { width: 100%; height: auto; display: block; }
+.yr-snip { opacity: .85; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.yr-arrow { text-align: center; color: var(--accent); font-family: var(--font-head); }
+.yr-hr { border: 0; border-top: 1px dashed var(--border); margin: 6px 0; }
+.yr-pass .card { background: color-mix(in srgb, var(--card) 80%, transparent); }

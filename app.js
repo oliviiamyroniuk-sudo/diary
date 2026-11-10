@@ -383,6 +383,7 @@ ROUTES[''] = async (v) => {
       </button>
       ${homeUpcomingHTML()}
     </div>
+    ${(now.getMonth() === 11 && now.getDate() >= 10) || now.getMonth() === 0 ? (() => { const y = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear(); return S.entries.some((e) => e.date.startsWith(String(y))) ? `<a class="card tight row" data-go="/review/${y}" style="gap:12px"><span style="font-size:26px">✨</span><span class="grow"><span class="serif" style="font-size:17px">Your ${y} in review</span><br><span class="small muted">emotions, best days and photos of the year</span></span>${icon('right')}</a>` : ''; })() : ''}
     ${memory ? `${sectionTitle('On this day', `${now.getFullYear() - +memory.date.slice(0, 4)} years ago`)}${entryCard(memory, true)}` : ''}
     ${recent.length && S.settings.showRecent ? `<div class="row">${sectionTitle('Recent memories')}<div class="grow"></div><button class="text-btn" data-go="/photos">All</button></div>
       <div class="strip">${recent.map((p, i) => `<button class="thumb" data-act="viewRecent" data-i="${i}" style="transform:rotate(${i % 2 ? 2 : -2}deg)"><img data-pid="${p.id}" alt=""></button>`).join('')}</div>` : ''}
@@ -412,6 +413,7 @@ ACT.homeMenu = () => {
     { label: 'Archive by year', icon: 'archive', run: () => go('/archive') },
     { label: 'Favorite memories', icon: 'star', run: () => go('/favorites') },
     { label: 'Photos', icon: 'photos', run: () => go('/photos') },
+    { label: 'Year in review', icon: 'sparkle', run: () => ACT.openReview() },
     { label: 'Month summary', icon: 'book', run: () => go('/month/' + D.monthKey(now)) },
     { label: 'Calendar', icon: 'calendar', run: () => go('/calendar') },
     { label: 'Mood stats', icon: 'chart', run: () => go('/stats') },
@@ -1651,6 +1653,7 @@ ROUTES.year = async (v, parts) => {
         <div><div class="big-num">${photos.length}</div><div class="small muted">photos</div></div>
         <div><div class="big-num">${st.daysWithData}</div><div class="small muted">days with emotions</div></div></div>
       ${st.counts.length ? `<div class="hand">Most frequent emotions</div><div class="chips">${st.counts.slice(0, 6).map(([id, c]) => { const e = Emo.get(id); return e ? `<div class="center" style="flex:none">${Emo.badge(e, 40)}<div class="small muted">${c}</div></div>` : ''; }).join('')}</div>` : ''}
+      <button class="btn full solid" data-go="/review/${year}">${icon('sparkle')} Year in review</button>
       <button class="btn full" data-act="yearStats" data-y="${year}">${icon('chart')} Year stats</button>
     </div>
     ${entries.filter((e) => e.favorite).length ? `${sectionTitle('Favorite moments of the year')}${entries.filter((e) => e.favorite).slice(0, 5).map((e) => entryCard(e, true)).join('')}` : ''}
