@@ -1050,6 +1050,18 @@ ROUTES.edit = async (v, parts, q) => {
   };
   ed.addEventListener('focus', () => setTimeout(typingStyle, 0));
   ed.addEventListener('input', () => { if (!ed.textContent.trim()) typingStyle(); });
+  // вставлений текст — без чужого оформлення, твоїм шрифтом і кольором
+  ed.addEventListener('paste', (ev) => {
+    const cd = ev.clipboardData;
+    if (!cd || [...(cd.items || [])].some((i) => i.kind === 'file')) return; // картинки — як звичайно
+    const text = cd.getData('text/plain');
+    if (!text) return;
+    ev.preventDefault();
+    const f = S.settings.editorFont, c = S.settings.editorColor;
+    const body = esc(text).replace(/\r?\n/g, '<br>');
+    const style = [f ? `font-family:${f}` : '', c ? `color:${c}` : ''].filter(Boolean).join(';');
+    document.execCommand('insertHTML', false, style ? `<span style="${esc(style)}">${body}</span>` : body);
+  });
   const applyColor = (hex) => {
     remember('editorColor', hex);
     restoreSelection();
@@ -2329,6 +2341,7 @@ async function start() {
     await loadTasks();
     await loadArt();
     try { await autoStickerEmotions(); } catch (e) { console.warn(e); }
+    loadBuiltinStickers().then(() => { if (!['edit', 'pdfimport'].includes(parseHash().parts[0] || '')) render(); }).catch((e) => console.warn(e));
     for (const k of ['world', 'worldMax', 'seasonMax', 'seasonVisits', 'visitCount', 'lastVisit', 'showWorld']) delete S.settings[k];
     try {
       if (S.settings.lang && S.settings.lang !== LANG) {

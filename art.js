@@ -361,6 +361,27 @@ ACT.addAllStickers = async () => {
   toast(n ? `Stickers added to emotions: ${n} ✨` : 'All stickers are already in emotions ✓', 3500);
   render();
 };
+/** Вбудовані стікери (файли в stickers/): один раз завантажуються в бібліотеку й стають емоціями. */
+const BUILTIN_STICKERS = ["c2_00", "c2_01", "c2_02", "c2_03", "c2_04", "c2_05", "c2_06", "c2_07", "c2_08", "c2_09", "c2_10", "c2_11", "c2_12", "c2_13", "c2_14", "c2_15", "c2_16", "c2_17", "c2_18", "c2_19", "c2_20", "c2_21", "c2_22", "c2_23", "c2_24", "c2_25", "c2_26", "c2_27", "c2_28", "c2_29", "c2_30", "c2_31", "c2_32", "c2_33", "c2_34", "c2_35", "c2_36", "c2_37", "c2_38", "c2_39", "c2_40", "c2_41", "c2_42", "c2_43", "c2_44", "c2_45", "c2_46", "c2_47", "c2_48", "c2_49", "c2_50", "c2_51", "c1_00", "c1_01", "c1_02", "c1_03", "c1_04", "c1_05"];
+async function loadBuiltinStickers() {
+  const done = new Set(S.settings.builtinStickers || []);
+  const todo = BUILTIN_STICKERS.filter((id) => !done.has(id));
+  if (!todo.length) return;
+  let ok = 0;
+  for (const id of todo) {
+    try {
+      const r = await fetch('stickers/' + id + '.webp');
+      if (!r.ok) continue;
+      S.art.lib['f:' + id] = await r.blob();
+      done.add(id); ok++;
+    } catch (_) {}
+  }
+  if (!ok) return;
+  await saveArt();
+  S.settings.builtinStickers = [...done];
+  syncStickerEmotions();
+  await saveSettings();
+}
 async function autoStickerEmotions() {
   if (migrateEmoPic()) await saveSettings();
   // прибираємо картки-емоції з попередньої версії (картки — лише картинки дня)
