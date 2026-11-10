@@ -145,7 +145,37 @@ const PdfImport = (() => {
     return lines;
   }
 
-  return { loadLib, open, readPage, matchGlyph, buildLines, glyphOf };
+  /** Діагностика однієї сторінки: як записані символи (для пошуку зниклих пробілів і літер). */
+  async function inspect(page) {
+    const L = lib, O = L.OPS;
+    const ol = await page.getOperatorList();
+    let n = 0, spaces = 0, paths = 0, seq = '', fonts = new Set();
+    const odd = new Map();
+    const hex = (str) => [...(str || '')].map((c) => c.codePointAt(0).toString(16)).join(',') || 'none';
+    for (let i = 0; i < ol.fnArray.length; i++) {
+      const fn = ol.fnArray[i], a = ol.argsArray[i];
+      if (fn === O.constructPath) paths++;
+      if (fn === O.setFont) fonts.add(a[0]);
+      if (fn !== O.showText && fn !== O.showSpacedText) continue;
+      for (const g of a[0]) {
+        if (typeof g === 'number') { if (seq.length < 260 && Math.abs(g) > 40) seq += `·${Math.round(-g)}`; continue; }
+        if (!g) continue;
+        n++;
+        const u = g.unicode;
+        const good = typeof u === 'string' && u.length && /[\p{L}\p{N}\p{P}\p{S}]/u.test(u);
+        if (g.isSpace || u === ' ') spaces++;
+        if (!good || g.isSpace) {
+          const k = `${hex(u)}|fc:${hex(g.fontChar)}|sp:${g.isSpace ? 1 : 0}|w:${Math.round(g.width || 0)}`;
+          odd.set(k, (odd.get(k) || 0) + 1);
+        }
+        if (seq.length < 260) seq += good && !g.isSpace ? u : g.isSpace ? '␣' : `⟨${hex(u)}⟩`;
+      }
+    }
+    page.cleanup();
+    return { n, spaces, paths, fonts: fonts.size, odd: [...odd.entries()].sort((x, y) => y[1] - x[1]).slice(0, 8), seq };
+  }
+
+  return { loadLib, open, readPage, matchGlyph, buildLines, glyphOf, inspect };
 })();
 
 /* ==========================================================================
@@ -398,6 +428,8 @@ ROUTES.pdfimport = async (v) => {
         <label class="grow small muted">To page<input type="number" class="text-input" id="pi-to" min="1" max="${st.pages}" value="${st.to}"></label></div>
       ${st.pages > 100 ? `<div class="small muted">Big diary: it’s safest to import about 100 pages at a time. Entries are saved as they are read, so nothing is lost if the page closes. When a part is done (or if it stopped), choose the same file again — it continues by itself.</div>` : ''}
       <button class="btn full solid" data-act="pdfStart">${icon('check')} Start import</button>
+      <button class="btn full" data-act="pdfInspect">Check page “From” for Claude</button>
+      ${st.inspect ? `<div class="card small" style="text-align:left;word-break:break-all" translate="no">${st.inspect}</div>` : ''}
       <button class="btn full" data-act="pdfCancel">Cancel</button>
     </div>`;
   } else if (st.phase === 'scan') {
@@ -520,6 +552,18 @@ ACT.pdfStart = () => {
   if (st.skipHead && !(last && st.from === last.done + 1)) st.skipHead = false;
   st.skipHeadStart = !!st.skipHead;
   st.phase = 'scan';
+  render();
+};
+ACT.pdfInspect = async () => {
+  const st = PDFI.state;
+  if (!st || !st.pdf) return;
+  const p = Math.max(1, Math.min(st.pages, +($('#pi-from')?.value || st.from)));
+  st.inspect = 'Checking…'; render();
+  try {
+    const r = await PdfImport.inspect(await st.pdf.getPage(p));
+    st.inspect = `<b>Page ${p}</b><br>chars ${r.n} · spaces ${r.spaces} · paths ${r.paths} · fonts ${r.fonts}<br>`
+      + r.odd.map(([k, c]) => `${esc(k)} ×${c}`).join('<br>') + `<br><br>${esc(r.seq)}`;
+  } catch (e) { st.inspect = 'Error: ' + esc(e.message || String(e)); }
   render();
 };
 ACT.pdfRedoPart = async (el) => {
