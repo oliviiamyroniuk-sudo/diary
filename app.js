@@ -384,7 +384,7 @@ ROUTES[''] = async (v) => {
       ${homeUpcomingHTML()}
     </div>
     ${memory ? `${sectionTitle('On this day', `${now.getFullYear() - +memory.date.slice(0, 4)} years ago`)}${entryCard(memory, true)}` : ''}
-    ${recent.length ? `<div class="row">${sectionTitle('Recent memories')}<div class="grow"></div><button class="text-btn" data-go="/photos">All</button></div>
+    ${recent.length && S.settings.showRecent ? `<div class="row">${sectionTitle('Recent memories')}<div class="grow"></div><button class="text-btn" data-go="/photos">All</button></div>
       <div class="strip">${recent.map((p, i) => `<button class="thumb" data-act="viewRecent" data-i="${i}" style="transform:rotate(${i % 2 ? 2 : -2}deg)"><img data-pid="${p.id}" alt=""></button>`).join('')}</div>` : ''}
     ${S.entries.length ? orn() : ''}
     ${S.entries.length ? groups.map((g) => `
@@ -1825,6 +1825,7 @@ ROUTES.settings = async (v) => {
       <button class="link-row" data-go="/art" style="padding:12px 0">${icon('photos')}<span class="grow">My pictures: mood of the day & smileys</span>${icon('right')}</button>
       ${sw('set-decor', st.decor, 'Decorative details')}
       ${sw('set-anim', st.animate, 'Header animation (fireflies, snow…)')}
+      ${sw('set-recent', !!st.showRecent, 'Recent photos on the home screen')}
       ${sw('set-serif', st.serif, 'Serif font for entries')}
       <div class="form-row"><label>Text size: <b id="sz-lbl">${st.size}</b></label><input type="range" id="set-size" min="14" max="24" step="1" value="${st.size}" style="width:45%"></div>
     </div>
@@ -1893,7 +1894,7 @@ ROUTES.settings = async (v) => {
 
   $('#set-name', v).addEventListener('change', async (e) => { st.name = e.target.value.trim(); await saveSettings(); toast('Saved'); });
   const toggle = (id, key) => $('#' + id, v).addEventListener('change', async (e) => { st[key] = e.target.checked; await saveSettings(); applyTheme(); });
-  toggle('set-decor', 'decor'); toggle('set-anim', 'animate'); toggle('set-serif', 'serif');
+  toggle('set-decor', 'decor'); toggle('set-anim', 'animate'); toggle('set-recent', 'showRecent'); toggle('set-serif', 'serif');
   $('#set-size', v).addEventListener('input', async (e) => { st.size = +e.target.value; $('#sz-lbl').textContent = st.size; applyTheme(); await saveSettings(); });
 
   $('#bk-make', v).addEventListener('click', async () => {

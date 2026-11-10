@@ -146,6 +146,7 @@ const RU = {
   'Tap the smiley next to each old icon and choose the emotion it means. It will be added to those entries. You can change it later too.': 'Нажмите на смайлик рядом с каждой старой иконкой и выберите эмоцию. Её можно изменить и позже.',
   'Tap a smiley to change which emotion an old icon means. All imported entries with that icon change too.': 'Нажмите на смайлик, чтобы изменить эмоцию для старой иконки. Все импортированные записи с этой иконкой тоже изменятся.',
   'Icons without a picture were imported before this screen existed — import any part again and their pictures will appear here.': 'Иконки без картинки были импортированы раньше — импортируйте любую часть ещё раз, и картинки появятся.',
+  'Recent photos on the home screen': 'Недавние фото на главном экране',
   'My theme': 'Моя тема', 'Seasons': 'Времена года', 'Fairy tale': 'Сказочные', 'My themes': 'Мои темы', 'Autumn': 'Осень', 'Winter': 'Зима', 'Spring': 'Весна', 'Summer': 'Лето',
   'Theme default': 'Как в теме', 'Muted gold': 'Тусклое золото', 'Sage': 'Шалфей', 'Moss': 'Мох', 'Burgundy': 'Бордо', 'Rose': 'Роза', 'Lavender': 'Лаванда', 'Night sky': 'Ночное небо', 'Coffee': 'Кофе', 'Amber': 'Янтарь',
   'Moss, mist and fireflies': 'Мох, туман и светлячки', 'Bookshelves and candles': 'Книжные полки и свечи', 'Flowers, butterflies, magic': 'Цветы, бабочки, магия', 'Cottage, garden and linen': 'Домик, сад и лён',
