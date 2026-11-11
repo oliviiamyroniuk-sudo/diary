@@ -486,3 +486,5 @@ img.mood-art { display: block; width: 100%; height: auto; }
 .yr-photos { display: flex; gap: 6px; margin-top: 8px; align-items: center; }
 .yr-photos img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; }
 .yr-photos span { font-size: 12px; opacity: .7; }
+.emo-mini { display: inline-flex; align-items: center; gap: 1px; }
+.emo-mini small { font-size: 11px; opacity: .7; margin-right: 4px; }

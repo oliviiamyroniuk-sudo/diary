@@ -155,6 +155,7 @@ const RU = {
   'You made it through this year.': 'Ты прошла через этот год.', 'Thank you for writing your story. 💛': 'Спасибо, что пишешь свою историю. 💛', 'Some days were heavy — and every one of them passed. ': 'Некоторые дни были тяжёлыми — и каждый из них прошёл. ',
   'emotions, best days and photos of the year': 'эмоции, лучшие дни и фото года',
   'goodbye,': 'прощай,', 'let’s look back at it together one last time': 'давай вместе оглянемся на него в последний раз', '💛 a warm day': '💛 тёплый день', 'say goodbye to the year: best days, hard days and photos': 'проводи год: лучшие дни, тяжёлые дни и фото',
+  'Main emotion of the day': 'Главная эмоция дня', 'From your entries': 'Из твоих записей',
   'My theme': 'Моя тема', 'Seasons': 'Времена года', 'Fairy tale': 'Сказочные', 'My themes': 'Мои темы', 'Autumn': 'Осень', 'Winter': 'Зима', 'Spring': 'Весна', 'Summer': 'Лето',
   'Theme default': 'Как в теме', 'Muted gold': 'Тусклое золото', 'Sage': 'Шалфей', 'Moss': 'Мох', 'Burgundy': 'Бордо', 'Rose': 'Роза', 'Lavender': 'Лаванда', 'Night sky': 'Ночное небо', 'Coffee': 'Кофе', 'Amber': 'Янтарь',
   'Moss, mist and fireflies': 'Мох, туман и светлячки', 'Bookshelves and candles': 'Книжные полки и свечи', 'Flowers, butterflies, magic': 'Цветы, бабочки, магия', 'Cottage, garden and linen': 'Домик, сад и лён',

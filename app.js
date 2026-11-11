@@ -452,7 +452,9 @@ function moodDayCard(key, days, withQuick) {
   const marks = info?.marks || [];
   const counts = {};
   marks.forEach((id) => (counts[id] = (counts[id] || 0) + 1));
-  const top = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  const tally = (list) => { const c = {}; list.forEach((id) => { if (Emo.get(id)) c[id] = (c[id] || 0) + 1; }); return Object.entries(c).sort((a, b) => b[1] - a[1]); };
+  const dayPart = tally(info?.dayEmotions || []);
+  const entryPart = tally((info?.entries || []).flatMap((e) => e.emotions || []));
   const m = res && MOODS[res.mood];
   const quick = withQuick ? `<div class="quick-row">${frequentEmotions(12).map((id) => `<button class="quick" data-act="quickMark" data-emo="${id}" data-day="${key}" title="${esc(Emo.get(id).name)}">${Emo.badge(Emo.get(id), 40)}</button>`).join('')}
       <button class="quick more" data-act="dayEmotion" data-day="${key}">${icon('plus', 18)}</button></div>` : '';
@@ -465,7 +467,10 @@ function moodDayCard(key, days, withQuick) {
     ${res ? `<div class="row top" style="gap:14px;margin-top:10px">
         <button class="mood-art-wrap" data-act="dayEmotion" data-day="${key}">${moodArtHTML(res, 'm' + key)}</button>
         <div class="grow stack" style="gap:8px">
-          ${top.slice(0, 5).map(([id, c]) => `<div class="row small" style="gap:8px">${Emo.badge(Emo.get(id), 26)}<span class="grow">${esc(Emo.get(id).name)}</span><b class="muted">×${c}</b></div>`).join('')}
+          ${dayPart.length ? `<div class="small muted">Main emotion of the day</div>
+            ${dayPart.map(([id, c]) => `<div class="row small" style="gap:8px">${Emo.badge(Emo.get(id), 30)}<span class="grow">${esc(Emo.get(id).name)}</span>${c > 1 ? `<b class="muted">×${c}</b>` : ''}</div>`).join('')}` : ''}
+          ${entryPart.length ? `<div class="small muted" style="margin-top:4px">From your entries</div>
+            <div class="row" style="gap:4px;flex-wrap:wrap">${entryPart.map(([id, c]) => `<span class="emo-mini" title="${esc(Emo.get(id).name)}">${Emo.badge(Emo.get(id), 26)}${c > 1 ? `<small>×${c}</small>` : ''}</span>`).join('')}</div>` : ''}
           ${res.tie ? '<div class="small muted">A tie between emotions — the result follows the day’s average mood.</div>' : ''}
         </div></div>`
       : `<p class="small muted" style="margin:8px 0 0">${isToday ? 'Tap the smileys that match your mood during the day. The journal counts which one you picked most and shows the picture of your day.' : 'No mood was marked on this day.'}</p>`}
