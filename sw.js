@@ -1,10 +1,10 @@
 // Зберігає файли застосунку на телефоні, щоб щоденник працював без інтернету.
 // Твої записи тут НЕ зберігаються — вони лежать у базі даних телефона (IndexedDB).
-const CACHE = 'own-journal-v47';
+const CACHE = 'own-journal-v48';
 const FILES = ['./', 'index.html', 'styles.css', 'core.js', 'i18n.js', 'fonts.css', 'scenes.js', 'scenes2.js', 'faces.js', 'messages.js', 'app.js', 'planner.js', 'art.js', 'year.js', 'pdfglyphs.js', 'pdfimport.js', 'media.js', 'manifest.webmanifest',
   'themes/cozyCat.webp', 'themes/rainyLondon.webp', 'themes/summerFair.webp', 'themes/deepSea.webp', 'themes/mushroomVillage.webp', 'themes/hornedFriend.webp', 'themes/firefly.webp', 'themes/forestFriend.webp', 'themes/hoodedOrder.webp', 'themes/summerNight.webp',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'vendor/pdf.min.js', 'vendor/pdf.worker.min.js',
-  'fonts/amatic-b.woff', 'fonts/olivia-hand.woff', 'fonts/amatic.woff', 'fonts/caveat.woff', 'fonts/comfortaa.woff', 'fonts/cormorant-i.woff', 'fonts/cormorant.woff', 'fonts/greatvibes.woff', 'fonts/kalnia.woff', 'fonts/kurale.woff', 'fonts/lobster.woff', 'fonts/lora-i.woff', 'fonts/lora.woff', 'fonts/marck.woff', 'fonts/neucha.woff', 'fonts/pacifico.woff', 'fonts/philosopher-b.woff', 'fonts/philosopher.woff', 'fonts/playfair-i.woff', 'fonts/playfair.woff', 'fonts/prata.woff', 'fonts/unicase.woff', 'fonts/yeseva.woff'];
+  'fonts/amatic-b.woff', 'fonts/olivia-hand.woff', 'fonts/olivia-hand-bold.woff', 'fonts/amatic.woff', 'fonts/caveat.woff', 'fonts/comfortaa.woff', 'fonts/cormorant-i.woff', 'fonts/cormorant.woff', 'fonts/greatvibes.woff', 'fonts/kalnia.woff', 'fonts/kurale.woff', 'fonts/lobster.woff', 'fonts/lora-i.woff', 'fonts/lora.woff', 'fonts/marck.woff', 'fonts/neucha.woff', 'fonts/pacifico.woff', 'fonts/philosopher-b.woff', 'fonts/philosopher.woff', 'fonts/playfair-i.woff', 'fonts/playfair.woff', 'fonts/prata.woff', 'fonts/unicase.woff', 'fonts/yeseva.woff'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));

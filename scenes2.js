@@ -438,6 +438,7 @@ THEMES.sort((a, b) => ['season', 'fairy', 'cozy'].indexOf(a.cat) - ['season', 'f
 /* Шрифти, доступні на iPhone (з кирилицею) */
 const FONTS = [
   ['olivia', 'My handwriting', '"Olivia Hand", "Caveat", cursive'],
+  ['oliviab', 'My handwriting · bold', '"Olivia Hand Bold", "Olivia Hand", cursive'],
   ['mosca', 'Mosca style (Kalnia + Prata)', '"Kalnia", "Prata", Georgia, serif'],
   ['prata', 'Prata', '"Prata", Georgia, serif'],
   ['playfair', 'Playfair Display', '"Playfair Display", Georgia, serif'],
