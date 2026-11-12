@@ -21,4 +21,4 @@
 @font-face { font-family: 'Lobster'; src: url('fonts/lobster.woff') format('woff'); font-weight: 400; font-style: normal; font-display: swap; }
 @font-face { font-family: 'Pacifico'; src: url('fonts/pacifico.woff') format('woff'); font-weight: 400; font-style: normal; font-display: swap; }
 @font-face { font-family: 'Great Vibes'; src: url('fonts/greatvibes.woff') format('woff'); font-weight: 400; font-style: normal; font-display: swap; }
-@font-face { font-family: 'Olivia Hand'; src: url('fonts/olivia-hand.woff') format('woff'); font-weight: 400; size-adjust: 125%; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Olivia Hand'; src: url('fonts/olivia-hand.woff?v=2') format('woff'); font-weight: 400; size-adjust: 125%; font-style: normal; font-display: swap; }
