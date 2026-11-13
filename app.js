@@ -1065,15 +1065,23 @@ ROUTES.edit = async (v, parts, q) => {
   };
   // запам'ятовуємо вибраний шрифт і колір — ними пишеться наступний запис
   const remember = (k, val) => { S.settings[k] = val || ''; saveSettings().catch(() => {}); };
+  // на iPhone execCommand сам викликає подію input — тому захист від зациклення
+  let styling = false;
   const typingStyle = () => {
     const f = S.settings.editorFont, c = S.settings.editorColor;
-    if ((!f && !c) || ed.textContent.trim() || document.activeElement !== ed) return;
-    document.execCommand('styleWithCSS', false, true);
-    if (f) document.execCommand('fontName', false, f);
-    if (c) document.execCommand('foreColor', false, c);
+    if (styling || (!f && !c) || ed.textContent.trim() || document.activeElement !== ed) return;
+    styling = true;
+    try {
+      document.execCommand('styleWithCSS', false, true);
+      if (f) document.execCommand('fontName', false, f);
+      if (c) document.execCommand('foreColor', false, c);
+    } catch (_) { /* ok */ } finally { setTimeout(() => { styling = false; }, 0); }
   };
   ed.addEventListener('focus', () => setTimeout(typingStyle, 0));
-  ed.addEventListener('input', () => { if (!ed.textContent.trim()) typingStyle(); });
+  ed.addEventListener('input', (ev) => {
+    if (styling || /^format/.test(ev.inputType || '')) return;
+    if (!ed.textContent.trim() && /^delete/.test(ev.inputType || '')) setTimeout(typingStyle, 0);
+  });
   // вставлений текст — без чужого оформлення, твоїм шрифтом і кольором
   ed.addEventListener('paste', (ev) => {
     const cd = ev.clipboardData;
