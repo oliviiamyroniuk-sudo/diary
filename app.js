@@ -10,8 +10,20 @@ let headerURL = '';
 let bgURL = '';
 
 /* ---------- Тема ---------- */
+/* Вигляд запису: кожен запис пам'ятає тему, в якій його писали (e.look). */
+let LOOK = null;
+const ENTRY_LOOK_KEYS = ['themeId', 'accent', 'card', 'bg', 'btnColor', 'textColor', 'cardOpacity', 'sceneBg'];
+function currentLook() { const o = {}; ENTRY_LOOK_KEYS.forEach((k) => (o[k] = S.settings[k] ?? null)); return o; }
+/** Перед зміною теми: усі записи без свого вигляду отримують поточний (старий) вигляд. */
+function freezeLooks() {
+  const look = currentLook();
+  const todo = S.entries.filter((e) => !e.look);
+  todo.forEach((e) => (e.look = look));
+  (async () => { for (const e of todo) { try { await DB.put('entries', e); } catch (_) {} } })();
+}
+function effSettings() { return LOOK ? { ...S.settings, ...LOOK } : S.settings; }
 function theme() {
-  const st = S.settings;
+  const st = effSettings();
   const base = THEMES.find((t) => t.id === st.themeId) || THEMES[0];
   const t = { ...base };
   if (st.accent) t.accent = st.accent;
@@ -54,7 +66,7 @@ function sectionOf(route) {
 
 function applyTheme() {
   const t = theme();
-  const set = S.settings;
+  const set = effSettings();
   const st = document.documentElement.style;
   st.setProperty('--bg-top', t.bgTop);
   st.setProperty('--bg-bottom', t.bgBottom);
@@ -87,7 +99,7 @@ function applyTheme() {
 /** Фон сторінки: власна картинка розділу / загальна картинка / ілюстрація теми. */
 function paintBackground() {
   const t = theme();
-  const set = S.settings;
+  const set = effSettings();
   const section = sectionOf(parseHash().parts[0] || '');
   const secBlob = set.sectionBg?.[section];
   const url = secBlob ? blobURL('sec-' + section, secBlob) : bgURL;
@@ -116,6 +128,7 @@ function paintBackground() {
 const LOOK_KEYS = ['themeId', 'accent', 'card', 'bg', 'btnColor', 'textColor', 'fontHead', 'fontBody', 'fontUI', 'size', 'cardOpacity', 'radius', 'cardBorder', 'headerImg', 'bgImg', 'sectionBg', 'sceneBg'];
 function snapshotLook() { const o = {}; LOOK_KEYS.forEach((k) => (o[k] = S.settings[k])); return o; }
 function pushLookHistory() {
+  freezeLooks();
   const h = S.settings.lookHistory || [];
   h.push(snapshotLook());
   S.settings.lookHistory = h.slice(-10);
@@ -159,6 +172,10 @@ async function render() {
   const v = $('#view');
   v.innerHTML = '';
   const fn = ROUTES[name] || ROUTES[''];
+  // запис показується в темі, в якій його писали
+  const ent = (name === 'entry' || name === 'edit') && parts[1] && parts[1] !== 'new' ? S.entries.find((x) => x.id === parts[1]) : null;
+  const want = ent && ent.look && ent.look.themeId && THEMES.some((x) => x.id === ent.look.themeId) ? ent.look : null;
+  if (JSON.stringify(want) !== JSON.stringify(LOOK)) { LOOK = want; applyTheme(); }
   paintBackground();
   await fn(v, parts, q);
   hydrate(v);
@@ -1105,11 +1122,7 @@ ROUTES.edit = async (v, parts, q) => {
       ]); break;
       case 'font': menuSheet('Text font', [{ label: 'Default font', run: () => applyFont('') }, ...FONTS.map(([id, n, stack]) => ({ label: n, run: () => applyFont(stack) }))]);
         setTimeout(() => { $$('.sheet .menu-list button span').forEach((sp, i) => { if (i > 0 && FONTS[i - 1]) sp.style.fontFamily = FONTS[i - 1][2]; sp.style.fontSize = '18px'; }); }, 0); break;
-      case 'color': menuSheet('Text color', TEXT_COLORS.map(([n, hex]) => ({
-        label: (hex ? '● ' : '○ ') + n, run: () => applyColor(hex),
-      }))); setTimeout(() => {
-        $$('.sheet .menu-list button span').forEach((sp, i) => { const hx = TEXT_COLORS[i]?.[1]; if (hx) sp.style.color = hx; });
-      }, 0); break;
+      case 'color': colorSheet(applyColor); break;
       case 'divider': {
         const div = document.createElement('div');
         div.className = 'divider';
@@ -2300,6 +2313,25 @@ document.addEventListener('visibilitychange', () => {
   if (S.settings.pinHash && hiddenAt && Date.now() - hiddenAt > 60000) lockScreen();
   if ((parseHash().parts[0] || '') === '' && !$('#ed-body')) render();
 });
+
+/* ---------- Палітри кольорів тексту ---------- */
+const TEXT_PALETTES = [["Ladybug 🐞🐛🪱", ["#744229", "#9A6546", "#A77052", "#BE7A57", "#D2906D", "#6D3921", "#582E15", "#462111", "#39190C", "#2E160A", "#241B12", "#2D1F16", "#3A2A1D", "#4A3325", "#5D412B", "#7B5139", "#846145", "#976B4E", "#A27659", "#C4906B", "#E3B291", "#DAAB8F", "#D8B3A3", "#E6B3A2", "#E2C3B1", "#E0BFAC", "#E5C0BA", "#D8BBB3", "#E6B2A5", "#E4B692"]], ["Ice & whale 🧊🐋🎧", ["#DAC8C4", "#BBB4BB", "#9E9FB1", "#7C8AA5", "#5F708C", "#5A6885", "#586285", "#3A4362", "#4E5F79", "#536C82", "#607588", "#718F99", "#618790", "#86A4A4", "#7E979E", "#91B1AC", "#A3B6B2", "#B5BBB7", "#9CA5AE", "#7E979E", "#CCBDC0", "#80AAA6", "#6BA6A0", "#ABABB7", "#B6BCB8", "#79859B", "#6D8F98", "#84929F", "#78849A", "#778B94"]], ["Wheat & beetle 🌾🪲🐛", ["#9A9039", "#45330D", "#BCB46C", "#78682A", "#734D1E", "#7A7C4D", "#978324", "#63411B", "#5B804D", "#928332", "#BCB46C", "#9E985C", "#4E3A19", "#90742B", "#9F9B5C", "#9A9039", "#6C651D", "#47350D", "#724D19", "#908323", "#A39938", "#6A5715", "#40552A", "#4E3A19", "#797B4C", "#647348", "#635121", "#63411B", "#907528", "#A79C4D"]], ["Dino Flower Garden 🦕🌸", ["#47692D", "#5D9B2C", "#76C52C", "#97C16B", "#D8D48A", "#DBE47B", "#DBEAC3", "#FEECDE", "#FDD4DC", "#D0D8FC", "#B2BD79", "#4D7225", "#305311", "#182A12", "#273734", "#4C4C54", "#82858A", "#CAC0DB", "#CDC1D5", "#FBA8F8", "#EAE6C1", "#C0BFA1", "#AEA89C", "#FCF5ED", "#F7E6DF", "#D1C6C0", "#F4BEBE", "#F7CFD0", "#FBCFD0", "#D2CAE2"]], ["Koi 🐟🌸", ["#832219", "#B7360E", "#DB3A06", "#D14D1D", "#A4563F", "#E3682C", "#E89049", "#CE9C77", "#F6AF5D", "#FCDFBD", "#E8CC9D", "#FAC96D", "#FEEFD8", "#EEC982", "#FDF8F2", "#C7CEA5", "#AED0B8", "#A5C6B5", "#BCCDC5", "#E5F0EC", "#D1DBDA", "#F1F9FC", "#A1BCC5", "#98B0BC", "#889BAA", "#707C92", "#56627C", "#3A4060", "#18163E", "#080429"]], ["Vintage Comic 📰🎨", ["#F2D5AB", "#F8CE84", "#F2D766", "#F7A76A", "#F09D7B", "#FE7D68", "#CC967A", "#CC967A", "#85987C", "#F48371", "#C3BDA5", "#97B1B0", "#5999A5", "#73889B", "#9C818A", "#EF7778", "#F3AA8A", "#ED7165", "#74918F", "#539CA3", "#B1BC7A", "#B5B672", "#A89183", "#937C8C", "#BF9472", "#AD877E", "#9B9690", "#EDCAA0", "#618A7A", "#FE9965"]], ["Gary 🐌🍷", ["#3B0A0D", "#571E15", "#722E21", "#814D40", "#A17165", "#71735D", "#DCE497", "#515244", "#D3E1BD", "#232B1C", "#859684", "#38383A", "#A7C6B7", "#94AFA8", "#567275", "#6A8A95", "#EFF3F6", "#B9CFDC", "#39516D", "#41628F", "#25375F", "#162043", "#0A0931", "#412361", "#2B0B4C", "#8A5A94", "#2C062D", "#0D070B", "#480C32", "#D39FAC"]]];
+function colorSheet(apply) {
+  const sw = (hex, title) => `<button class="cswatch" data-hex="${hex}" title="${esc(title || hex)}" style="background:${hex}"></button>`;
+  const recent = (S.settings.recentColors || []).slice(0, 10);
+  const html = `<button class="btn full" data-hex="">○ Theme default</button>
+    ${recent.length ? `<div class="small muted" style="margin:12px 0 6px">Recently used</div><div class="cgrid">${recent.map((h) => sw(h)).join('')}</div>` : ''}
+    <div class="small muted" style="margin:12px 0 6px">Basic</div><div class="cgrid">${TEXT_COLORS.filter(([, h]) => h).map(([n, h]) => sw(h, n)).join('')}</div>
+    ${TEXT_PALETTES.map(([n, cols]) => `<div class="small muted" style="margin:14px 0 6px">${esc(n)}</div><div class="cgrid">${cols.map((h) => sw(h)).join('')}</div>`).join('')}`;
+  openSheet('Text color', html, (body, close) => {
+    body.addEventListener('click', (ev) => {
+      const b = ev.target.closest('[data-hex]'); if (!b) return;
+      const hex = b.dataset.hex;
+      if (hex) S.settings.recentColors = [hex, ...(S.settings.recentColors || []).filter((x) => x !== hex)].slice(0, 10);
+      close(); apply(hex);
+    });
+  });
+}
 
 /* ---------- Оновлення: журнал сам перевіряє нову версію ---------- */
 let swReg = null;

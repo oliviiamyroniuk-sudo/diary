@@ -488,3 +488,5 @@ img.mood-art { display: block; width: 100%; height: auto; }
 .yr-photos span { font-size: 12px; opacity: .7; }
 .emo-mini { display: inline-flex; align-items: center; gap: 1px; }
 .emo-mini small { font-size: 11px; opacity: .7; margin-right: 4px; }
+.cgrid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; }
+.cswatch { aspect-ratio: 1; border-radius: 7px; border: 1px solid rgba(127,127,127,.35); padding: 0; min-width: 0; }

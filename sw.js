@@ -1,6 +1,6 @@
 // Зберігає файли застосунку на телефоні, щоб щоденник працював без інтернету.
 // Твої записи тут НЕ зберігаються — вони лежать у базі даних телефона (IndexedDB).
-const CACHE = 'own-journal-v48';
+const CACHE = 'own-journal-v49';
 const FILES = ['./', 'index.html', 'styles.css', 'core.js', 'i18n.js', 'fonts.css', 'scenes.js', 'scenes2.js', 'faces.js', 'messages.js', 'app.js', 'planner.js', 'art.js', 'year.js', 'pdfglyphs.js', 'pdfimport.js', 'media.js', 'manifest.webmanifest',
   'themes/cozyCat.webp', 'themes/rainyLondon.webp', 'themes/summerFair.webp', 'themes/deepSea.webp', 'themes/mushroomVillage.webp', 'themes/hornedFriend.webp', 'themes/firefly.webp', 'themes/forestFriend.webp', 'themes/hoodedOrder.webp', 'themes/summerNight.webp',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'vendor/pdf.min.js', 'vendor/pdf.worker.min.js',
