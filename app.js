@@ -282,7 +282,9 @@ function openViewer(pids, index = 0) {
   if (!pids.length) return;
   const el = document.createElement('div');
   el.className = 'viewer';
-  el.innerHTML = `<div class="track">${pids.map((p) => `<div class="slide"><img data-pid="${p}" data-kind="full" alt=""></div>`).join('')}</div>
+  el.innerHTML = `<div class="track">${pids.map((p) => S.photoMeta[p]?.video
+    ? `<div class="slide"><video data-vid="${p}" controls playsinline preload="metadata"></video></div>`
+    : `<div class="slide"><img data-pid="${p}" data-kind="full" alt=""></div>`).join('')}</div>
     <div class="vtop"><button class="icon-btn" data-v="close">${icon('x')}</button><span class="badge" id="v-count"></span></div>
     <div class="vbottom" id="v-info"></div>`;
   $('#sheet-root').appendChild(el);
@@ -293,6 +295,10 @@ function openViewer(pids, index = 0) {
     const pid = pids[cur];
     const meta = S.photoMeta[pid];
     const e = meta && S.entries.find((x) => x.id === meta.entryId);
+    // відео: вантажимо лише поточне, решту зупиняємо
+    $$('video', el).forEach((vd) => { if (vd.dataset.vid !== pid) vd.pause(); });
+    const vidEl = $(`video[data-vid="${pid}"]`, el);
+    if (vidEl && !vidEl.getAttribute('src')) PhotoURL.get(pid, 'full').then((u) => { if (u && !vidEl.getAttribute('src')) vidEl.src = u; });
     $('#v-count', el).textContent = pids.length > 1 ? `${cur + 1} / ${pids.length}` : '';
     $('#v-info', el).innerHTML = `${meta?.caption ? `<div class="hand" style="color:#fff;font-size:17px;margin-bottom:4px">${esc(meta.caption)}</div>` : ''}
       <div class="row"><span class="small" style="opacity:.8">${e ? D.dmy(D.parse(e.date)) + ', ' + D.time(D.parse(e.date)) : ''}</span><div class="grow"></div>
@@ -309,7 +315,7 @@ function openViewer(pids, index = 0) {
     if (b?.dataset.v === 'close') { el.remove(); return; }
     if (b?.dataset.v === 'open') { el.remove(); go('/entry/' + b.dataset.id); return; }
     const slide = ev.target.closest('.slide');
-    if (slide) {
+    if (slide && !ev.target.closest('video')) {
       const now = Date.now();
       if (now - lastTap < 320) slide.classList.toggle('zoom');
       lastTap = now;
@@ -826,7 +832,7 @@ ROUTES.edit = async (v, parts, q) => {
     <button class="tool" data-cmd="emotions" aria-label="Emotions">${icon('smile')}</button>
     <button class="tool" data-cmd="hide" aria-label="Hide keyboard">${icon('keyboard')}</button>
   </div>
-  <input type="file" id="ed-file" accept="image/*" multiple hidden>`;
+  <input type="file" id="ed-file" accept="image/*,video/*" multiple hidden>`;
 
   const ed = $('#ed-body', v);
   const title = $('#ed-title', v);
@@ -1012,12 +1018,13 @@ ROUTES.edit = async (v, parts, q) => {
     updateEmpty();
   };
 
-  const figure = (pid) => {
+  const figure = (pid, video = false) => {
     const f = document.createElement('figure');
-    f.className = 'sz-l al-center';
+    f.className = 'sz-l al-center' + (video ? ' is-video' : '');
     f.dataset.photo = pid;
     f.contentEditable = 'false';
-    f.innerHTML = `<img data-pid="${pid}" data-kind="full" alt=""><figcaption contenteditable="true"></figcaption>`;
+    // у відео в картинці лишається постер (кадр), а не сам файл
+    f.innerHTML = `<img data-pid="${pid}" data-kind="${video ? 'thumb' : 'full'}" alt="">${video ? '<span class="vbadge">▶</span>' : ''}<figcaption contenteditable="true"></figcaption>`;
     return f;
   };
 
@@ -1026,21 +1033,26 @@ ROUTES.edit = async (v, parts, q) => {
     const files = Array.from(fileIn.files || []);
     fileIn.value = '';
     if (!files.length) return;
-    toast(files.length > 1 ? `Adding ${files.length} photos…` : 'Adding photo…', 4000);
+    const isVid = (f) => (f.type || '').startsWith('video/');
+    toast(files.length > 1 ? `Adding ${files.length} files…` : (isVid(files[0]) ? 'Adding video…' : 'Adding photo…'), 4000);
+    let tooBig = false, failed = false;
     for (const f of files) {
       try {
-        const pid = await savePhoto(e.id, f);
-        const fig = figure(pid);
-        if (files.length > 1) fig.className = 'sz-m al-center';
+        const vid = isVid(f);
+        const pid = vid ? await saveVideo(e.id, f) : await savePhoto(e.id, f);
+        const fig = figure(pid, vid);
+        if (files.length > 1) fig.className = fig.className.replace('sz-l', 'sz-m');
         insertBlock(fig);
         hydrate(fig);
       } catch (err) {
         console.error(err);
-        toast('Couldn’t add one of the photos');
+        if (err.message === 'video-too-big') tooBig = true; else failed = true;
       }
     }
     await save();
-    toast('Photo added 📷');
+    if (tooBig) toast('This video is larger than 250 MB. Try a shorter clip.', 4000);
+    if (failed) toast('Couldn’t add one of the files');
+    else if (!tooBig) toast(files.some(isVid) ? 'Added 🎬' : 'Photo added 📷');
   });
 
   // ---- форматування ----
@@ -1180,8 +1192,9 @@ ROUTES.edit = async (v, parts, q) => {
     const fig = ev.target.closest('figure[data-photo]');
     if (!fig || ev.target.closest('figcaption')) return;
     const pid = fig.dataset.photo;
+    const isVid = !!S.photoMeta[pid]?.video;
     const setCls = (re, cls) => { fig.className = fig.className.replace(re, '').trim() + ' ' + cls; schedule(); };
-    menuSheet('Photo', [
+    menuSheet(isVid ? 'Video' : 'Photo', [
       { label: 'View', icon: 'image', run: () => openViewer([pid]) },
       { label: 'Small', run: () => setCls(/sz-\w/g, 'sz-s') },
       { label: 'Medium', run: () => setCls(/sz-\w/g, 'sz-m') },
@@ -1192,9 +1205,11 @@ ROUTES.edit = async (v, parts, q) => {
       { label: 'Right', run: () => setCls(/al-\w+/g, 'al-right') },
       { label: 'Move up', icon: 'up', run: () => { const p = fig.previousElementSibling; if (p) { p.before(fig); schedule(); } } },
       { label: 'Move down', icon: 'down', run: () => { const n = fig.nextElementSibling; if (n) { n.after(fig); schedule(); } } },
-      { label: 'Make photo of the month', icon: 'calendar', run: async () => { await setHighlight(e.date.slice(0, 7), await photoBlob(pid)); toast('Photo of the month saved ✨'); } },
-      { label: 'Make photo of the year', icon: 'sparkle', run: async () => { await setHighlight(e.date.slice(0, 4), await photoBlob(pid)); toast('Photo of the year saved ✨'); } },
-      { label: 'Delete photo', icon: 'trash', danger: true, run: () => { fig.remove(); ensureTail(); schedule(); } },
+      ...(isVid ? [] : [
+        { label: 'Make photo of the month', icon: 'calendar', run: async () => { await setHighlight(e.date.slice(0, 7), await photoBlob(pid)); toast('Photo of the month saved ✨'); } },
+        { label: 'Make photo of the year', icon: 'sparkle', run: async () => { await setHighlight(e.date.slice(0, 4), await photoBlob(pid)); toast('Photo of the year saved ✨'); } },
+      ]),
+      { label: isVid ? 'Delete video' : 'Delete photo', icon: 'trash', danger: true, run: () => { fig.remove(); ensureTail(); schedule(); } },
     ]);
   });
   // підпис фото: Enter не створює нових рядків
@@ -1616,7 +1631,7 @@ ROUTES.photos = async (v, parts, q) => {
       groups[groups.length - 1].items.push([p, i]);
     });
     content = list.length ? groups.map((g) => `<div class="hand" style="font-size:22px;color:var(--text)">${cap(MONTHS[+g.k.slice(5) - 1])}</div>
-      <div class="grid3">${g.items.map(([p, i]) => `<button class="thumb" data-act="photoOpen" data-i="${i}"><img data-pid="${p.id}" alt=""></button>`).join('')}</div>`).join('')
+      <div class="grid3">${g.items.map(([p, i]) => `<button class="thumb" data-act="photoOpen" data-i="${i}"><img data-pid="${p.id}" alt="">${S.photoMeta[p.id]?.video ? '<span class="vbadge">▶</span>' : ''}</button>`).join('')}</div>`).join('')
       : '<div class="muted">No photos this year yet.</div>';
   }
   v.innerHTML = `${topbar('Photos')}

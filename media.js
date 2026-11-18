@@ -269,6 +269,7 @@ async function exportArchive() {
   const exportDoc = document.implementation.createHTMLDocument('export');
   const entries = S.entries.slice().sort((a, b) => a.date.localeCompare(b.date));
   const ext = (t) => (t || '').includes('webm') ? 'webm' : (t || '').includes('aac') ? 'aac' : 'm4a';
+  const vext = (t) => (t || '').includes('webm') ? 'webm' : (t || '').includes('quicktime') ? 'mov' : 'mp4';
   let html = `<!DOCTYPE html><html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>own journal — archive</title>
     <style>body{font-family:Georgia,serif;max-width:720px;margin:auto;padding:20px;background:#FBF8F2;color:#3b2b25}article{border-bottom:1px dashed #c9b9a6;padding:18px 0}
     h1{font-style:italic}h2{margin:.2em 0}.meta{color:#8a7a6a;font-size:14px}img{max-width:100%;border-radius:12px}figure{margin:12px 0}figcaption{font-style:italic;color:#8a7a6a}
@@ -277,7 +278,16 @@ async function exportArchive() {
     const d = D.parse(e.date);
     const div = exportDoc.createElement('div'); // окремий документ — щоб браузер не завантажував картинки
     div.innerHTML = e.html || '';
-    Array.from(div.querySelectorAll('figure[data-photo]')).forEach((f) => { const img = f.querySelector('img'); if (img) { img.removeAttribute('data-pid'); img.removeAttribute('data-kind'); img.src = `photos/${f.dataset.photo}.jpg`; } f.removeAttribute('contenteditable'); });
+    Array.from(div.querySelectorAll('figure[data-photo]')).forEach((f) => {
+      const pid = f.dataset.photo, m = S.photoMeta[pid];
+      f.querySelectorAll('.vbadge').forEach((n) => n.remove());
+      const img = f.querySelector('img');
+      if (m?.video) {
+        if (img) img.remove();
+        f.insertAdjacentHTML('afterbegin', `<video controls playsinline src="photos/${pid}.${vext(m.mime)}" style="max-width:100%;border-radius:12px"></video>`);
+      } else if (img) { img.removeAttribute('data-pid'); img.removeAttribute('data-kind'); img.src = `photos/${pid}.jpg`; }
+      f.removeAttribute('contenteditable');
+    });
     for (const v of Array.from(div.querySelectorAll('.voice[data-voice]'))) {
       const rec = await getVoice(v.dataset.voice);
       v.outerHTML = rec ? `<p>🎙 <a href="voice/${rec.id}.${ext(rec.mime)}">${esc(rec.name)}</a> (${fmtDur(rec.duration || 0)})</p>` : '';
@@ -293,7 +303,9 @@ async function exportArchive() {
   files.push({ name: 'own-journal/mood.json', data: JSON.stringify({ marks: S.dayMoods, times: S.dayTimes }, null, 1) });
   for (const id of Object.keys(S.photoMeta)) {
     const rec = await DB.get('photoData', id);
-    if (rec?.full || rec?.thumb) files.push({ name: `own-journal/photos/${id}.jpg`, data: rec.full || rec.thumb });
+    const m = S.photoMeta[id];
+    if (m?.video && rec?.full) files.push({ name: `own-journal/photos/${id}.${vext(m.mime)}`, data: rec.full });
+    else if (rec?.full || rec?.thumb) files.push({ name: `own-journal/photos/${id}.jpg`, data: rec.full || rec.thumb });
   }
   for (const v of await DB.all('voices')) if (v.blob) files.push({ name: `own-journal/voice/${v.id}.${ext(v.mime)}`, data: v.blob });
   const zip = await makeZip(files);

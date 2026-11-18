@@ -395,6 +395,50 @@ async function savePhoto(entryId, file) {
   return id;
 }
 
+/** Відео зберігається як є; постер (кадр) — для показу в записі й галереї. */
+const VIDEO_MAX_BYTES = 250 * 1024 * 1024;
+function videoPoster(file) {
+  return new Promise((res) => {
+    const url = URL.createObjectURL(file);
+    const v = document.createElement('video');
+    v.muted = true; v.playsInline = true; v.preload = 'auto';
+    let done = false;
+    const finish = (ok) => {
+      if (done) return; done = true;
+      const duration = isFinite(v.duration) ? v.duration : 0;
+      let w = v.videoWidth, h = v.videoHeight;
+      let canvas = null;
+      if (ok && w && h) {
+        const scale = Math.min(1, 700 / Math.max(w, h));
+        canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(w * scale)); canvas.height = Math.max(1, Math.round(h * scale));
+        canvas.getContext('2d').drawImage(v, 0, 0, canvas.width, canvas.height);
+      }
+      if (!canvas) { canvas = document.createElement('canvas'); canvas.width = 640; canvas.height = 360; canvas.getContext('2d').fillStyle = '#333'; canvas.getContext('2d').fillRect(0, 0, 640, 360); }
+      canvas.toBlob((poster) => {
+        URL.revokeObjectURL(url); v.removeAttribute('src'); v.load();
+        res({ poster, duration });
+      }, 'image/jpeg', 0.8);
+    };
+    v.onloadeddata = () => { try { v.currentTime = Math.min(1, (v.duration || 2) / 2); } catch (_) { finish(true); } };
+    v.onseeked = () => finish(true);
+    v.onerror = () => finish(false);
+    setTimeout(() => finish(!!v.videoWidth), 15000);
+    v.src = url;
+  });
+}
+
+async function saveVideo(entryId, file) {
+  if (file.size > VIDEO_MAX_BYTES) throw new Error('video-too-big');
+  const { poster, duration } = await videoPoster(file);
+  const id = uid();
+  await DB.put('photoData', { id, full: file, thumb: poster });
+  const meta = { id, entryId, caption: '', video: true, mime: file.type || 'video/mp4', duration: Math.round(duration) };
+  await DB.put('photoMeta', meta);
+  S.photoMeta[id] = meta;
+  return id;
+}
+
 async function deletePhoto(id) {
   await DB.del('photoData', id);
   await DB.del('photoMeta', id);
