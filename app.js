@@ -977,6 +977,20 @@ ROUTES.edit = async (v, parts, q) => {
     s.removeAllRanges(); s.addRange(r);
     savedRange = r.cloneRange();
   };
+  // після фото курсор іде в порожній абзац, а текст має лишатися твоїм шрифтом і кольором
+  const placeCaretAfter = (node, fallback) => {
+    let p = node.nextElementSibling;
+    if (p && !(p.tagName === 'P' && !p.textContent.trim() && !p.querySelector('img,figure'))) { caretTo(fallback || node); return; }
+    if (!p) { ed.insertAdjacentHTML('beforeend', '<p><br></p>'); p = ed.lastElementChild; }
+    const f = S.settings.editorFont, c = S.settings.editorColor;
+    const st = [f ? `font-family:${f}` : '', c ? `color:${c}` : ''].filter(Boolean).join(';');
+    const sp = document.createElement('span');
+    if (st) sp.setAttribute('style', st);
+    p.innerHTML = '';
+    sp.appendChild(document.createElement('br'));
+    p.appendChild(sp);
+    caretTo(sp);
+  };
   const insertBlock = (node) => {
     const range = savedRange && ed.contains(savedRange.startContainer) ? savedRange : null;
     if (!range) {
@@ -990,7 +1004,7 @@ ROUTES.edit = async (v, parts, q) => {
         if (blk.nodeType === 1 && blk.matches('figure,.divider,.voice')) {
           blk.after(node);
           ensureTail();
-          caretTo(node.nextSibling || node);
+          placeCaretAfter(node, node.nextSibling);
           updateEmpty();
           return;
         }
@@ -1014,7 +1028,7 @@ ROUTES.edit = async (v, parts, q) => {
     ensureTail();
     let next = node.nextSibling;
     while (next && next.nodeType === 1 && next.matches('figure,.divider,.voice')) next = next.nextSibling;
-    caretTo(next || node);
+    if (node.matches('figure')) placeCaretAfter(node, next); else caretTo(next || node);
     updateEmpty();
   };
 
