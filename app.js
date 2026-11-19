@@ -977,19 +977,23 @@ ROUTES.edit = async (v, parts, q) => {
     s.removeAllRanges(); s.addRange(r);
     savedRange = r.cloneRange();
   };
-  // після фото курсор іде в порожній абзац, а текст має лишатися твоїм шрифтом і кольором
-  const placeCaretAfter = (node, fallback) => {
-    let p = node.nextElementSibling;
-    if (p && !(p.tagName === 'P' && !p.textContent.trim() && !p.querySelector('img,figure'))) { caretTo(fallback || node); return; }
-    if (!p) { ed.insertAdjacentHTML('beforeend', '<p><br></p>'); p = ed.lastElementChild; }
+  // порожній абзац: текст у ньому йде твоїм шрифтом і кольором
+  const styledCaret = (p) => {
     const f = S.settings.editorFont, c = S.settings.editorColor;
     const st = [f ? `font-family:${f}` : '', c ? `color:${c}` : ''].filter(Boolean).join(';');
     const sp = document.createElement('span');
     if (st) sp.setAttribute('style', st);
-    p.innerHTML = '';
     sp.appendChild(document.createElement('br'));
+    p.innerHTML = '';
     p.appendChild(sp);
     caretTo(sp);
+  };
+  const isEmptyP = (n) => n && n.tagName === 'P' && !n.textContent.trim() && !n.querySelector('img,figure');
+  // після фото курсор іде в порожній абзац
+  const placeCaretAfter = (node, fallback) => {
+    const p = node.nextElementSibling;
+    if (!isEmptyP(p)) { caretTo(fallback || node); return; }
+    styledCaret(p);
   };
   const insertBlock = (node) => {
     const range = savedRange && ed.contains(savedRange.startContainer) ? savedRange : null;
@@ -1031,6 +1035,17 @@ ROUTES.edit = async (v, parts, q) => {
     if (node.matches('figure')) placeCaretAfter(node, next); else caretTo(next || node);
     updateEmpty();
   };
+
+  // завжди є абзац після останнього блоку, і тап під текстом ставить курсор у кінець
+  ensureTail();
+  ed.addEventListener('click', (e) => {
+    if (e.target !== ed) return;
+    let last = ed.lastElementChild;
+    if (!last || last.tagName !== 'P') { ed.insertAdjacentHTML('beforeend', '<p><br></p>'); last = ed.lastElementChild; }
+    if (isEmptyP(last)) { styledCaret(last); return; }
+    const r = document.createRange(); r.selectNodeContents(last); r.collapse(false);
+    const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); savedRange = r.cloneRange();
+  });
 
   const figure = (pid, video = false) => {
     const f = document.createElement('figure');
